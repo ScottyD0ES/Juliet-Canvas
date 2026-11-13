@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Vault // AES-256-GCM</title>
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --card: rgba(20, 26, 38, 0.9);
+      --border: rgba(255, 255, 255, 0.12);
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.35);
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --success: #10b981;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+
+    #bgCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 440px;
+      background: var(--card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 26px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75);
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .header h1 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .badge {
+      font-size: 0.75rem;
+      color: var(--accent);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: rgba(56, 189, 248, 0.1);
+      padding: 4px 10px;
+      border-radius: 99px;
+      border: 1px solid rgba(56, 189, 248, 0.25);
+    }
+
+    #visualizerCanvas {
+      width: 100%;
+      height: 48px;
+      background: rgba(0, 0, 0, 0.35);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      margin-bottom: 20px;
+      display: block;
+    }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 4px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      padding: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: #0b0e14;
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+
+    .file-box {
+      border: 1.5px dashed rgba(56, 189, 248, 0.45);
+      border-radius: 14px;
+      padding: 16px;
+      text-align: center;
+      margin-bottom: 18px;
+      background: rgba(56, 189, 248, 0.05);
+    }
+
+    input[type="file"] {
+      width: 100%;
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-bottom: 8px;
+    }
+
+    input[type="file"]::file-selector-button {
+      background: var(--accent);
+      color: #0b0e14;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      margin-right: 10px;
+      cursor: pointer;
+    }
+
+    .file-name {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--accent);
+      word-break: break-all;
+    }
+
+    .file-meta {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    input[type="password"] {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 13px 14px;
+      border-radius: 11px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="password"]:focus {
+      border-color: var(--accent);
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: 13px;
+      background: var(--accent);
+      color: #0b0e14;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 20px var(--accent-glow);
+      transition: transform 0.1s ease, opacity 0.2s;
+    }
+
+    .action-btn:active {
+      transform: scale(0.98);
+    }
+
+    .action-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 16px;
+      font-size: 0.83rem;
+      text-align: center;
+      min-height: 20px;
+      color: var(--muted);
+      word-break: break-word;
+    }
+
+    .status.success { color: var(--success); }
+    .status.error { color: var(--danger); }
+  </style>
+</head>
+<body>
+
+  <canvas id="bgCanvas"></canvas>
+
+  <div class="container">
+    <div class="header">
+      <h1>VAULT // AES-256</h1>
+      <span class="badge">HTTPS • LOCAL</span>
+    </div>
+
+    <canvas id="visualizerCanvas"></canvas>
+
+    <div class="tabs">
+      <button class="tab-btn active" id="tabEncrypt" onclick="setMode('encrypt')">Encrypt</button>
+      <button class="tab-btn" id="tabDecrypt" onclick="setMode('decrypt')">Decrypt</button>
+    </div>
+
+    <div class="file-box">
+      <input type="file" id="fileInput" />
+      <div class="file-name" id="fileNameDisplay">No file selected</div>
+      <div class="file-meta" id="fileMetaDisplay">Choose any file to encrypt or a .enc file to decrypt</div>
+    </div>
+
+    <div class="form-group">
+      <label for="passwordInput">Password</label>
+      <input type="password" id="passwordInput" placeholder="Enter encryption password" autocomplete="off" />
+    </div>
+
+    <button class="action-btn" id="executeBtn" onclick="processFile()">Encrypt &amp; Save .enc</button>
+
+    <div class="status" id="statusText">Ready • Zero data leaves your device</div>
+  </div>
+
+<script>
+  // =========================================================================
+  // 1. HTML5 CANVAS VISUAL ENGINE
+  // =========================================================================
+  const bgCanvas = document.getElementById("bgCanvas");
+  const bgCtx = bgCanvas.getContext("2d");
+  const visCanvas = document.getElementById("visualizerCanvas");
+  const visCtx = visCanvas.getContext("2d");
+
+  let particles = [];
+  let pulse = 0;
+
+  function resizeCanvases() {
+    bgCanvas.width = window.innerWidth;
+    bgCanvas.height = window.innerHeight;
+    const dpr = window.devicePixelRatio || 1;
+    visCanvas.width = visCanvas.offsetWidth * dpr;
+    visCanvas.height = visCanvas.offsetHeight * dpr;
+    visCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener("resize", resizeCanvases);
+  resizeCanvases();
+
+  for (let i = 0; i < 40; i++) {
+    particles.push({
+      x: Math.random() * bgCanvas.width,
+      y: Math.random() * bgCanvas.height,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: (Math.random() - 0.5) * 0.4,
+      r: Math.random() * 1.8 + 0.5
+    });
+  }
+
+  let wavePhase = 0;
+  function renderLoop() {
+    bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+    bgCtx.fillStyle = "rgba(56, 189, 248, 0.35)";
+    bgCtx.strokeStyle = "rgba(56, 189, 248, 0.08)";
+
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.x < 0 || p.x > bgCanvas.width) p.vx *= -1;
+      if (p.y < 0 || p.y > bgCanvas.height) p.vy *= -1;
+
+      bgCtx.beginPath();
+      bgCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      bgCtx.fill();
+
+      for (let j = i + 1; j < particles.length; j++) {
+        const p2 = particles[j];
+        if (Math.hypot(p.x - p2.x, p.y - p2.y) < 110) {
+          bgCtx.beginPath();
+          bgCtx.moveTo(p.x, p.y);
+          bgCtx.lineTo(p2.x, p2.y);
+          bgCtx.stroke();
+        }
+      }
+    }
+
+    const w = visCanvas.offsetWidth;
+    const h = visCanvas.offsetHeight;
+    visCtx.clearRect(0, 0, w, h);
+
+    wavePhase += 0.05 + pulse * 0.25;
+    pulse *= 0.94;
+
+    visCtx.beginPath();
+    visCtx.strokeStyle = pulse > 0.1 ? "#10b981" : "#38bdf8";
+    visCtx.lineWidth = 2;
+
+    for (let x = 0; x < w; x += 3) {
+      const amp = 4 + pulse * 16;
+      const y = h / 2 + Math.sin(x * 0.04 + wavePhase) * amp * Math.sin((x / w) * Math.PI);
+      if (x === 0) visCtx.moveTo(x, y);
+      else visCtx.lineTo(x, y);
+    }
+    visCtx.stroke();
+
+    requestAnimationFrame(renderLoop);
+  }
+  renderLoop();
+
+  // =========================================================================
+  // 2. NATIVE WEB CRYPTO ENGINE (HTTPS SECURE CONTEXT)
+  //    PBKDF2 (SHA-256, 200,000 iterations) + AES-256-GCM
+  // =========================================================================
+  async function deriveAesKey(password, salt) {
+    const keyMaterial = await window.crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(password),
+      { name: "PBKDF2" },
+      false,
+      ["deriveKey"]
+    );
+
+    return window.crypto.subtle.deriveKey(
+      {
+        name: "PBKDF2",
+        salt: salt,
+        iterations: 200000,
+        hash: "SHA-256"
+      },
+      keyMaterial,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["encrypt", "decrypt"]
+    );
+  }
+
+  // =========================================================================
+  // 3. UI & FILE HANDLERS
+  // =========================================================================
+  let currentMode = "encrypt";
+  let selectedFile = null;
+
+  document.getElementById("fileInput").addEventListener("change", (e) => {
+    selectedFile = e.target.files[0] || null;
+    if (selectedFile) {
+      document.getElementById("fileNameDisplay").textContent = selectedFile.name;
+      document.getElementById("fileMetaDisplay").textContent = `${(selectedFile.size / 1024).toFixed(2)} KB`;
+      pulse = 0.8;
+
+      if (selectedFile.name.toLowerCase().endsWith(".enc") && currentMode === "encrypt") {
+        setMode("decrypt");
+      }
+    }
+  });
+
+  function setMode(mode) {
+    currentMode = mode;
+    document.getElementById("tabEncrypt").classList.toggle("active", mode === "encrypt");
+    document.getElementById("tabDecrypt").classList.toggle("active", mode === "decrypt");
+    document.getElementById("executeBtn").textContent =
+      mode === "encrypt" ? "Encrypt & Save .enc" : "Decrypt & Save File";
+    setStatus("Ready", "");
+  }
+
+  function setStatus(msg, type) {
+    const el = document.getElementById("statusText");
+    el.textContent = msg;
+    el.className = "status " + type;
+  }
+
+  function downloadFile(uint8Array, filename) {
+    const blob = new Blob([uint8Array], { type: "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+
+  async function processFile() {
+    if (!selectedFile) return setStatus("Select a file first.", "error");
+    const password = document.getElementById("passwordInput").value;
+    if (!password) return setStatus("Enter a password.", "error");
+
+    const btn = document.getElementById("executeBtn");
+    btn.disabled = true;
+    pulse = 1.5;
+    setStatus("Processing...", "");
+
+    try {
+      const fileBytes = new Uint8Array(await selectedFile.arrayBuffer());
+
+      if (currentMode === "encrypt") {
+        // Store original filename inside encrypted payload so decryption restores exact name + extension
+        const nameBytes = new TextEncoder().encode(selectedFile.name);
+        const nameLenHeader = new Uint8Array(2);
+        new DataView(nameLenHeader.buffer).setUint16(0, nameBytes.length, false);
+
+        const plaintextPackage = new Uint8Array(2 + nameBytes.length + fileBytes.length);
+        plaintextPackage.set(nameLenHeader, 0);
+        plaintextPackage.set(nameBytes, 2);
+        plaintextPackage.set(fileBytes, 2 + nameBytes.length);
+
+        const salt = window.crypto.getRandomValues(new Uint8Array(16));
+        const iv = window.crypto.getRandomValues(new Uint8Array(12));
+        const key = await deriveAesKey(password, salt);
+
+        const encryptedBuffer = await window.crypto.subtle.encrypt(
+          { name: "AES-GCM", iv: iv },
+          key,
+          plaintextPackage
+        );
+
+        const encryptedBytes = new Uint8Array(encryptedBuffer);
+        // Binary Layout: [16B Salt] + [12B IV] + [Ciphertext + 16B GCM Auth Tag]
+        const outputBytes = new Uint8Array(28 + encryptedBytes.length);
+        outputBytes.set(salt, 0);
+        outputBytes.set(iv, 16);
+        outputBytes.set(encryptedBytes, 28);
+
+        const outFilename = `${selectedFile.name}.enc`;
+        downloadFile(outputBytes, outFilename);
+        pulse = 2.0;
+        setStatus(`Saved ${outFilename}`, "success");
+
+      } else {
+        if (fileBytes.length < 46) {
+          throw new Error("Invalid or corrupted .enc file.");
+        }
+
+        const salt = fileBytes.slice(0, 16);
+        const iv = fileBytes.slice(16, 28);
+        const ciphertext = fileBytes.slice(28);
+        const key = await deriveAesKey(password, salt);
+
+        const decryptedBuffer = await window.crypto.subtle.decrypt(
+          { name: "AES-GCM", iv: iv },
+          key,
+          ciphertext
+        );
+
+        const decryptedBytes = new Uint8Array(decryptedBuffer);
+        const nameLen = new DataView(decryptedBytes.buffer).getUint16(0, false);
+        const originalName = new TextDecoder().decode(decryptedBytes.slice(2, 2 + nameLen));
+        const restoredBytes = decryptedBytes.slice(2 + nameLen);
+
+        const fallbackName = selectedFile.name.replace(/\.enc$/i, "") || "decrypted_file";
+        const finalName = originalName || fallbackName;
+
+        downloadFile(restoredBytes, finalName);
+        pulse = 2.0;
+        setStatus(`Decrypted & saved ${finalName}`, "success");
+      }
+    } catch (err) {
+      console.error(err);
+      setStatus("Failed: Wrong password or corrupted .enc file.", "error");
+    } finally {
+      btn.disabled = false;
+    }
+  }
+</script>
+</body>
+</html>
