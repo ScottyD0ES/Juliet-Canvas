@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>iOS Multi-Format Barcode Utility</title>
+    <!-- Load bwip-js for standard barcode generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bwip-js/4.10.0/bwip-js-min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #000000;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #ffffff;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow-y: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas#bgCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            cursor: pointer;
+        }
+
+        .container {
+            position: relative;
+            z-index: 10;
+            width: 90%;
+            max-width: 380px;
+            background: rgba(20, 20, 20, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            text-align: center;
+            margin: auto;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .container.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.95);
+        }
+
+        h1 {
+            margin: 0 0 12px 0;
+            font-size: 1.15rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: #f5f5f7;
+        }
+
+        .barcode-wrapper {
+            background: #ffffff;
+            padding: 12px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.08);
+            width: 100%;
+            min-height: 140px;
+            overflow: hidden;
+            margin-bottom: 16px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .barcode-wrapper:active {
+            transform: scale(0.98);
+        }
+
+        canvas#barcodeCanvas {
+            display: none;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .placeholder-text {
+            color: #8e8e93;
+            font-size: 0.9rem;
+            margin: 0;
+        }
+
+        .input-group {
+            margin-bottom: 10px;
+        }
+
+        select, input[type="text"] {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            padding: 12px 14px;
+            font-size: 16px; 
+            border-radius: 12px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        select {
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.358%22%20height%3D%22292.358%22%3E%3Cpath%20fill%3D%22%23ffffff%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.4-12.8z%22%2F%3E%3C%2Fsvg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+
+        select option {
+            background: #1c1c1e;
+            color: #ffffff;
+        }
+
+        select:focus, input[type="text"]:focus {
+            border-color: #007aff;
+        }
+
+        input[type="text"]::placeholder {
+            color: #8e8e93;
+        }
+
+        button {
+            width: 100%;
+            background: #007aff;
+            border: none;
+            color: #ffffff;
+            padding: 14px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 122, 255, 0.4);
+            touch-action: manipulation;
+        }
+
+        button:active {
+            transform: scale(0.97);
+            background: #0062cc;
+        }
+
+        /* Fullscreen Barcode Modal Overlay */
+        #fullscreenModal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+            padding: 20px;
+        }
+
+        #fullscreenModal.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .fullscreen-content {
+            background: #ffffff;
+            padding: 24px;
+            border-radius: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            max-width: 95vw;
+            max-height: 90vh;
+            box-shadow: 0 10px 50px rgba(255, 255, 255, 0.15);
+            transition: transform 0.2s ease;
+        }
+
+        @media (orientation: landscape) {
+            .fullscreen-content {
+                transform: translateX(35px);
+            }
+        }
+
+        canvas#fullscreenCanvas {
+            max-width: 100%;
+            max-height: 80vh;
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="bgCanvas"></canvas>
+
+    <div class="container" id="mainContainer">
+        <h1>Barcode & QR Utility</h1>
+        
+        <div class="barcode-wrapper" id="barcodeWrapper" title="Tap barcode to zoom fullscreen">
+            <p class="placeholder-text" id="placeholder">No code generated</p>
+            <canvas id="barcodeCanvas"></canvas>
+        </div>
+
+        <div class="input-group">
+            <select id="formatSelect">
+                <option value="code128">Code 128</option>
+                <option value="code39">Code 39</option>
+                <option value="upca">UPC-A</option>
+                <option value="upce">UPC-E</option>
+                <option value="ean13">EAN-13</option>
+                <option value="ean8">EAN-8</option>
+                <option value="qrcode">QR Code</option>
+            </select>
+            <input type="text" id="textInput" placeholder="Tap to enter data..." autocomplete="off" autocapitalize="off">
+        </div>
+        
+        <button id="generateBtn" type="button">Generate Code</button>
+    </div>
+
+    <!-- Fullscreen Barcode Modal Overlay -->
+    <div id="fullscreenModal">
+        <div class="fullscreen-content">
+            <canvas id="fullscreenCanvas"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const bgCanvas = document.getElementById('bgCanvas');
+        const bgCtx = bgCanvas.getContext('2d');
+
+        let particles = [];
+        const particleCount = 400;
+        let globalHue = 0; 
+        let isFullMode = false;
+
+        function resizeBg() {
+            bgCanvas.width = window.innerWidth;
+            bgCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeBg);
+        resizeBg();
+
+        class Particle {
+            constructor() {
+                this.init();
+            }
+            init() {
+                this.x = Math.random() * bgCanvas.width;
+                this.y = Math.random() * bgCanvas.height;
+                this.size = Math.random() * 2 + 0.8;
+                this.baseSpeedX = (Math.random() - 0.5) * 0.5;
+                this.baseSpeedY = (Math.random() - 0.5) * 0.5;
+                this.speedX = this.baseSpeedX;
+                this.speedY = this.baseSpeedY;
+            }
+            update(agitated) {
+                if (agitated) {
+                    const cx = bgCanvas.width / 2;
+                    const cy = bgCanvas.height / 2;
+                    const dx = this.x - cx;
+                    const dy = this.y - cy;
+                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                    
+                    const swirlX = -dy / dist * 0.12;
+                    const swirlY = dx / dist * 0.12;
+
+                    this.speedX = this.baseSpeedX + swirlX;
+                    this.speedY = this.baseSpeedY + swirlY;
+                } else {
+                    this.speedX = this.baseSpeedX;
+                    this.speedY = this.baseSpeedY;
+                }
+
+                this.x += this.speedX;
+                this.y += this.speedY;
+
+                if (this.x < 0) this.x = bgCanvas.width;
+                if (this.x > bgCanvas.width) this.x = 0;
+                if (this.y < 0) this.y = bgCanvas.height;
+                if (this.y > bgCanvas.height) this.y = 0;
+            }
+            draw() {
+                bgCtx.fillStyle = `hsl(${globalHue}, 100%, 70%)`;
+                bgCtx.beginPath();
+                bgCtx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                bgCtx.fill();
+            }
+        }
+
+        for (let i = 0; i < particleCount; i++) {
+            particles.push(new Particle());
+        }
+
+        function animateBg() {
+            bgCtx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+            globalHue = (globalHue + 0.6) % 360;
+
+            particles.forEach(p => {
+                p.update(isFullMode);
+                p.draw();
+            });
+
+            requestAnimationFrame(animateBg);
+        }
+        animateBg();
+
+        function calculateMod10(digits) {
+            let sum = 0;
+            for (let i = digits.length - 1, multiplier = 3; i >= 0; i--, multiplier = (multiplier === 3 ? 1 : 3)) {
+                sum += parseInt(digits[i], 10) * multiplier;
+            }
+            let mod = sum % 10;
+            return mod === 0 ? 0 : 10 - mod;
+        }
+
+        function expandUPCEtoUPCA(code) {
+            let numsys = code[0];
+            let data = code.substring(1, 7);
+            let lastChar = data[5];
+            let expanded = numsys;
+
+            if (['0', '1', '2'].includes(lastChar)) {
+                expanded += data.substring(0, 2) + lastChar + "0000" + data.substring(2, 5);
+            } else if (lastChar === '3') {
+                expanded += data.substring(0, 3) + "00000" + data.substring(3, 5);
+            } else if (lastChar === '4') {
+                expanded += data.substring(0, 4) + "00000" + data[4];
+            } else {
+                expanded += data.substring(0, 5) + "0000" + lastChar;
+            }
+            return expanded + calculateMod10(expanded);
+        }
+
+        let isGenerated = false;
+        let lastRawInput = "";
+        let lastSelectedFormat = "";
+
+        function renderCode(text, format, targetCanvasId) {
+            const canvas = document.getElementById(targetCanvasId);
+            let options = {
+                text: text,
+                scale: targetCanvasId === 'fullscreenCanvas' ? 5 : 3,
+                textxalign: 'center',
+            };
+
+            options.bcid = format;
+            const isTwoDimensional = (format === 'qrcode');
+            options.includetext = !isTwoDimensional;
+            
+            if (!isTwoDimensional) {
+                options.height = targetCanvasId === 'fullscreenCanvas' ? 20 : 12;
+            }
+
+            bwipjs.toCanvas(canvas, options);
+            if (isTwoDimensional) {
+                canvas.style.width = targetCanvasId === 'fullscreenCanvas' ? "260px" : "130px";
+                canvas.style.height = targetCanvasId === 'fullscreenCanvas' ? "260px" : "130px";
+            } else {
+                canvas.style.width = "100%";
+                canvas.style.height = "auto";
+            }
+        }
+
+        function updateAllCanvases(text, format) {
+            const placeholder = document.getElementById('placeholder');
+            const canvas = document.getElementById('barcodeCanvas');
+
+            try {
+                renderCode(text, format, 'barcodeCanvas');
+                renderCode(text, format, 'fullscreenCanvas');
+
+                placeholder.style.display = "none";
+                canvas.style.display = "block";
+                isGenerated = true;
+            } catch (e) {
+                alert("Error generating code: " + e.message);
+                placeholder.style.display = "block";
+                canvas.style.display = "none";
+                isGenerated = false;
+            }
+        }
+
+        function handleGeneration() {
+            const inputField = document.getElementById('textInput');
+            const formatSelect = document.getElementById('formatSelect');
+            let textValue = inputField.value;
+            let format = formatSelect.value;
+
+            if (!textValue.trim()) {
+                alert("Please type some data first.");
+                return;
+            }
+
+            // Check if the user is pressing Generate a second consecutive time with the exact same input/format
+            // If so, keep hyphens for non-QR formats. Otherwise, strip them out on the first click.
+            const isSecondTry = (textValue === lastRawInput && format === lastSelectedFormat);
+
+            if (format !== 'qrcode' && !isSecondTry) {
+                textValue = textValue.replace(/-/g, '');
+                inputField.value = textValue;
+            }
+
+            // Save state for checking double-tap behavior next click
+            lastRawInput = inputField.value;
+            lastSelectedFormat = format;
+
+            let processedText = textValue.trim();
+
+            if (format === 'upca') {
+                if (/^\d{6}$/.test(processedText)) {
+                    processedText = expandUPCEtoUPCA("0" + processedText);
+                    inputField.value = processedText;
+                } else if (/^\d{7,8}$/.test(processedText)) {
+                    processedText = expandUPCEtoUPCA(processedText.length === 7 ? "0" + processedText : processedText);
+                    inputField.value = processedText;
+                } else if (/^\d{11}$/.test(processedText)) {
+                    processedText = processedText + calculateMod10(processedText);
+                    inputField.value = processedText;
+                }
+            } else if (format === 'upce') {
+                if (/^\d{6}$/.test(processedText)) {
+                    processedText = "0" + processedText;
+                    inputField.value = processedText;
+                } else if (!/^\d{7,8}$/.test(processedText)) {
+                    alert("UPC-E requires a valid 6, 7, or 8 digit shortened input format.");
+                    return;
+                }
+            } else if (format === 'ean13') {
+                if (/^\d{12}$/.test(processedText)) {
+                    processedText = processedText + calculateMod10(processedText);
+                    inputField.value = processedText;
+                }
+            } else if (format === 'ean8') {
+                if (/^\d{7}$/.test(processedText)) {
+                    processedText = processedText + calculateMod10(processedText);
+                    inputField.value = processedText;
+                }
+            }
+
+            updateAllCanvases(processedText, format);
+            inputField.blur();
+        }
+
+        const barcodeWrapper = document.getElementById('barcodeWrapper');
+        const fullscreenModal = document.getElementById('fullscreenModal');
+
+        barcodeWrapper.addEventListener('click', () => {
+            if (!isGenerated) return;
+            fullscreenModal.classList.add('active');
+        });
+
+        fullscreenModal.addEventListener('click', () => {
+            fullscreenModal.classList.remove('active');
+        });
+
+        const mainContainer = document.getElementById('mainContainer');
+
+        bgCanvas.addEventListener('click', () => {
+            if (!isFullMode) {
+                isFullMode = true;
+                mainContainer.classList.add('hidden');
+            } else {
+                isFullMode = false;
+                mainContainer.classList.remove('hidden');
+            }
+        });
+
+        const textInput = document.getElementById('textInput');
+        textInput.addEventListener('focus', function() {
+            setTimeout(() => {
+                this.select();
+            }, 50);
+        });
+
+        // Reset tracking memory if the user modifies input or format
+        textInput.addEventListener('input', () => {
+            lastRawInput = "";
+        });
+
+        document.getElementById('formatSelect').addEventListener('change', () => {
+            lastRawInput = "";
+        });
+
+        const generateBtn = document.getElementById('generateBtn');
+        generateBtn.addEventListener('click', handleGeneration);
+        generateBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            handleGeneration();
+        });
+
+        textInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                handleGeneration();
+            }
+        });
+    </script>
+</body>
+</html>
