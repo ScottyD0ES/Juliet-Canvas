@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>AETHER // Zero-Trace File Vault</title>
+  <style>
+    :root {
+      --bg: #000000;
+      --panel: rgba(12, 14, 20, 0.72);
+      --border: rgba(255, 255, 255, 0.14);
+      --text: #f3f5f8;
+      --muted: #8b95a5;
+      --cyan: #00e5ff;
+      --amber: #ffb300;
+      --red: #ff3355;
+      --green: #00e676;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    #bg-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 0;
+    }
+
+    .app-shell {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: env(safe-area-inset-top, 20px) 20px env(safe-area-inset-bottom, 24px);
+      pointer-events: none;
+    }
+
+    .header {
+      text-align: center;
+      margin-top: 12px;
+      pointer-events: auto;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 600;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--text);
+      text-shadow: 0 0 16px rgba(0, 229, 255, 0.35);
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      padding: 5px 14px;
+      border-radius: 999px;
+      background: rgba(15, 18, 25, 0.78);
+      border: 1px solid var(--border);
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transition: color 0.3s ease, border-color 0.3s ease;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+      transition: background 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .center-telemetry {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .percent-readout {
+      font-size: 2.2rem;
+      font-weight: 300;
+      letter-spacing: 0.08em;
+      font-variant-numeric: tabular-nums;
+      opacity: 0;
+      transform: scale(0.95);
+      transition: opacity 0.25s ease, transform 0.25s ease, color 0.3s ease;
+      text-shadow: 0 0 20px rgba(0, 0, 0, 0.9);
+    }
+
+    .percent-readout.visible {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .control-dock {
+      width: 100%;
+      max-width: 420px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 18px;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.75);
+      pointer-events: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .file-drop {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 13px 15px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px dashed rgba(255, 255, 255, 0.22);
+      cursor: pointer;
+      transition: border-color 0.25s ease, background 0.25s ease;
+    }
+
+    .file-drop:hover, .file-drop.has-file {
+      border-color: var(--cyan);
+      background: rgba(0, 229, 255, 0.06);
+    }
+
+    .file-drop input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .file-meta {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding-right: 10px;
+    }
+
+    .file-name {
+      font-size: 0.92rem;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text);
+    }
+
+    .file-size {
+      font-size: 0.74rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .file-badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 5px 10px;
+      border-radius: 8px;
+      background: rgba(0, 229, 255, 0.14);
+      color: var(--cyan);
+      flex-shrink: 0;
+    }
+
+    .password-row {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .password-row input {
+      width: 100%;
+      padding: 13px 44px 13px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(0, 0, 0, 0.55);
+      color: var(--text);
+      font-size: 1rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.25s ease;
+    }
+
+    .password-row input:focus {
+      border-color: var(--cyan);
+    }
+
+    .toggle-pw {
+      position: absolute;
+      right: 10px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      padding: 6px;
+    }
+
+    .action-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 13px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      font-size: 0.88rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .btn-encrypt {
+      border-color: rgba(255, 179, 0, 0.45);
+      color: var(--amber);
+      background: rgba(255, 179, 0, 0.08);
+    }
+
+    .btn-encrypt.recommended {
+      background: rgba(255, 179, 0, 0.2);
+      box-shadow: 0 0 18px rgba(255, 179, 0, 0.22);
+    }
+
+    .btn-decrypt {
+      border-color: rgba(255, 51, 85, 0.45);
+      color: var(--red);
+      background: rgba(255, 51, 85, 0.08);
+    }
+
+    .btn-decrypt.recommended {
+      background: rgba(255, 51, 85, 0.2);
+      box-shadow: 0 0 18px rgba(255, 51, 85, 0.22);
+    }
+
+    .result-bar {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      padding-top: 6px;
+      border-top: 1px solid var(--border);
+    }
+
+    .result-bar.active {
+      display: flex;
+    }
+
+    .result-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .result-actions.single {
+      grid-template-columns: 1fr;
+    }
+
+    .btn-save {
+      border-color: rgba(0, 230, 118, 0.5);
+      background: rgba(0, 230, 118, 0.16);
+      color: var(--green);
+    }
+
+    .btn-ram {
+      border-color: rgba(0, 229, 255, 0.5);
+      background: rgba(0, 229, 255, 0.14);
+      color: var(--cyan);
+    }
+
+    /* RAM-Only Viewer Modal */
+    .viewer-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      background: rgba(4, 6, 10, 0.94);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      display: none;
+      flex-direction: column;
+      padding: env(safe-area-inset-top, 16px) 16px env(safe-area-inset-bottom, 20px);
+    }
+
+    .viewer-modal.open {
+      display: flex;
+    }
+
+    .viewer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      gap: 10px;
+    }
+
+    .viewer-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--cyan);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .viewer-tag {
+      font-size: 0.68rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(0, 230, 118, 0.14);
+      color: var(--green);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .viewer-body {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: auto;
+      margin: 14px 0;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+    }
+
+    .viewer-body textarea {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.92rem;
+      line-height: 1.5;
+      padding: 14px;
+      resize: none;
+      outline: none;
+      user-select: text;
+    }
+
+    .viewer-body img, .viewer-body video {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+
+    .viewer-body audio {
+      width: 90%;
+    }
+
+    .viewer-footer {
+      display: flex;
+      gap: 10px;
+    }
+
+    .viewer-footer .btn {
+      flex: 1;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="bg-canvas"></canvas>
+
+  <div class="app-shell">
+    <div class="header">
+      <h1>AETHER VAULT</h1>
+      <div class="status-pill" id="status-pill">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">STANDBY // ZERO-GRAVITY</span>
+      </div>
+    </div>
+
+    <div class="center-telemetry">
+      <div class="percent-readout" id="percent-readout">0%</div>
+    </div>
+
+    <div class="control-dock">
+      <label class="file-drop" id="file-drop">
+        <input type="file" id="file-input" />
+        <div class="file-meta">
+          <span class="file-name" id="file-name">Select File from Device</span>
+          <span class="file-size" id="file-size">AES-256-GCM • Chunked Web Crypto</span>
+        </div>
+        <span class="file-badge" id="file-badge">BROWSE</span>
+      </label>
+
+      <div class="password-row">
+        <input type="password" id="password-input" placeholder="Enter encryption key / password" autocomplete="off" />
+        <button type="button" class="toggle-pw" id="toggle-pw">SHOW</button>
+      </div>
+
+      <div class="action-grid">
+        <button type="button" class="btn btn-encrypt" id="btn-encrypt" disabled>Encrypt</button>
+        <button type="button" class="btn btn-decrypt" id="btn-decrypt" disabled>Decrypt</button>
+      </div>
+
+      <div class="result-bar" id="result-bar">
+        <div class="result-actions" id="result-actions">
+          <button type="button" class="btn btn-save" id="btn-save">Save to Files</button>
+          <button type="button" class="btn btn-ram" id="btn-ram" style="display:none;">View in RAM</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Zero-Trace RAM Viewer / Editor Modal -->
+  <div class="viewer-modal" id="viewer-modal">
+    <div class="viewer-header">
+      <span class="viewer-title" id="viewer-title">decrypted.txt</span>
+      <span class="viewer-tag">RAM ONLY • NO DISK WRITE</span>
+    </div>
+    <div class="viewer-body" id="viewer-body"></div>
+    <div class="viewer-footer">
+      <button type="button" class="btn btn-encrypt" id="btn-reencrypt" style="display:none;">Re-Encrypt Edits</button>
+      <button type="button" class="btn" id="btn-purge">Purge & Close</button>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      // ==========================================
+      // 1. GLOWING SPECK CONSTELLATION ENGINE
+      // ==========================================
+      const canvas = document.getElementById('bg-canvas');
+      const ctx = canvas.getContext('2d');
+
+      let width = 0;
+      let height = 0;
+      let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+      // Visual States: 'STANDARD' | 'SELECTED' | 'ENCRYPTING' | 'DECRYPTING' | 'COMPLETED'
+      let visualState = 'STANDARD';
+      let progress = 0; // 0 to 100
+      let ringAngle = 0;
+      let rainbowHue = 190; // Start near cyan for smooth entry
+      let completeTimer = null;
+
+      // Shared unified RGB state across all particles
+      const currentColor = { r: 0, g: 229, b: 255 };
+
+      const PARTICLE_COUNT = 130;
+      const particles = [];
+
+      const PALETTES = {
+        SELECTED:   { r: 0,   g: 229, b: 255 }, // Cyan Blue
+        ENCRYPTING: { r: 255, g: 179, b: 0   }, // Amber
+        DECRYPTING: { r: 255, g: 51,  b: 85  }, // Red
+        COMPLETED:  { r: 0,   g: 230, b: 118 }  // Green
+      };
+
+      function hslToRgb(h, s, l) {
+        s /= 100;
+        l /= 100;
+        const k = n => (n + h / 30) % 12;
+        const a = s * Math.min(l, 1 - l);
+        const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+        return {
+          r: Math.round(255 * f(0)),
+          g: Math.round(255 * f(8)),
+          b: Math.round(255 * f(4))
+        };
+      }
+
+      // Pre-rendered offscreen glow sprite for crisp, lag-free 60fps glowing specks on iOS
+      const glowSprite = document.createElement('canvas');
+      glowSprite.width = 64;
+      glowSprite.height = 64;
+      const gCtx = glowSprite.getContext('2d');
+      const grad = gCtx.createRadialGradient(32, 32, 0, 32, 32, 32);
+      grad.addColorStop(0.0, 'rgba(255, 255, 255, 1)');
+      grad.addColorStop(0.22, 'rgba(255, 255, 255, 0.85)');
+      grad.addColorStop(0.5, 'rgba(255, 255, 255, 0.25)');
+      grad.addColorStop(1.0, 'rgba(255, 255, 255, 0)');
+      gCtx.fillStyle = grad;
+      gCtx.fillRect(0, 0, 64, 64);
+
+      const tintedSprite = document.createElement('canvas');
+      tintedSprite.width = 64;
+      tintedSprite.height = 64;
+      const tCtx = tintedSprite.getContext('2d');
+
+      function updateTintedSprite(r, g, b) {
+        tCtx.clearRect(0, 0, 64, 64);
+        tCtx.globalCompositeOperation = 'source-over';
+        tCtx.drawImage(glowSprite, 0, 0);
+        tCtx.globalCompositeOperation = 'source-in';
+        tCtx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+        tCtx.fillRect(0, 0, 64, 64);
+      }
+
+      function resizeCanvas() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      function initParticles() {
+        particles.length = 0;
+        for (let i = 0; i < PARTICLE_COUNT; i++) {
+          particles.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            vx: (Math.random() - 0.5) * 0.45,
+            vy: (Math.random() - 0.5) * 0.45,
+            glowRadius: Math.random() * 8 + 7, // Glow halo radius
+            coreRadius: Math.random() * 1.1 + 0.9, // Hot white-tinted center speck
+            twinklePhase: Math.random() * Math.PI * 2,
+            twinkleSpeed: Math.random() * 0.03 + 0.015,
+            radiusOffset: (Math.random() - 0.5) * 14
+          });
+        }
+      }
+
+      function setVisualState(newState, resetProgress = true) {
+        if (completeTimer) {
+          clearTimeout(completeTimer);
+          completeTimer = null;
+        }
+        visualState = newState;
+        if (resetProgress) progress = 0;
+
+        // Disperse impulse when transitioning back to STANDARD
+        if (newState === 'STANDARD') {
+          rainbowHue = 135; // Start rainbow cycle from green so dispersion transition is seamless
+          const cx = width * 0.5;
+          const cy = height * 0.42;
+          for (const p of particles) {
+            const dx = p.x - cx;
+            const dy = p.y - cy;
+            const dist = Math.hypot(dx, dy) || 1;
+            const speed = Math.random() * 1.6 + 0.6;
+            p.vx = (dx / dist) * speed + (Math.random() - 0.5) * 0.4;
+            p.vy = (dy / dist) * speed + (Math.random() - 0.5) * 0.4;
+          }
+        }
+      }
+
+      function animate() {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+        ctx.fillRect(0, 0, width, height);
+
+        rainbowHue = (rainbowHue + 0.35) % 360;
+
+        // Single unified color target for ALL particles simultaneously
+        const targetColor = visualState === 'STANDARD'
+          ? hslToRgb(rainbowHue, 92, 60)
+          : PALETTES[visualState];
+
+        currentColor.r += (targetColor.r - currentColor.r) * 0.08;
+        currentColor.g += (targetColor.g - currentColor.g) * 0.08;
+        currentColor.b += (targetColor.b - currentColor.b) * 0.08;
+
+        const rInt = Math.round(currentColor.r);
+        const gInt = Math.round(currentColor.g);
+        const bInt = Math.round(currentColor.b);
+
+        // Update shared glowing speck sprite once per frame
+        updateTintedSprite(rInt, gInt, bInt);
+
+        const cx = width * 0.5;
+        const cy = height * 0.42;
+        const baseRadius = Math.min(width, height) * 0.25;
+
+        // Angular velocity control
+        if (visualState === 'SELECTED') {
+          ringAngle += 0.006; // Slow clockwise
+        } else if (visualState === 'ENCRYPTING') {
+          const speedBoost = 0.018 + (progress / 100) * 0.055;
+          ringAngle += speedBoost; // Fast clockwise
+        } else if (visualState === 'DECRYPTING') {
+          const speedBoost = 0.018 + (progress / 100) * 0.055;
+          ringAngle -= speedBoost; // Fast counter-clockwise
+        } else if (visualState === 'COMPLETED') {
+          // Ring stops spinning completely
+        }
+
+        const ringPoints = [];
+
+        // Additive blending makes overlapping particle glows luminous
+        ctx.globalCompositeOperation = 'lighter';
+
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i];
+          p.twinklePhase += p.twinkleSpeed;
+          const pulse = 0.72 + Math.sin(p.twinklePhase) * 0.28;
+
+          if (visualState === 'STANDARD') {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vx *= 0.992;
+            p.vy *= 0.992;
+
+            if (Math.hypot(p.vx, p.vy) < 0.22) {
+              p.vx += (Math.random() - 0.5) * 0.05;
+              p.vy += (Math.random() - 0.5) * 0.05;
+            }
+
+            if (p.x < -15) p.x = width + 15;
+            if (p.x > width + 15) p.x = -15;
+            if (p.y < -15) p.y = height + 15;
+            if (p.y > height + 15) p.y = -15;
+          } else {
+            const theta = (i / PARTICLE_COUNT) * Math.PI * 2 + ringAngle;
+            const r = baseRadius + p.radiusOffset;
+            const tx = cx + Math.cos(theta) * r;
+            const ty = cy + Math.sin(theta) * r;
+
+            p.x += (tx - p.x) * 0.085;
+            p.y += (ty - p.y) * 0.085;
+            ringPoints.push(p);
+          }
+
+          // Outer colored halo
+          const gSize = p.glowRadius * 2 * pulse;
+          ctx.globalAlpha = 0.85 * pulse;
+          ctx.drawImage(tintedSprite, p.x - gSize * 0.5, p.y - gSize * 0.5, gSize, gSize);
+
+          // Bright pinpoint speck core
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.coreRadius, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, 255, 255, ${0.75 * pulse})`;
+          ctx.fill();
+        }
+
+        ctx.globalAlpha = 1;
+
+        // Draw glowing constellation links & progress arc when in ring formations
+        if (visualState !== 'STANDARD' && ringPoints.length > 0) {
+          ctx.lineWidth = 0.9;
+
+          for (let i = 0; i < ringPoints.length; i++) {
+            const p1 = ringPoints[i];
+            const p2 = ringPoints[(i + 1) % ringPoints.length];
+            const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+
+            if (dist < 48) {
+              ctx.beginPath();
+              ctx.moveTo(p1.x, p1.y);
+              ctx.lineTo(p2.x, p2.y);
+              ctx.strokeStyle = `rgba(${rInt}, ${gInt}, ${bInt}, 0.3)`;
+              ctx.stroke();
+            }
+          }
+
+          // Progress arc around constellation ring during encryption/decryption
+          if (visualState === 'ENCRYPTING' || visualState === 'DECRYPTING' || visualState === 'COMPLETED') {
+            const pct = visualState === 'COMPLETED' ? 1 : progress / 100;
+            const startAngle = -Math.PI / 2;
+            const endAngle = visualState === 'DECRYPTING'
+              ? startAngle - pct * Math.PI * 2
+              : startAngle + pct * Math.PI * 2;
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, baseRadius + 16, startAngle, endAngle, visualState === 'DECRYPTING');
+            ctx.strokeStyle = `rgba(${rInt}, ${gInt}, ${bInt}, 0.85)`;
+            ctx.lineWidth = 2.4;
+            ctx.stroke();
+          }
+        }
+
+        requestAnimationFrame(animate);
+      }
+
+      window.addEventListener('resize', resizeCanvas);
+      resizeCanvas();
+      initParticles();
+      animate();
+
+      // ==========================================
+      // 2. INLINE WEB WORKER (CHUNKED WEB CRYPTO)
+      // ==========================================
+      const workerCode = `
+        const MAGIC = new Uint8Array([65, 69, 84, 72, 69, 82, 48, 49]); // "AETHER01"
+        const CHUNK_SIZE = 2 * 1024 * 1024; // 2 MB chunks
+
+        async function deriveKey(password, salt) {
+          const enc = new TextEncoder();
+          const keyMaterial = await crypto.subtle.importKey(
+            'raw',
+            enc.encode(password),
+            'PBKDF2',
+            false,
+            ['deriveKey']
+          );
+          return crypto.subtle.deriveKey(
+            {
+              name: 'PBKDF2',
+              salt: salt,
+              iterations: 150000,
+              hash: 'SHA-256'
+            },
+            keyMaterial,
+            { name: 'AES-GCM', length: 256 },
+            false,
+            ['encrypt', 'decrypt']
+          );
+        }
+
+        function deriveChunkIV(baseIV, chunkIndex) {
+          const iv = new Uint8Array(baseIV);
+          const view = new DataView(iv.buffer);
+          const lastWord = view.getUint32(8, false);
+          view.setUint32(8, (lastWord ^ chunkIndex) >>> 0, false);
+          return iv;
+        }
+
+        self.onmessage = async (e) => {
+          const { mode, file, password } = e.data;
+
+          try {
+            if (mode === 'encrypt') {
+              self.postMessage({ type: 'progress', percent: 4 });
+
+              const salt = crypto.getRandomValues(new Uint8Array(16));
+              const baseIV = crypto.getRandomValues(new Uint8Array(12));
+              const key = await deriveKey(password, salt);
+
+              self.postMessage({ type: 'progress', percent: 12 });
+
+              const nameBytes = new TextEncoder().encode(file.name);
+              const totalChunks = Math.max(1, Math.ceil(file.size / CHUNK_SIZE));
+
+              const headerLen = 8 + 16 + 12 + 4 + 4 + 2 + nameBytes.length;
+              const header = new Uint8Array(headerLen);
+              const headerView = new DataView(header.buffer);
+
+              header.set(MAGIC, 0);
+              header.set(salt, 8);
+              header.set(baseIV, 24);
+              headerView.setUint32(36, CHUNK_SIZE, false);
+              headerView.setUint32(40, totalChunks, false);
+              headerView.setUint16(44, nameBytes.length, false);
+              header.set(nameBytes, 46);
+
+              const outputParts = [header];
+
+              for (let i = 0; i < totalChunks; i++) {
+                const start = i * CHUNK_SIZE;
+                const end = Math.min(file.size, start + CHUNK_SIZE);
+                const sliceBuf = await file.slice(start, end).arrayBuffer();
+
+                const chunkIV = deriveChunkIV(baseIV, i);
+                const encryptedBuf = await crypto.subtle.encrypt(
+                  { name: 'AES-GCM', iv: chunkIV },
+                  key,
+                  sliceBuf
+                );
+
+                const lenPrefix = new Uint8Array(4);
+                new DataView(lenPrefix.buffer).setUint32(0, encryptedBuf.byteLength, false);
+
+                outputParts.push(lenPrefix, new Uint8Array(encryptedBuf));
+
+                const pct = 12 + Math.round(((i + 1) / totalChunks) * 88);
+                self.postMessage({ type: 'progress', percent: pct });
+              }
+
+              const outBlob = new Blob(outputParts, { type: 'application/octet-stream' });
+              self.postMessage({
+                type: 'done',
+                mode: 'encrypt',
+                blob: outBlob,
+                filename: file.name + '.enc'
+              });
+
+            } else if (mode === 'decrypt') {
+              if (file.size < 46) {
+                throw new Error('File is too small or not a valid Aether Vault archive.');
+              }
+
+              self.postMessage({ type: 'progress', percent: 4 });
+
+              const fixedHeaderBuf = await file.slice(0, 46).arrayBuffer();
+              const fixedHeader = new Uint8Array(fixedHeaderBuf);
+              const fixedView = new DataView(fixedHeaderBuf);
+
+              for (let i = 0; i < 8; i++) {
+                if (fixedHeader[i] !== MAGIC[i]) {
+                  throw new Error('Invalid file header. This file was not encrypted with Aether Vault.');
+                }
+              }
+
+              const salt = fixedHeader.slice(8, 24);
+              const baseIV = fixedHeader.slice(24, 36);
+              const totalChunks = fixedView.getUint32(40, false);
+              const nameLen = fixedView.getUint16(44, false);
+
+              const nameBuf = await file.slice(46, 46 + nameLen).arrayBuffer();
+              const originalName = new TextDecoder().decode(nameBuf) || 'decrypted_file';
+
+              const key = await deriveKey(password, salt);
+              self.postMessage({ type: 'progress', percent: 12 });
+
+              let offset = 46 + nameLen;
+              const outputParts = [];
+
+              for (let i = 0; i < totalChunks; i++) {
+                if (offset + 4 > file.size) {
+                  throw new Error('Corrupted archive: unexpected end of file.');
+                }
+
+                const lenBuf = await file.slice(offset, offset + 4).arrayBuffer();
+                const chunkLen = new DataView(lenBuf).getUint32(0, false);
+                offset += 4;
+
+                if (offset + chunkLen > file.size) {
+                  throw new Error('Corrupted archive: truncated chunk payload.');
+                }
+
+                const encChunkBuf = await file.slice(offset, offset + chunkLen).arrayBuffer();
+                offset += chunkLen;
+
+                const chunkIV = deriveChunkIV(baseIV, i);
+                let decChunkBuf;
+                try {
+                  decChunkBuf = await crypto.subtle.decrypt(
+                    { name: 'AES-GCM', iv: chunkIV },
+                    key,
+                    encChunkBuf
+                  );
+                } catch (_) {
+                  throw new Error('Authentication failed: Incorrect password or tampered file.');
+                }
+
+                outputParts.push(new Uint8Array(decChunkBuf));
+
+                const pct = 12 + Math.round(((i + 1) / totalChunks) * 88);
+                self.postMessage({ type: 'progress', percent: pct });
+              }
+
+              const outBlob = new Blob(outputParts, { type: 'application/octet-stream' });
+              self.postMessage({
+                type: 'done',
+                mode: 'decrypt',
+                blob: outBlob,
+                filename: originalName
+              });
+            }
+          } catch (err) {
+            self.postMessage({
+              type: 'error',
+              message: err.message || 'Cryptographic operation failed.'
+            });
+          }
+        };
+      `;
+
+      const workerBlob = new Blob([workerCode], { type: 'application/javascript' });
+      const workerUrl = URL.createObjectURL(workerBlob);
+      const cryptoWorker = new Worker(workerUrl);
+
+      // ==========================================
+      // 3. UI & HYBRID RAM VIEWER CONTROLLER
+      // ==========================================
+      const fileDrop = document.getElementById('file-drop');
+      const fileInput = document.getElementById('file-input');
+      const fileNameEl = document.getElementById('file-name');
+      const fileSizeEl = document.getElementById('file-size');
+      const fileBadgeEl = document.getElementById('file-badge');
+      const passwordInput = document.getElementById('password-input');
+      const togglePwBtn = document.getElementById('toggle-pw');
+      const btnEncrypt = document.getElementById('btn-encrypt');
+      const btnDecrypt = document.getElementById('btn-decrypt');
+      const statusDot = document.getElementById('status-dot');
+      const statusText = document.getElementById('status-text');
+      const percentReadout = document.getElementById('percent-readout');
+      const resultBar = document.getElementById('result-bar');
+      const resultActions = document.getElementById('result-actions');
+      const btnSave = document.getElementById('btn-save');
+      const btnRam = document.getElementById('btn-ram');
+
+      const viewerModal = document.getElementById('viewer-modal');
+      const viewerTitle = document.getElementById('viewer-title');
+      const viewerBody = document.getElementById('viewer-body');
+      const btnReencrypt = document.getElementById('btn-reencrypt');
+      const btnPurge = document.getElementById('btn-purge');
+
+      let selectedFile = null;
+      let processedBlob = null;
+      let processedFilename = '';
+      let activeRamUrl = null;
+      let activeTextArea = null;
+      let isBusy = false;
+
+      function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+      }
+
+      function setStatus(text, colorHex) {
+        statusText.textContent = text;
+        statusDot.style.background = colorHex;
+        statusDot.style.boxShadow = `0 0 8px ${colorHex}`;
+      }
+
+      function updateActionButtons() {
+        const ready = Boolean(selectedFile && passwordInput.value.length > 0 && !isBusy);
+        btnEncrypt.disabled = !ready;
+        btnDecrypt.disabled = !ready;
+      }
+
+      function getPreviewCategory(filename) {
+        const ext = (filename.split('.').pop() || '').toLowerCase();
+        const textExts = ['txt', 'md', 'json', 'csv', 'xml', 'html', 'css', 'js', 'py', 'log', 'ini', 'yaml', 'yml'];
+        const imgExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'];
+        const audioExts = ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'];
+        const videoExts = ['mp4', 'webm', 'mov', 'm4v'];
+
+        if (textExts.includes(ext)) return 'text';
+        if (imgExts.includes(ext)) return 'image';
+        if (audioExts.includes(ext)) return 'audio';
+        if (videoExts.includes(ext)) return 'video';
+        return null;
+      }
+
+      function getMimeType(filename) {
+        const ext = (filename.split('.').pop() || '').toLowerCase();
+        const map = {
+          png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml',
+          mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', m4a: 'audio/mp4',
+          mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime',
+          pdf: 'application/pdf', txt: 'text/plain', json: 'application/json'
+        };
+        return map[ext] || 'application/octet-stream';
+      }
+
+      function clearResult() {
+        resultBar.classList.remove('active');
+        processedBlob = null;
+        processedFilename = '';
+      }
+
+      fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        clearResult();
+        percentReadout.classList.remove('visible');
+
+        if (!file) {
+          selectedFile = null;
+          fileDrop.classList.remove('has-file');
+          fileNameEl.textContent = 'Select File from Device';
+          fileSizeEl.textContent = 'AES-256-GCM • Chunked Web Crypto';
+          fileBadgeEl.textContent = 'BROWSE';
+          btnEncrypt.classList.remove('recommended');
+          btnDecrypt.classList.remove('recommended');
+          setVisualState('STANDARD');
+          setStatus('STANDBY // ZERO-GRAVITY', '#00e5ff');
+          updateActionButtons();
+          return;
+        }
+
+        selectedFile = file;
+        fileDrop.classList.add('has-file');
+        fileNameEl.textContent = file.name;
+        fileSizeEl.textContent = formatBytes(file.size);
+
+        const isEnc = file.name.toLowerCase().endsWith('.enc');
+        fileBadgeEl.textContent = isEnc ? 'ENCRYPTED' : 'RAW FILE';
+        btnEncrypt.classList.toggle('recommended', !isEnc);
+        btnDecrypt.classList.toggle('recommended', isEnc);
+
+        setVisualState('SELECTED');
+        setStatus('TARGET LOCKED // CONSTELLATION RING', '#00e5ff');
+        updateActionButtons();
+      });
+
+      passwordInput.addEventListener('input', updateActionButtons);
+
+      togglePwBtn.addEventListener('click', () => {
+        const isPw = passwordInput.type === 'password';
+        passwordInput.type = isPw ? 'text' : 'password';
+        togglePwBtn.textContent = isPw ? 'HIDE' : 'SHOW';
+      });
+
+      function startCrypto(mode) {
+        if (!selectedFile || !passwordInput.value || isBusy) return;
+
+        isBusy = true;
+        clearResult();
+        updateActionButtons();
+        percentReadout.textContent = '0%';
+        percentReadout.classList.add('visible');
+
+        if (mode === 'encrypt') {
+          setVisualState('ENCRYPTING', true);
+          percentReadout.style.color = '#ffb300';
+          setStatus('ENCRYPTING // CLOCKWISE ACCELERATION', '#ffb300');
+        } else {
+          setVisualState('DECRYPTING', true);
+          percentReadout.style.color = '#ff3355';
+          setStatus('DECRYPTING // COUNTER-CLOCKWISE', '#ff3355');
+        }
+
+        cryptoWorker.postMessage({
+          mode,
+          file: selectedFile,
+          password: passwordInput.value
+        });
+      }
+
+      btnEncrypt.addEventListener('click', () => startCrypto('encrypt'));
+      btnDecrypt.addEventListener('click', () => startCrypto('decrypt'));
+
+      cryptoWorker.onmessage = (e) => {
+        const msg = e.data;
+
+        if (msg.type === 'progress') {
+          progress = msg.percent;
+          percentReadout.textContent = `${progress}%`;
+        } else if (msg.type === 'done') {
+          isBusy = false;
+          progress = 100;
+          percentReadout.textContent = '100%';
+          percentReadout.style.color = '#00e676';
+
+          processedBlob = msg.blob;
+          processedFilename = msg.filename;
+
+          setVisualState('COMPLETED', false);
+          setStatus('COMPLETE // VERIFIED', '#00e676');
+          updateActionButtons();
+
+          const previewType = msg.mode === 'decrypt' ? getPreviewCategory(processedFilename) : null;
+          if (previewType) {
+            btnRam.style.display = 'block';
+            resultActions.classList.remove('single');
+          } else {
+            btnRam.style.display = 'none';
+            resultActions.classList.add('single');
+          }
+          resultBar.classList.add('active');
+
+          completeTimer = setTimeout(() => {
+            percentReadout.classList.remove('visible');
+            setVisualState('STANDARD', true);
+            setStatus('DISPERSED // STANDBY', '#00e5ff');
+          }, 2400);
+
+        } else if (msg.type === 'error') {
+          isBusy = false;
+          percentReadout.classList.remove('visible');
+          setVisualState(selectedFile ? 'SELECTED' : 'STANDARD', true);
+          setStatus('ERROR // AUTH REJECTED', '#ff3355');
+          updateActionButtons();
+          alert(msg.message);
+        }
+      };
+
+      btnSave.addEventListener('click', () => {
+        if (!processedBlob) return;
+        const url = URL.createObjectURL(processedBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = processedFilename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      });
+
+      btnRam.addEventListener('click', async () => {
+        if (!processedBlob) return;
+        const category = getPreviewCategory(processedFilename);
+        if (!category) return;
+
+        viewerBody.innerHTML = '';
+        viewerTitle.textContent = processedFilename;
+        activeTextArea = null;
+        btnReencrypt.style.display = 'none';
+
+        if (category === 'text') {
+          const text = await processedBlob.text();
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.spellcheck = false;
+          viewerBody.appendChild(ta);
+          activeTextArea = ta;
+          btnReencrypt.style.display = 'block';
+        } else {
+          const typedBlob = new Blob([processedBlob], { type: getMimeType(processedFilename) });
+          activeRamUrl = URL.createObjectURL(typedBlob);
+
+          if (category === 'image') {
+            const img = document.createElement('img');
+            img.src = activeRamUrl;
+            viewerBody.appendChild(img);
+          } else if (category === 'audio') {
+            const audio = document.createElement('audio');
+            audio.controls = true;
+            audio.src = activeRamUrl;
+            viewerBody.appendChild(audio);
+          } else if (category === 'video') {
+            const video = document.createElement('video');
+            video.controls = true;
+            video.playsInline = true;
+            video.src = activeRamUrl;
+            viewerBody.appendChild(video);
+          }
+        }
+
+        viewerModal.classList.add('open');
+      });
+
+      function purgeViewerMemory() {
+        if (activeRamUrl) {
+          URL.revokeObjectURL(activeRamUrl);
+          activeRamUrl = null;
+        }
+        if (activeTextArea) {
+          activeTextArea.value = '';
+          activeTextArea = null;
+        }
+        viewerBody.innerHTML = '';
+        viewerModal.classList.remove('open');
+      }
+
+      btnPurge.addEventListener('click', purgeViewerMemory);
+
+      btnReencrypt.addEventListener('click', () => {
+        if (!activeTextArea) return;
+        const editedText = activeTextArea.value;
+        const targetName = processedFilename;
+        purgeViewerMemory();
+
+        const editedFile = new File([editedText], targetName, { type: 'text/plain' });
+        selectedFile = editedFile;
+        fileNameEl.textContent = editedFile.name;
+        fileSizeEl.textContent = formatBytes(editedFile.size) + ' (RAM Edit)';
+        fileBadgeEl.textContent = 'MODIFIED';
+        btnEncrypt.classList.add('recommended');
+        btnDecrypt.classList.remove('recommended');
+
+        startCrypto('encrypt');
+      });
+    })();
+  </script>
+</body>
+</html>
