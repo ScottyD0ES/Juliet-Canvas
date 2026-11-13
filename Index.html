@@ -7,7 +7,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Juliet // System Utilities</title>
     <style>
-        /* Reset and layout */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -24,7 +23,6 @@
             color: #f1f5f9;
         }
 
-        /* Fullscreen Canvas Background */
         canvas {
             position: fixed;
             top: 0;
@@ -35,7 +33,6 @@
             pointer-events: none;
         }
 
-        /* Foreground Menu Overlay */
         .ui-layer {
             position: relative;
             z-index: 2;
@@ -97,7 +94,6 @@
             box-shadow: 0 0 8px #10b981;
         }
 
-        /* Menu Grid */
         .menu-container {
             width: 100%;
             max-width: 520px;
@@ -213,248 +209,219 @@
             <div class="sys-title">JULIET // OS</div>
             <div class="sys-status">
                 <span class="status-dot" id="swDot"></span>
-                <span id="swText">SYNCING</span>
+                <span id="swText">READY</span>
             </div>
         </header>
 
         <main class="menu-container">
             <div class="menu-label">Browser Utilities</div>
-            <div class="menu-grid" id="menuGrid"></div>
+            <div class="menu-grid">
+                <a class="menu-card" href="BarcodeGenerator.html">
+                    <div class="card-left">
+                        <div class="card-icon">BAR</div>
+                        <div class="card-info">
+                            <div class="card-title">Barcode Generator</div>
+                            <div class="card-desc">Code 128 &amp; Code 39 scannable barcode utility</div>
+                        </div>
+                    </div>
+                    <div class="card-arrow">&#8250;</div>
+                </a>
+
+                <a class="menu-card" href="encoder.html">
+                    <div class="card-left">
+                        <div class="card-icon">ENC</div>
+                        <div class="card-info">
+                            <div class="card-title">Vault Encoder</div>
+                            <div class="card-desc">AES-256-GCM local file encryption &amp; decryption</div>
+                        </div>
+                    </div>
+                    <div class="card-arrow">&#8250;</div>
+                </a>
+
+                <a class="menu-card" href="TallyCounter.html">
+                    <div class="card-left">
+                        <div class="card-icon">CNT</div>
+                        <div class="card-info">
+                            <div class="card-title">Tally Counter</div>
+                            <div class="card-desc">Multi-register counter &amp; quantity tracker</div>
+                        </div>
+                    </div>
+                    <div class="card-arrow">&#8250;</div>
+                </a>
+            </div>
         </main>
 
         <footer class="sys-footer">
-            <span id="clockDisplay">--:--:--</span>
+            <span id="clockDisplay">00:00:00</span>
             <span>LOCAL CACHE ENABLED</span>
         </footer>
     </div>
 
     <script>
-        // =========================================================================
-        // 1. MENU CONFIGURATION (ADD NEW UTILITIES HERE)
-        // =========================================================================
-        const UTILITIES = [
-            {
-                title: "Barcode Generator",
-                desc: "Code 128 & Code 39 scannable barcode utility",
-                file: "BarcodeGenerator.html",
-                code: "BAR"
-            },
-            {
-                title: "Vault Encoder",
-                desc: "AES-256-GCM local file encryption & decryption",
-                file: "encoder.html",
-                code: "ENC"
-            },
-            {
-                title: "Tally Counter",
-                desc: "Multi-register counter & quantity tracker",
-                file: "TallyCounter.html",
-                code: "CNT"
+        window.addEventListener('DOMContentLoaded', () => {
+            // Live Clock
+            function updateClock() {
+                const now = new Date();
+                document.getElementById('clockDisplay').textContent = now.toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
             }
-        ];
+            setInterval(updateClock, 1000);
+            updateClock();
 
-        const menuGrid = document.getElementById("menuGrid");
-        UTILITIES.forEach(item => {
-            const link = document.createElement("a");
-            link.className = "menu-card";
-            link.href = item.file;
-            link.innerHTML = `
-                <div class="card-left">
-                    <div class="card-icon">${item.code}</div>
-                    <div class="card-info">
-                        <div class="card-title">${item.title}</div>
-                        <div class="card-desc">${item.desc}</div>
-                    </div>
-                </div>
-                <div class="card-arrow">&#8250;</div>
-            `;
-            menuGrid.appendChild(link);
-        });
+            // PS2 OS Orb Ring Chronometer Canvas
+            const canvas = document.getElementById('ps2Canvas');
+            const ctx = canvas.getContext('2d');
 
-        // Live System Clock
-        function updateClock() {
-            const now = new Date();
-            document.getElementById("clockDisplay").textContent = now.toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit"
-            });
-        }
-        setInterval(updateClock, 1000);
-        updateClock();
+            const config = {
+                ringSpeedFactor: 4.0,
+                orbPulseFactor: 1.0,
+                axisSpeedFactor: 5.0,
+                tiltAngle: 0.7,
+                color: '#00a2ff',
+                cloudOpacity: 0.3,
+                ringRadius: 200,
+                depthPerspective: 350
+            };
 
-        // =========================================================================
-        // 2. PS2 OS ORB RING CHRONOMETER CANVAS ENGINE
-        // =========================================================================
-        const canvas = document.getElementById('ps2Canvas');
-        const ctx = canvas.getContext('2d');
+            const orbs = [];
+            const numOrbs = 7;
+            let cloudParticles = [];
+            const PS2_SPEEDS = [2.0, 1.9, 1.8, 1.7, 1.6, 1.5, 1.4];
 
-        const config = {
-            ringSpeedFactor: 4.0,
-            orbPulseFactor: 1.0,
-            axisSpeedFactor: 5.0,
-            tiltAngle: 0.7,
-            color: '#00a2ff',
-            cloudOpacity: 0.3,
-            ringRadius: 200,
-            depthPerspective: 350,
-        };
+            function initCloud() {
+                cloudParticles = [];
+                for (let i = 0; i < 50; i++) {
+                    cloudParticles.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        vx: (Math.random() - 0.5) * 0.3,
+                        vy: (Math.random() - 0.5) * 0.3,
+                        radius: Math.random() * 2 + 0.5
+                    });
+                }
+            }
 
-        const orbs = [];
-        const numOrbs = 7;
-        let cloudParticles = [];
-        const PS2_SPEEDS = [2.0, 1.9, 1.8, 1.7, 1.6, 1.5, 1.4];
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                config.ringRadius = Math.min(canvas.width, canvas.height) * 0.28;
+                config.depthPerspective = config.ringRadius * 1.8;
+                initCloud();
+            }
 
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            config.ringRadius = Math.min(canvas.width, canvas.height) * 0.28;
-            config.depthPerspective = config.ringRadius * 1.8;
-            initCloud();
-        }
-
-        function initOrbs() {
             for (let i = 0; i < numOrbs; i++) {
                 orbs.push({
                     baseAngle: (i / numOrbs) * Math.PI * 2,
                     currentAngleOffset: 0,
                     speedMultiplier: PS2_SPEEDS[i],
-                    pulsePhase: Math.random() * Math.PI * 2,
+                    pulsePhase: Math.random() * Math.PI * 2
                 });
             }
-        }
 
-        function initCloud() {
-            cloudParticles = [];
-            for (let i = 0; i < 50; i++) {
-                cloudParticles.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    vx: (Math.random() - 0.5) * 0.3,
-                    vy: (Math.random() - 0.5) * 0.3,
-                    radius: Math.random() * 2 + 0.5,
-                });
+            function project3D(x, y, z, centerX, centerY) {
+                const tiltCos = Math.cos(config.tiltAngle);
+                const tiltSin = Math.sin(config.tiltAngle);
+                const tiltedY = y * tiltCos - z * tiltSin;
+                const tiltedZ = y * tiltSin + z * tiltCos;
+                const scale = config.depthPerspective / (config.depthPerspective + tiltedZ);
+                return {
+                    screenX: x * scale + centerX,
+                    screenY: tiltedY * scale + centerY,
+                    scale: scale,
+                    zDepth: tiltedZ
+                };
             }
-        }
 
-        function project3D(x, y, z, centerX, centerY) {
-            const tiltCos = Math.cos(config.tiltAngle);
-            const tiltSin = Math.sin(config.tiltAngle);
-            
-            const tiltedX = x;
-            const tiltedY = y * tiltCos - z * tiltSin;
-            const tiltedZ = y * tiltSin + z * tiltCos;
+            function draw() {
+                ctx.fillStyle = `rgba(0, 0, 0, ${1 - config.cloudOpacity})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            const scale = config.depthPerspective / (config.depthPerspective + tiltedZ);
-            
-            return {
-                screenX: tiltedX * scale + centerX,
-                screenY: tiltedY * scale + centerY,
-                scale: scale,
-                zDepth: tiltedZ
-            };
-        }
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
 
-        function hexToRgb(hex) {
-            let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            return result ? {
-                r: parseInt(result[1], 16),
-                g: parseInt(result[2], 16),
-                b: parseInt(result[3], 16)
-            } : { r: 0, g: 162, b: 255 };
-        }
+                ctx.fillStyle = 'rgba(0, 162, 255, 0.2)';
+                for (let i = 0; i < cloudParticles.length; i++) {
+                    const p = cloudParticles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                    if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
 
-        function draw() {
-            ctx.fillStyle = `rgba(0, 0, 0, ${1 - config.cloudOpacity})`;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+                const projectedOrbs = orbs.map(orb => {
+                    orb.currentAngleOffset += 0.005 * config.ringSpeedFactor * orb.speedMultiplier;
+                    const totalAngle = orb.baseAngle + orb.currentAngleOffset;
+                    const startX = config.ringRadius * Math.cos(totalAngle);
+                    const startY = config.ringRadius * Math.sin(totalAngle);
+                    const projection = project3D(startX, startY, 0, centerX, centerY);
+                    projection.orbConfig = orb;
+                    return projection;
+                });
 
-            const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
-            const rgb = hexToRgb(config.color);
+                config.tiltAngle += 0.002 * config.axisSpeedFactor;
+                projectedOrbs.sort((a, b) => b.zDepth - a.zDepth);
 
-            ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.2)`;
-            cloudParticles.forEach(p => {
-                p.x += p.vx; p.y += p.vy;
-                if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
-                if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                ctx.fill();
-            });
+                for (let i = 0; i < projectedOrbs.length; i++) {
+                    const proj = projectedOrbs[i];
+                    const orb = proj.orbConfig;
+                    orb.pulsePhase += 0.05 * config.orbPulseFactor;
+                    const pulse = (Math.sin(orb.pulsePhase) + 1) / 2;
 
-            const projectedOrbs = orbs.map(orb => {
-                orb.currentAngleOffset += 0.005 * config.ringSpeedFactor * orb.speedMultiplier;
-                const totalAngle = orb.baseAngle + orb.currentAngleOffset;
+                    const radius = 8 * proj.scale * (1 + pulse * 0.3);
+                    const depthAlpha = Math.max(0.1, Math.min(0.9, config.depthPerspective / (config.depthPerspective + proj.zDepth)));
 
-                const startX = config.ringRadius * Math.cos(totalAngle);
-                const startY = config.ringRadius * Math.sin(totalAngle);
-                const startZ = 0;
+                    ctx.shadowBlur = 25 * proj.scale;
+                    ctx.shadowColor = `rgba(0, 162, 255, ${0.8 * depthAlpha})`;
 
-                const projection = project3D(startX, startY, startZ, centerX, centerY);
-                projection.orbConfig = orb;
-                return projection;
-            });
+                    const gradient = ctx.createRadialGradient(
+                        proj.screenX, proj.screenY, 0,
+                        proj.screenX, proj.screenY, radius
+                    );
+                    gradient.addColorStop(0, `rgba(255, 255, 255, ${0.9 * depthAlpha})`);
+                    gradient.addColorStop(0.2, `rgba(255, 255, 255, ${0.7 * depthAlpha})`);
+                    gradient.addColorStop(0.6, `rgba(0, 162, 255, ${0.5 * depthAlpha})`);
+                    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
-            config.tiltAngle += 0.002 * config.axisSpeedFactor;
-            projectedOrbs.sort((a, b) => b.zDepth - a.zDepth);
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(proj.screenX, proj.screenY, radius * 1.5, 0, Math.PI * 2);
+                    ctx.fill();
 
-            projectedOrbs.forEach(proj => {
-                const orb = proj.orbConfig;
-                orb.pulsePhase += 0.05 * config.orbPulseFactor;
-                const pulse = (Math.sin(orb.pulsePhase) + 1) / 2;
+                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.3 * depthAlpha})`;
+                    ctx.beginPath();
+                    ctx.arc(proj.screenX, proj.screenY, radius * 0.4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
 
-                const baseRadius = 8;
-                const radius = baseRadius * proj.scale * (1 + pulse * 0.3);
-                const depthAlpha = Math.max(0.1, Math.min(0.9, (config.depthPerspective / (config.depthPerspective + proj.zDepth))));
+                requestAnimationFrame(draw);
+            }
 
-                ctx.shadowBlur = 25 * proj.scale;
-                ctx.shadowColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${0.8 * depthAlpha})`;
-                
-                const gradient = ctx.createRadialGradient(
-                    proj.screenX, proj.screenY, 0,
-                    proj.screenX, proj.screenY, radius
-                );
-                gradient.addColorStop(0, `rgba(255, 255, 255, ${0.9 * depthAlpha})`);
-                gradient.addColorStop(0.2, `rgba(255, 255, 255, ${0.7 * depthAlpha})`);
-                gradient.addColorStop(0.6, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${0.5 * depthAlpha})`);
-                gradient.addColorStop(1, `rgba(0, 0, 0, 0)`);
-                
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.arc(proj.screenX, proj.screenY, radius * 1.5, 0, Math.PI * 2);
-                ctx.fill();
-                
-                ctx.shadowBlur = 0;
-                ctx.fillStyle = `rgba(255, 255, 255, ${0.3 * depthAlpha})`;
-                ctx.beginPath();
-                ctx.arc(proj.screenX, proj.screenY, radius * 0.4, 0, Math.PI * 2);
-                ctx.fill();
-            });
-
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
             requestAnimationFrame(draw);
-        }
 
-        window.addEventListener('resize', resizeCanvas);
-        initOrbs();
-        resizeCanvas();
-        requestAnimationFrame(draw);
-
-        // =========================================================================
-        // 3. OFFLINE SERVICE WORKER REGISTRATION & PRE-CACHE
-        // =========================================================================
-        if ("serviceWorker" in navigator) {
-            window.addEventListener("load", () => {
-                navigator.serviceWorker.register("/Juliet-Canvas/sw.js")
+            // Offline Service Worker Registration & Pre-cache
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/Juliet-Canvas/sw.js')
                     .then(() => {
-                        document.getElementById("swDot").classList.add("ready");
-                        document.getElementById("swText").textContent = "OFFLINE READY";
-                        UTILITIES.forEach(u => fetch(u.file).catch(() => {}));
+                        document.getElementById('swDot').classList.add('ready');
+                        document.getElementById('swText').textContent = 'OFFLINE READY';
+                        ['BarcodeGenerator.html', 'encoder.html', 'TallyCounter.html'].forEach(f => {
+                            fetch(f).catch(() => {});
+                        });
                     })
                     .catch(() => {
-                        document.getElementById("swText").textContent = "ONLINE ONLY";
+                        document.getElementById('swText').textContent = 'ONLINE ONLY';
                     });
-            });
-        }
+            }
+        });
     </script>
 </body>
 </html>
