@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RGC36 v1.0 — Rotating Grid Cypher - 36</title>
+  <title>RGC36 v1.3 — Rotating Grid Cypher - 36</title>
   <style>
     :root {
       --bg: #0f1115;
@@ -369,7 +369,7 @@
     <div class="brand">
       <div class="brand-title-row">
         <h1>RGC36 — Rotating Grid Cypher - 36</h1>
-        <span class="version-badge">v1.0</span>
+        <span class="version-badge">v1.3</span>
       </div>
       <span>5-Rotor Polyalphabetic Mechanical Grid Engine</span>
     </div>
@@ -433,7 +433,7 @@
           <pre class="debug-pre" id="encDbgSeed"></pre>
         </div>
         <div class="debug-section">
-          <div class="debug-section-title">2. Pre-Rotation Stream Assembly (Y-Log, Z-Numbers, Delimiters &amp; Reverse Cell-36 X-Pad)</div>
+          <div class="debug-section-title">2. Space-Staged Assembly &amp; Unified Delimiter Pass</div>
           <pre class="debug-pre" id="encDbgStages"></pre>
         </div>
         <div class="debug-section">
@@ -476,7 +476,7 @@
           <pre class="debug-pre" id="decDbgSeed"></pre>
         </div>
         <div class="debug-section">
-          <div class="debug-section-title">2. Outside-In Peel Pipeline (Raw &rarr; X-Pad &rarr; Y-Log &rarr; Delimiters &rarr; Z-Numbers)</div>
+          <div class="debug-section-title">2. Token-Split &amp; Outside-In Peel Pipeline (Tokens &rarr; X...X &rarr; Y...Y &rarr; Z...Z)</div>
           <pre class="debug-pre" id="decDbgPeel"></pre>
         </div>
         <div class="debug-section">
@@ -551,7 +551,7 @@
   <script>
     "use strict";
 
-    const APP_VERSION = "v1.0";
+    const APP_VERSION = "v1.3";
 
     // =========================================================================
     // 1. CORE ALPHABET & TAI UTILITIES
@@ -771,7 +771,7 @@
     }
 
     // =========================================================================
-    // 4. RGC36 ENCODE & DECODE PIPELINE (EXACT ORDER OF OPERATIONS)
+    // 4. RGC36 ENCODE & DECODE PIPELINE (SPACE-STAGED UNIFIED DELIMITERS)
     // =========================================================================
     function encodeRGC36(rawText, keyword, useYWrapper) {
       if (!rawText || !rawText.trim()) {
@@ -805,59 +805,55 @@
       // Step 2: Wrap digits in Z...Z
       const zWrappedText = wrapNumbers(workingText);
 
-      // Step 3: Build word list + single-digit delimiters
-      const messageWords = zWrappedText.split(" ").filter(Boolean);
+      // Step 3: Build space-separated sections: <body words> + [Y...Y] + <X...X>
+      const sections = zWrappedText.split(" ").filter(Boolean);
+      if (yBlock) {
+        sections.push(yBlock);
+      }
+
+      // Length before X...X (each space between sections becomes a 1-char delimiter digit)
+      const preXLength = sections.join(" ").length;
+      // Total length with " " + X...X must equal (36 * N) - 1, with minimum X...X length = 2 ("XX")
+      const blockCount = Math.ceil((preXLength + 1 + 2 + 1) / 36);
+      const targetStreamLen = blockCount * 36 - 1;
+      const xBlockLen = targetStreamLen - (preXLength + 1);
+
+      const innerPadLen = xBlockLen - 2;
+      let innerPad = "";
+      for (let i = 0; i < innerPadLen; i++) {
+        innerPad += baseGrid[35 - (i % 36)];
+      }
+      const xBlock = "X" + innerPad + "X";
+      sections.push(xBlock);
+
+      const stagedWithSpaces = sections.join(" ");
+
+      // Step 4: Replace every space in stagedWithSpaces with the cycling single-digit delimiter
       const streamTokens = [];
       const delimiterList = [];
 
-      for (let wIdx = 0; wIdx < messageWords.length; wIdx++) {
-        for (const ch of messageWords[wIdx]) {
-          streamTokens.push({ ch, tag: "CHAR" });
+      for (let sIdx = 0; sIdx < sections.length; sIdx++) {
+        const sec = sections[sIdx];
+        const tag =
+          sIdx === sections.length - 1
+            ? "X-PAD"
+            : yBlock && sIdx === sections.length - 2
+            ? "Y-LOG"
+            : "BODY";
+
+        for (const ch of sec) {
+          streamTokens.push({ ch, tag });
         }
-        if (wIdx < messageWords.length - 1 || yBlock) {
-          const delimChar = baseGrid[wIdx % 36];
+
+        if (sIdx < sections.length - 1) {
+          const delimChar = baseGrid[sIdx % 36];
           const delimDigit = String(charToTAI(delimChar) % 10);
           delimiterList.push(delimDigit);
           streamTokens.push({ ch: delimDigit, tag: "DELIM" });
         }
       }
 
-      // Step 4: Append Y...Y formatting log (followed by delimiter digit before X...X)
-      if (yBlock) {
-        for (const ch of yBlock) {
-          streamTokens.push({ ch, tag: "Y-LOG" });
-        }
-        const yDelimChar = baseGrid[messageWords.length % 36];
-        const yDelimDigit = String(charToTAI(yDelimChar) % 10);
-        delimiterList.push(yDelimDigit);
-        streamTokens.push({ ch: yDelimDigit, tag: "DELIM" });
-      } else {
-        // Delimiter after final message word before X...X
-        const endDelimChar = baseGrid[(messageWords.length - 1) % 36];
-        const endDelimDigit = String(charToTAI(endDelimChar) % 10);
-        delimiterList.push(endDelimDigit);
-        streamTokens.push({ ch: endDelimDigit, tag: "DELIM" });
-      }
-
-      const coreCharCount = streamTokens.length;
-
-      // Step 5: Compute X...X padding length to reach (36 * N) - 1
-      const blockCount = Math.ceil((coreCharCount + 3) / 36);
-      const targetStreamLen = blockCount * 36 - 1;
-      const padTotalLen = targetStreamLen - coreCharCount;
-
-      const innerPadLen = padTotalLen - 2;
-      let innerPad = "";
-      for (let i = 0; i < innerPadLen; i++) {
-        innerPad += baseGrid[35 - (i % 36)];
-      }
-      const xBlock = "X" + innerPad + "X";
-
-      for (const ch of xBlock) {
-        streamTokens.push({ ch, tag: "X-PAD" });
-      }
-
-      // Step 6: Encrypt stream using 5-rotor mechanics
+      // Step 5: Encrypt stream using 5-rotor mechanics
       const originModulo = mod4OneBased(charToTAI(streamTokens[0].ch));
       const originHintChar = HINT_LETTERS[originModulo - 1];
 
@@ -908,52 +904,78 @@
           stages:
             `[1] Stripped Upper   : ${workingText}\n` +
             `[2] Z-Wrapped Numbers: ${zWrappedText}\n` +
-            `[3] Word Delimiters  : ${delimiterList.join(", ")}\n` +
-            `[4] Y-Formatting Log : ${yBlock || "(Disabled / No formatting events)"} (${yEventCount} events)\n` +
-            `[5] X-Padding (Rev36): ${xBlock} (${xBlock.length} chars; ${blockCount} block${blockCount === 1 ? "" : "s"} = ${cipherChars.length} total chars)\n` +
-            `[6] Full Input Stream: ${fullPreparedStream}`,
+            `[3] Y-Formatting Log : ${yBlock || "(Disabled / No formatting events)"} (${yEventCount} events)\n` +
+            `[4] X-Padding (Rev36): ${xBlock} (${xBlock.length} chars)\n` +
+            `[5] Space-Staged Text: ${stagedWithSpaces}\n` +
+            `[6] Delimiter Pass   : ${delimiterList.join(", ")} -> ${fullPreparedStream} (${cipherChars.length} total chars)`,
           trace: traceLines.join("\n")
         }
       };
     }
 
-    // Peel trailing X...X reverse Cell-36 buffer reliably
-    // Because every non-empty payload ends with a single-digit delimiter right before X...X,
-    // the opening 'X' of X...X is always immediately preceded by a digit [0-9]!
-    function peelTrailingXBuffer(stream, baseGrid) {
-      if (stream.length < 3 || stream[stream.length - 1] !== "X") {
-        throw new Error("Could not verify trailing X...X padding buffer. Check keyword or ciphertext.");
+    // Verify that a token is a valid X<reverse-Cell-36>X buffer
+    function verifyXBufferToken(token, baseGrid) {
+      if (!token || token.length < 2 || token[0] !== "X" || token[token.length - 1] !== "X") {
+        return false;
       }
+      const inner = token.slice(1, -1);
+      for (let i = 0; i < inner.length; i++) {
+        if (inner[i] !== baseGrid[35 - (i % 36)]) {
+          return false;
+        }
+      }
+      return true;
+    }
 
-      const maxXLen = Math.min(stream.length - 1, 36);
-      const validSplits = [];
-      let innerIdx = 0;
+    // Check if index `yStart` begins a Y<payload>Y token whose closing 'Y' is immediately
+    // followed by `expectedDelim` and then the final X...X token
+    function isYLogTokenAt(payloadStream, yStart, baseGrid, masterGrid, mapState, wordIndex) {
+      let mGrid = masterGrid;
+      let wStart = masterGrid;
+      const mState = mapState.slice();
+      const expectedDelim = String(charToTAI(baseGrid[(wordIndex - 1) % 36]) % 10);
+      let sawPayload = false;
 
-      for (let pos = stream.length - 2; pos >= stream.length - maxXLen; pos--) {
-        const ch = stream[pos];
-        const prevCh = pos > 0 ? stream[pos - 1] : "";
-        const expectedPadChar = baseGrid[35 - (innerIdx % 36)];
+      for (let j = yStart; j < payloadStream.length; j++) {
+        const activeGrid = getActiveGrid(baseGrid, mGrid, mState);
+        const cellIdx = activeGrid.indexOf(payloadStream[j]);
+        if (cellIdx === -1) return false;
+        const ch = taiToChar(cellIdx + 1);
+        mGrid = (mGrid % 4) + 1;
 
-        if (ch === "X" && /[0-9]/.test(prevCh)) {
-          validSplits.push(pos);
+        if (j === yStart) {
+          if (ch !== "Y") return false;
+          continue;
         }
 
-        if (ch !== expectedPadChar) {
-          break;
+        if (ch === "Y" && sawPayload) {
+          // The character immediately after closing 'Y' must be expectedDelim
+          if (j + 1 >= payloadStream.length) return false;
+          const delimGrid = getActiveGrid(baseGrid, mGrid, mState);
+          const delimIdx = delimGrid.indexOf(payloadStream[j + 1]);
+          if (delimIdx === -1 || taiToChar(delimIdx + 1) !== expectedDelim) {
+            return false;
+          }
+
+          // Advance word rotors past expectedDelim and verify the remaining token is X...X
+          let xMaster = ((wStart - 2 + 4) % 4) + 1;
+          const qToRotate = (wordIndex - 1) % 4;
+          mState[qToRotate] = (mState[qToRotate] % 4) + 1;
+
+          let rem = "";
+          for (let k = j + 2; k < payloadStream.length; k++) {
+            const g = getActiveGrid(baseGrid, xMaster, mState);
+            const idx = g.indexOf(payloadStream[k]);
+            if (idx === -1) return false;
+            rem += taiToChar(idx + 1);
+            xMaster = (xMaster % 4) + 1;
+          }
+          return verifyXBufferToken(rem, baseGrid);
         }
-        innerIdx++;
-      }
 
-      if (validSplits.length === 0) {
-        throw new Error("Could not verify trailing X...X padding buffer. Check keyword or ciphertext.");
+        sawPayload = true;
       }
-
-      // Take the longest valid reverse-Cell-36 X...X wrapper preceded by a delimiter digit
-      const xStart = validSplits[validSplits.length - 1];
-      return {
-        trimmedStream: stream.slice(0, xStart),
-        xBlock: stream.slice(xStart)
-      };
+      return false;
     }
 
     function decodeRGC36(rawCipher, keyword, useYWrapper) {
@@ -979,15 +1001,15 @@
 
       let inZDigits = false;
       let pendingZOpen = false;
-      let atWordStart = true;
+      let inYToken = false;
+      let yHasPayload = false;
+      let inXToken = false;
 
+      const tokens = [];
+      let currentToken = "";
       const decodedChars = [];
       const traceLines = [];
 
-      // Note: Y...Y contains only [0-9A-Z] where digits are Base-36 event lengths/deltas.
-      // Because a Y...Y block is only ever the final word before X...X, we prevent any digit
-      // inside a Y...Y word from acting as a delimiter by checking whether a 'Y'-initial word
-      // closes with 'Y' immediately followed by the expected delimiter digit.
       for (let i = 0; i < payloadStream.length; i++) {
         const cChar = payloadStream[i];
         const activeGrid = getActiveGrid(baseGrid, masterGrid, mapState);
@@ -997,104 +1019,116 @@
         }
 
         const pChar = taiToChar(cellIndex + 1);
+
+        // Detect entry into protected Y...Y token or final X...X token at start of a token
+        if (currentToken.length === 0 && !inYToken && !inXToken) {
+          if (pChar === "Y" && isYLogTokenAt(payloadStream, i, baseGrid, masterGrid, mapState, wordIndex)) {
+            inYToken = true;
+            yHasPayload = false;
+          } else if (pChar === "X") {
+            let mTest = masterGrid;
+            let rem = "";
+            for (let k = i; k < payloadStream.length; k++) {
+              const g = getActiveGrid(baseGrid, mTest, mapState);
+              const idx = g.indexOf(payloadStream[k]);
+              if (idx === -1) break;
+              rem += taiToChar(idx + 1);
+              mTest = (mTest % 4) + 1;
+            }
+            if (verifyXBufferToken(rem, baseGrid)) {
+              inXToken = true;
+            }
+          }
+        }
+
         decodedChars.push(pChar);
 
         const expectedDelimDigit = String(charToTAI(baseGrid[(wordIndex - 1) % 36]) % 10);
         const isDelimiter =
+          !inXToken &&
+          !inYToken &&
           !inZDigits &&
-          !atWordStart &&
+          currentToken.length > 0 &&
           /[0-9]/.test(pChar) &&
           pChar === expectedDelimDigit;
 
         traceLines.push(
-          `[${String(i + 1).padStart(3, "0")}] W${String(wordIndex).padStart(2, "0")} | GRID:${masterGrid} MAP:[${mapState.join(" ")}] | '${cChar}' -> '${pChar}' (TAI ${String(cellIndex + 1).padStart(2, "0")})${isDelimiter ? "  [DELIM]" : ""}`
+          `[${String(i + 1).padStart(3, "0")}] W${String(wordIndex).padStart(2, "0")} | GRID:${masterGrid} MAP:[${mapState.join(" ")}] | '${cChar}' -> '${pChar}' (TAI ${String(cellIndex + 1).padStart(2, "0")})${isDelimiter ? "  [DELIM]" : inYToken ? "  [Y-LOG]" : inXToken ? "  [X-PAD]" : ""}`
         );
 
         if (isDelimiter) {
+          tokens.push(currentToken);
+          currentToken = "";
+
           masterGrid = ((wordStartMaster - 2 + 4) % 4) + 1;
           wordStartMaster = masterGrid;
 
           const qToRotate = (wordIndex - 1) % 4;
           mapState[qToRotate] = (mapState[qToRotate] % 4) + 1;
           wordIndex++;
-          atWordStart = true;
           pendingZOpen = false;
           inZDigits = false;
         } else {
-          if (inZDigits) {
-            if (pChar === "Z") inZDigits = false;
-          } else if (pendingZOpen) {
-            if (/[0-9]/.test(pChar)) inZDigits = true;
-            pendingZOpen = false;
-          } else if (pChar === "Z") {
-            pendingZOpen = true;
+          if (inYToken) {
+            if (pChar === "Y" && yHasPayload) {
+              inYToken = false;
+            } else if (currentToken.length > 0) {
+              yHasPayload = true;
+            }
+          } else if (!inXToken) {
+            if (inZDigits) {
+              if (pChar === "Z") inZDigits = false;
+            } else if (pendingZOpen) {
+              if (/[0-9]/.test(pChar)) inZDigits = true;
+              pendingZOpen = false;
+            } else if (pChar === "Z") {
+              pendingZOpen = true;
+            }
           }
 
-          atWordStart = false;
+          currentToken += pChar;
           masterGrid = (masterGrid % 4) + 1;
         }
       }
 
-      const rawDecodedStream = decodedChars.join("");
-
-      // =======================================================================
-      // STRICT OUTSIDE-IN PEEL ORDER:
-      // 1. Remove X...X padding buffer first (+ its preceding delimiter digit)
-      // 2. Remove Y...Y formatting log (+ its preceding delimiter digit)
-      // 3. Remove word delimiters (excluding Z...Z)
-      // 4. Remove Z...Z wrappers
-      // 5. Add back punctuation and formatting data
-      // =======================================================================
-      const peelRes = peelTrailingXBuffer(rawDecodedStream, baseGrid);
-      let streamAfterX = peelRes.trimmedStream;
-      if (/[0-9]/.test(streamAfterX[streamAfterX.length - 1])) {
-        streamAfterX = streamAfterX.slice(0, -1);
+      if (currentToken) {
+        tokens.push(currentToken);
       }
 
+      const rawDecodedStream = decodedChars.join("");
+      const lastToken = tokens[tokens.length - 1];
+
+      if (tokens.length < 2 || !verifyXBufferToken(lastToken, baseGrid)) {
+        document.getElementById("decDbgSeed").textContent =
+          `Engine Version   : RGC36 ${APP_VERSION}\n` +
+          `Keyword Applied  : ${keyword.trim() ? keyword.trim().toUpperCase() : "(None — Standard TAI)"}\n` +
+          `Keyed Alphabet   : ${baseGrid.join("")}\n` +
+          `Initial Sub-Grid : MAP [${initialMap.join(" ")}]\n` +
+          `Trailing Hint    : '${originHintChar}' -> Starting Master GRID ${originModulo}`;
+        document.getElementById("decDbgPeel").textContent =
+          `[1] Raw Decoded Stream  : ${rawDecodedStream}\n` +
+          `[2] Split Tokens        : ${tokens.join(" | ")}\n` +
+          `[3] Error               : Final token '${lastToken || ""}' is not a valid X...X reverse Cell-36 buffer.`;
+        document.getElementById("decDbgTrace").textContent = traceLines.join("\n");
+        throw new Error("Could not verify trailing X...X padding buffer. Check keyword or ciphertext.");
+      }
+
+      // 1. Pop verified X...X padding buffer token
+      const xBlock = tokens.pop();
+
+      // 2. Pop Y...Y formatting log token if present
       let yPayload = "";
       let yFullBlock = "(None)";
-      let streamAfterY = streamAfterX;
-
-      if (streamAfterY.endsWith("Y")) {
-        const yStart = streamAfterY.lastIndexOf("Y", streamAfterY.length - 2);
-        if (yStart !== -1 && yStart > 0 && /[0-9]/.test(streamAfterY[yStart - 1])) {
-          yFullBlock = streamAfterY.slice(yStart);
-          yPayload = streamAfterY.slice(yStart + 1, -1);
-          streamAfterY = streamAfterY.slice(0, yStart - 1);
-        }
+      const maybeY = tokens[tokens.length - 1];
+      if (maybeY && maybeY.length >= 2 && maybeY[0] === "Y" && maybeY[maybeY.length - 1] === "Y") {
+        yFullBlock = tokens.pop();
+        yPayload = yFullBlock.slice(1, -1);
       }
 
-      const words = [];
-      let currentWord = "";
-      let wIdx = 0;
-      let zDigitsOpen = false;
-      let zCandidate = false;
+      // 3. Unwrap Z...Z numbers on remaining body word tokens
+      const zUnwrappedText = tokens.map(unwrapNumbers).join(" ");
 
-      for (let i = 0; i < streamAfterY.length; i++) {
-        const ch = streamAfterY[i];
-        const expectedDelim = String(charToTAI(baseGrid[wIdx % 36]) % 10);
-
-        if (!zDigitsOpen && currentWord.length > 0 && ch === expectedDelim) {
-          words.push(currentWord);
-          currentWord = "";
-          wIdx++;
-          zCandidate = false;
-        } else {
-          if (zDigitsOpen) {
-            if (ch === "Z") zDigitsOpen = false;
-          } else if (zCandidate) {
-            if (/[0-9]/.test(ch)) zDigitsOpen = true;
-            zCandidate = false;
-          } else if (ch === "Z") {
-            zCandidate = true;
-          }
-          currentWord += ch;
-        }
-      }
-      if (currentWord) words.push(currentWord);
-
-      const zUnwrappedText = words.map(unwrapNumbers).join(" ");
-
+      // 4. Restore case and punctuation formatting
       const reconstructed = useYWrapper && yPayload
         ? restoreFormatting(zUnwrappedText, yPayload)
         : zUnwrappedText.toLowerCase();
@@ -1110,9 +1144,9 @@
             `Trailing Hint    : '${originHintChar}' -> Starting Master GRID ${originModulo}`,
           peel:
             `[1] Raw Decoded Stream  : ${rawDecodedStream}\n` +
-            `[2] Peeled X-Pad Block  : ${peelRes.xBlock} (${peelRes.xBlock.length} chars verified)\n` +
-            `[3] Peeled Y-Log Block  : ${yFullBlock}\n` +
-            `[4] Delimiter-Split Body: ${words.join(" | ")}\n` +
+            `[2] Peeled X...X Token  : ${xBlock} (${xBlock.length} chars verified)\n` +
+            `[3] Peeled Y...Y Token  : ${yFullBlock}\n` +
+            `[4] Body Word Tokens    : ${tokens.join(" | ")}\n` +
             `[5] Z-Unwrapped Text    : ${zUnwrappedText}\n` +
             `[6] Final Restored Text : ${reconstructed}`,
           trace: traceLines.join("\n")
