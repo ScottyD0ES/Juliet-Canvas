@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>PS2 Barcode & Packet Telemetry Utility</title>
-    
+    <title>Barcode & Packet Telemetry</title>
+
     <!-- bwip-js for multi-format barcode generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bwip-js/4.11.4/bwip-js-min.js"></script>
 
@@ -37,7 +37,7 @@
             pointer-events: none;
         }
 
-        /* Foreground Glassmorphic HUD */
+        /* Foreground High-Transparency HUD */
         #app {
             position: relative;
             z-index: 10;
@@ -47,61 +47,64 @@
             flex-direction: column;
             max-width: 680px;
             margin: 0 auto;
-            padding: env(safe-area-inset-top, 16px) 16px env(safe-area-inset-bottom, 16px) 16px;
+            padding: env(safe-area-inset-top, 14px) 16px env(safe-area-inset-bottom, 14px) 16px;
         }
 
         header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 4px 14px 4px;
+            padding: 6px 2px 12px 2px;
+            gap: 8px;
         }
 
-        .brand {
+        .status-cluster {
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
         .status-dot {
-            width: 10px;
-            height: 10px;
+            width: 11px;
+            height: 11px;
             border-radius: 50%;
             background: #00a2ff;
-            box-shadow: 0 0 12px #00a2ff;
+            box-shadow: 0 0 14px #00a2ff;
             transition: background 0.4s ease, box-shadow 0.4s ease;
+            flex-shrink: 0;
         }
 
-        h1 {
-            font-size: 16px;
-            font-weight: 600;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: rgba(255, 255, 255, 0.9);
-        }
-
-        .tabs {
+        .header-controls {
             display: flex;
-            background: rgba(255, 255, 255, 0.08);
+            align-items: center;
+            gap: 8px;
+        }
+
+        .segmented {
+            display: flex;
+            background: rgba(255, 255, 255, 0.06);
             border-radius: 10px;
             padding: 3px;
             border: 1px solid rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
         }
 
-        .tab-btn {
+        .seg-btn {
             background: transparent;
             border: none;
-            color: rgba(255, 255, 255, 0.6);
-            padding: 6px 14px;
+            color: rgba(255, 255, 255, 0.58);
+            padding: 5px 11px;
             border-radius: 7px;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
+            white-space: nowrap;
         }
 
-        .tab-btn.active {
-            background: rgba(255, 255, 255, 0.18);
+        .seg-btn.active {
+            background: rgba(255, 255, 255, 0.16);
             color: #ffffff;
         }
 
@@ -109,9 +112,9 @@
             display: none;
             flex: 1;
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
             overflow-y: auto;
-            padding-bottom: 12px;
+            padding-bottom: 10px;
         }
 
         .panel.active {
@@ -123,16 +126,17 @@
             position: relative;
             width: 100%;
             aspect-ratio: 4 / 3;
-            max-height: 44vh;
-            background: rgba(10, 14, 24, 0.55);
+            max-height: 38vh;
+            background: rgba(8, 12, 20, 0.32);
             border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.14);
             overflow: hidden;
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
             display: flex;
             align-items: center;
             justify-content: center;
+            flex-shrink: 0;
         }
 
         video {
@@ -144,10 +148,10 @@
         .reticle {
             position: absolute;
             width: 68%;
-            height: 58%;
+            height: 56%;
             border: 2px solid rgba(0, 162, 255, 0.65);
             border-radius: 14px;
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.28);
             pointer-events: none;
             transition: border-color 0.4s ease;
         }
@@ -166,6 +170,21 @@
             50% { top: 94%; opacity: 1; }
         }
 
+        .cam-top-bar {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .cam-top-bar > * {
+            pointer-events: auto;
+        }
+
         .cam-controls {
             position: absolute;
             bottom: 10px;
@@ -173,34 +192,36 @@
             right: 10px;
             display: flex;
             justify-content: space-between;
-            gap: 8px;
+            gap: 6px;
         }
 
-        /* Glass Cards & Buttons */
+        /* High-Transparency Glass Containers */
         .glass-card {
-            background: rgba(12, 16, 26, 0.68);
+            background: rgba(10, 14, 24, 0.36);
             border: 1px solid rgba(255, 255, 255, 0.14);
             border-radius: 16px;
-            padding: 14px;
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
+            padding: 12px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
         }
 
         .btn {
-            background: rgba(255, 255, 255, 0.12);
-            border: 1px solid rgba(255, 255, 255, 0.18);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.16);
             color: #fff;
-            padding: 9px 14px;
+            padding: 8px 12px;
             border-radius: 10px;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
+            gap: 5px;
             text-decoration: none;
-            transition: background 0.2s, transform 0.1s;
+            transition: background 0.2s, transform 0.1s, border-color 0.2s;
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
         }
 
         .btn:active {
@@ -208,59 +229,162 @@
         }
 
         .btn-primary {
-            background: rgba(0, 162, 255, 0.32);
-            border-color: rgba(0, 162, 255, 0.6);
+            background: rgba(0, 162, 255, 0.26);
+            border-color: rgba(0, 162, 255, 0.55);
         }
 
-        /* Packet Telemetry Output */
+        .btn-active {
+            background: rgba(255, 196, 0, 0.28);
+            border-color: rgba(255, 196, 0, 0.7);
+            color: #ffe57f;
+        }
+
+        /* Multi-Capture Batch List (Scan Many Mode) */
+        .batch-strip {
+            display: none;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 10px;
+            max-height: 112px;
+            overflow-y: auto;
+            padding-right: 2px;
+        }
+
+        .batch-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 7px 10px;
+            border-radius: 9px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .batch-item.selected {
+            background: rgba(0, 162, 255, 0.18);
+            border-color: rgba(0, 162, 255, 0.55);
+        }
+
+        .batch-item-text {
+            font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+            font-size: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #f1f5f9;
+        }
+
+        .batch-item-tag {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 2px 6px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            flex-shrink: 0;
+        }
+
+        /* Telemetry & Recreated Barcode Split Row */
+        .telemetry-top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .telemetry-info {
+            flex: 1;
+            min-width: 0;
+        }
+
         .telemetry-header {
             display: flex;
             flex-wrap: wrap;
             gap: 6px;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
 
         .badge {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.06em;
-            padding: 4px 8px;
+            padding: 3px 8px;
             border-radius: 6px;
-            background: rgba(0, 162, 255, 0.25);
+            background: rgba(0, 162, 255, 0.2);
             border: 1px solid rgba(0, 162, 255, 0.5);
             color: #7cd2ff;
         }
 
         .badge.type-badge {
-            background: rgba(255, 255, 255, 0.12);
-            border-color: rgba(255, 255, 255, 0.25);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
             color: #e2e8f0;
         }
 
         .raw-payload {
-            background: rgba(0, 0, 0, 0.45);
+            background: rgba(0, 0, 0, 0.28);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 10px;
-            padding: 10px;
+            padding: 9px 10px;
             font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
             font-size: 13px;
-            line-height: 1.45;
+            line-height: 1.4;
             word-break: break-all;
-            max-height: 130px;
+            max-height: 96px;
             overflow-y: auto;
-            color: #f1f5f9;
+            color: #f8fafc;
             user-select: text;
             -webkit-user-select: text;
         }
 
+        /* Recreated Barcode Thumbnail */
+        .clone-thumb-wrap {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #ffffff;
+            border-radius: 10px;
+            padding: 6px 8px;
+            cursor: pointer;
+            flex-shrink: 0;
+            max-width: 118px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+            transition: transform 0.15s ease;
+        }
+
+        .clone-thumb-wrap:active {
+            transform: scale(0.95);
+        }
+
+        #cloneThumbCanvas {
+            max-width: 102px;
+            max-height: 68px;
+            height: auto;
+            width: auto;
+            display: block;
+        }
+
+        .clone-hint {
+            font-size: 9px;
+            font-weight: 700;
+            color: #334155;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-top: 3px;
+        }
+
         .expanded-box {
             margin-top: 8px;
-            padding: 8px 10px;
+            padding: 7px 10px;
             border-radius: 8px;
-            background: rgba(0, 255, 136, 0.1);
-            border: 1px solid rgba(0, 255, 136, 0.3);
+            background: rgba(0, 255, 136, 0.12);
+            border: 1px solid rgba(0, 255, 136, 0.32);
             font-size: 12px;
             color: #a7f3d0;
             word-break: break-all;
@@ -269,25 +393,162 @@
         .action-grid {
             display: flex;
             flex-wrap: wrap;
+            gap: 7px;
+            margin-top: 10px;
+        }
+
+        /* Fullscreen Dimmed Barcode Lightbox */
+        #barcodeLightbox {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.88);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            gap: 18px;
+        }
+
+        #barcodeLightbox.open {
+            display: flex;
+        }
+
+        .lightbox-card {
+            background: #ffffff;
+            padding: 24px 20px;
+            border-radius: 18px;
+            max-width: 94vw;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+        }
+
+        #lightboxCanvas {
+            max-width: 84vw;
+            max-height: 55vh;
+            width: auto;
+            height: auto;
+        }
+
+        .lightbox-caption {
+            color: #0f172a;
+            font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+            font-size: 13px;
+            font-weight: 600;
+            word-break: break-all;
+            text-align: center;
+            max-width: 80vw;
+        }
+
+        /* Scan History Slide-Over Drawer */
+        #historyDrawer {
+            position: fixed;
+            inset: 0;
+            z-index: 90;
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: none;
+            justify-content: flex-end;
+        }
+
+        #historyDrawer.open {
+            display: flex;
+        }
+
+        .drawer-sheet {
+            width: min(88vw, 380px);
+            height: 100%;
+            background: rgba(12, 16, 28, 0.82);
+            border-left: 1px solid rgba(255, 255, 255, 0.15);
+            padding: env(safe-area-inset-top, 16px) 16px env(safe-area-inset-bottom, 16px) 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .drawer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .drawer-title {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
             gap: 8px;
-            margin-top: 12px;
+        }
+
+        .history-item {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            padding: 10px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .history-item:active {
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .history-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .history-val {
+            font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+            font-size: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #f8fafc;
         }
 
         /* Writer Panel Controls */
-        label {
-            display: block;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: rgba(255, 255, 255, 0.65);
+        .label-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 6px;
         }
 
-        select, textarea, input[type="text"] {
+        label.field-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        select, textarea {
             width: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.34);
+            border: 1px solid rgba(255, 255, 255, 0.18);
             border-radius: 10px;
             padding: 10px 12px;
             color: #ffffff;
@@ -297,7 +558,7 @@
             outline: none;
         }
 
-        select:focus, textarea:focus, input[type="text"]:focus {
+        select:focus, textarea:focus {
             border-color: #00a2ff;
         }
 
@@ -308,8 +569,9 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 150px;
-            margin-top: 8px;
+            min-height: 140px;
+            margin-top: 10px;
+            cursor: pointer;
         }
 
         #barcodeOutputCanvas {
@@ -317,10 +579,18 @@
             height: auto;
         }
 
-        .error-text {
-            color: #ff6b81;
+        .validation-box {
+            margin-top: 8px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: rgba(255, 71, 87, 0.16);
+            border: 1px solid rgba(255, 71, 87, 0.45);
+            color: #ffb8c0;
             font-size: 12px;
-            margin-top: 6px;
+            line-height: 1.45;
+            display: none;
+            flex-direction: column;
+            gap: 8px;
         }
     </style>
 </head>
@@ -332,26 +602,37 @@
     <!-- Interactive HUD -->
     <div id="app">
         <header>
-            <div class="brand">
+            <div class="status-cluster">
                 <div class="status-dot" id="statusDot"></div>
-                <h1>Packet Scanner</h1>
+                <div class="segmented" id="scanModeSwitch">
+                    <button class="seg-btn active" data-mode="single">Scan 1</button>
+                    <button class="seg-btn" data-mode="many">Scan Many</button>
+                </div>
             </div>
-            <div class="tabs">
-                <button class="tab-btn active" data-tab="scanPanel">Scan</button>
-                <button class="tab-btn" data-tab="writePanel">Write</button>
+
+            <div class="header-controls">
+                <button class="btn" id="openHistoryBtn" style="padding: 6px 10px;">History</button>
+                <div class="segmented">
+                    <button class="seg-btn active" data-tab="scanPanel">Scan</button>
+                    <button class="seg-btn" data-tab="writePanel">Write</button>
+                </div>
             </div>
         </header>
 
         <!-- SCANNER PANEL -->
         <section id="scanPanel" class="panel active">
-            <div class="viewfinder-card">
+            <div class="viewfinder-card" id="viewfinderCard">
                 <video id="cameraFeed" playsinline autoplay muted></video>
                 <div class="reticle" id="reticle">
                     <div class="scan-line" id="scanLine"></div>
                 </div>
+                <div class="cam-top-bar">
+                    <button class="btn" id="torchBtn" style="display:none;">Torch Off</button>
+                    <button class="btn" id="clearBatchBtn" style="display:none;">Clear Batch (0)</button>
+                </div>
                 <div class="cam-controls">
                     <button class="btn btn-primary" id="toggleCamBtn">Start Camera</button>
-                    <label class="btn" style="margin:0; text-transform:none; letter-spacing:0; color:#fff;">
+                    <label class="btn" style="margin:0;">
                         Scan Image
                         <input type="file" id="imageFileInput" accept="image/*" hidden>
                     </label>
@@ -359,21 +640,36 @@
                 </div>
             </div>
 
-            <div class="glass-card" id="resultCard">
-                <div class="telemetry-header">
-                    <span class="badge" id="formatBadge">STANDBY</span>
-                    <span class="badge type-badge" id="packetTypeBadge">AWAITING SIGNAL</span>
+            <!-- Hidden until a barcode is scanned or loaded -->
+            <div class="glass-card" id="resultCard" style="display:none;">
+                <div class="batch-strip" id="batchStrip"></div>
+
+                <div class="telemetry-top-row">
+                    <div class="telemetry-info">
+                        <div class="telemetry-header">
+                            <span class="badge" id="formatBadge"></span>
+                            <span class="badge type-badge" id="packetTypeBadge"></span>
+                        </div>
+                        <div class="raw-payload" id="rawPayload"></div>
+                    </div>
+
+                    <div class="clone-thumb-wrap" id="cloneThumbWrap" title="Tap to expand barcode">
+                        <canvas id="cloneThumbCanvas"></canvas>
+                        <span class="clone-hint">Tap to Expand</span>
+                    </div>
                 </div>
-                <div class="raw-payload" id="rawPayload">Point camera at any 1D/2D barcode or upload an image to inspect its data packet...</div>
+
                 <div id="expandedUrlContainer" class="expanded-box" style="display:none;"></div>
                 <div class="action-grid" id="actionGrid"></div>
             </div>
         </section>
 
-        <!-- WRITER PANEL -->
+        <!-- WRITER / CONVERTER PANEL -->
         <section id="writePanel" class="panel">
-            <div class="glass-card">
-                <label for="symbologySelect">Barcode Symbology</label>
+            <div class="glass-card" id="writerCard">
+                <div class="label-row">
+                    <label class="field-label" for="symbologySelect">Barcode Symbology</label>
+                </div>
                 <select id="symbologySelect">
                     <optgroup label="2D Matrix Codes">
                         <option value="qrcode" selected>QR Code</option>
@@ -385,30 +681,62 @@
                         <option value="code128">Code 128 (ASCII)</option>
                         <option value="code39">Code 39</option>
                         <option value="code93">Code 93</option>
-                        <option value="upca">UPC-A (11 or 12 digits)</option>
-                        <option value="upce">UPC-E (7 or 8 digits)</option>
-                        <option value="ean13">EAN-13 (12 or 13 digits)</option>
-                        <option value="ean8">EAN-8 (7 or 8 digits)</option>
-                        <option value="interleaved2of5">ITF (Interleaved 2 of 5)</option>
+                        <option value="upca">UPC-A (11–12 digits)</option>
+                        <option value="upce">UPC-E (7–8 digits)</option>
+                        <option value="ean13">EAN-13 (12–13 digits)</option>
+                        <option value="ean8">EAN-8 (7–8 digits)</option>
+                        <option value="interleaved2of5">ITF (Even digits)</option>
                         <option value="rationalizedCodabar">Codabar</option>
                     </optgroup>
                 </select>
 
-                <label for="encodeInput">Data Packet Payload</label>
-                <textarea id="encodeInput" rows="3" placeholder="Enter URL, text, JSON, WIFI:S:MyNet;T:WPA;P:Secret;; or digits..."></textarea>
+                <div class="label-row">
+                    <label class="field-label" for="encodeInput">Data Packet Payload</label>
+                    <button class="btn" id="pasteClipboardBtn" style="padding: 4px 10px; font-size: 11px;">Paste Clipboard</button>
+                </div>
+                <textarea id="encodeInput" rows="3" placeholder="Enter or paste text, URL, JSON, or numeric code..."></textarea>
 
                 <div style="display:flex; gap:8px; flex-wrap:wrap;">
                     <button class="btn btn-primary" id="generateBtn">Encode Barcode</button>
                     <button class="btn" id="downloadPngBtn" style="display:none;">Save PNG</button>
                     <button class="btn" id="sharePngBtn" style="display:none;">Share</button>
                 </div>
-                <div id="writerError" class="error-text"></div>
 
-                <div class="barcode-output-box" id="barcodeOutputBox" style="display:none;">
+                <div id="writerValidationBox" class="validation-box">
+                    <div id="writerErrorText"></div>
+                    <div>
+                        <button class="btn btn-primary" id="loadExampleBtn" style="padding: 5px 10px; font-size: 11px;">Load Valid Example</button>
+                    </div>
+                </div>
+
+                <div class="barcode-output-box" id="barcodeOutputBox" style="display:none;" title="Tap to expand barcode">
                     <canvas id="barcodeOutputCanvas"></canvas>
                 </div>
             </div>
         </section>
+    </div>
+
+    <!-- Fullscreen Dimmed Barcode Lightbox -->
+    <div id="barcodeLightbox">
+        <div class="lightbox-card" id="lightboxCard">
+            <canvas id="lightboxCanvas"></canvas>
+            <div class="lightbox-caption" id="lightboxCaption"></div>
+        </div>
+        <button class="btn" id="closeLightboxBtn">Tap Anywhere to Close</button>
+    </div>
+
+    <!-- Scan History Slide-Over Drawer -->
+    <div id="historyDrawer">
+        <div class="drawer-sheet" id="drawerSheet">
+            <div class="drawer-header">
+                <span class="drawer-title">Scan History</span>
+                <div style="display:flex; gap:6px;">
+                    <button class="btn" id="clearHistoryBtn" style="padding: 5px 9px; font-size: 11px;">Clear</button>
+                    <button class="btn" id="closeHistoryBtn" style="padding: 5px 9px; font-size: 11px;">Close</button>
+                </div>
+            </div>
+            <div class="history-list" id="historyList"></div>
+        </div>
     </div>
 
     <!-- Main Application & ZXing-WASM Barcode Detector -->
@@ -416,7 +744,7 @@
         import { BarcodeDetector } from "https://fastly.jsdelivr.net/npm/barcode-detector@3/dist/es/ponyfill.min.js";
 
         // ==========================================
-        // 1. PS2 REACTIVE ORB ENGINE
+        // 1. PS2 REACTIVE ORB ENGINE (LOWER REGION)
         // ==========================================
         const canvas = document.getElementById('ps2Canvas');
         const ctx = canvas.getContext('2d');
@@ -428,12 +756,11 @@
             tiltAngle: 0.7,
             color: '#00a2ff',
             cloudOpacity: 0.3,
-            baseOrbRadius: 8,
-            radiusMultiplier: 0.28
+            baseOrbRadius: 7.5,
+            radiusMultiplier: 0.19
         };
 
-        // Live & Target states for smooth visual interpolation
-        const config = { ...DEFAULT_STATE, ringRadius: 200, depthPerspective: 350 };
+        const config = { ...DEFAULT_STATE, ringRadius: 140, depthPerspective: 260 };
         const targetConfig = { ...DEFAULT_STATE };
         const currentRgb = { r: 0, g: 162, b: 255 };
         const targetRgb = { r: 0, g: 162, b: 255 };
@@ -442,6 +769,7 @@
         const numOrbs = 7;
         let cloudParticles = [];
         const PS2_SPEEDS = [2.0, 1.9, 1.8, 1.7, 1.6, 1.5, 1.4];
+        let currentCenterY = window.innerHeight * 0.74;
 
         function hexToRgb(hex) {
             const res = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -461,12 +789,11 @@
             targetConfig.baseOrbRadius = mods.baseOrbRadius ?? DEFAULT_STATE.baseOrbRadius;
             targetConfig.radiusMultiplier = mods.radiusMultiplier ?? DEFAULT_STATE.radiusMultiplier;
 
-            // Sync HUD accent elements
             const dot = document.getElementById('statusDot');
             const reticle = document.getElementById('reticle');
             const scanLine = document.getElementById('scanLine');
             dot.style.background = hexColor;
-            dot.style.boxShadow = `0 0 12px ${hexColor}`;
+            dot.style.boxShadow = `0 0 14px ${hexColor}`;
             reticle.style.borderColor = hexColor;
             scanLine.style.background = `linear-gradient(90deg, transparent, ${hexColor}, transparent)`;
         }
@@ -490,7 +817,7 @@
 
         function initCloud() {
             cloudParticles = [];
-            for (let i = 0; i < 50; i++) {
+            for (let i = 0; i < 55; i++) {
                 cloudParticles.push({
                     x: Math.random() * canvas.width,
                     y: Math.random() * canvas.height,
@@ -499,6 +826,32 @@
                     radius: Math.random() * 2 + 0.5,
                 });
             }
+        }
+
+        function computeLowerAnchorY() {
+            const scanPanelActive = document.getElementById('scanPanel').classList.contains('active');
+            const resultCard = document.getElementById('resultCard');
+            const viewfinderCard = document.getElementById('viewfinderCard');
+            const writerCard = document.getElementById('writerCard');
+
+            let topBoundary = canvas.height * 0.45;
+            if (scanPanelActive) {
+                if (resultCard.style.display !== 'none') {
+                    topBoundary = resultCard.getBoundingClientRect().bottom;
+                } else {
+                    topBoundary = viewfinderCard.getBoundingClientRect().bottom;
+                }
+            } else {
+                topBoundary = writerCard.getBoundingClientRect().bottom;
+            }
+
+            const bottomBoundary = canvas.height - 28;
+            const availableSpace = bottomBoundary - topBoundary;
+
+            if (availableSpace > 90) {
+                return topBoundary + availableSpace * 0.52;
+            }
+            return canvas.height * 0.84;
         }
 
         function project3D(x, y, z, centerX, centerY) {
@@ -516,7 +869,6 @@
         }
 
         function draw() {
-            // Smoothly interpolate color and orbital physics
             const lerp = 0.05;
             currentRgb.r += (targetRgb.r - currentRgb.r) * lerp;
             currentRgb.g += (targetRgb.g - currentRgb.g) * lerp;
@@ -528,19 +880,22 @@
             config.baseOrbRadius += (targetConfig.baseOrbRadius - config.baseOrbRadius) * lerp;
             config.radiusMultiplier += (targetConfig.radiusMultiplier - config.radiusMultiplier) * lerp;
 
+            const targetY = computeLowerAnchorY();
+            currentCenterY += (targetY - currentCenterY) * 0.08;
+
             config.ringRadius = Math.min(canvas.width, canvas.height) * config.radiusMultiplier;
-            config.depthPerspective = config.ringRadius * 1.8;
+            config.depthPerspective = config.ringRadius * 1.85;
 
             ctx.fillStyle = `rgba(0, 0, 0, ${1 - config.cloudOpacity})`;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
+            const centerY = currentCenterY;
             const r = Math.round(currentRgb.r);
             const g = Math.round(currentRgb.g);
             const b = Math.round(currentRgb.b);
 
-            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.2)`;
+            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.22)`;
             cloudParticles.forEach(p => {
                 p.x += p.vx; p.y += p.vy;
                 if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
@@ -569,18 +924,18 @@
                 const pulse = (Math.sin(orb.pulsePhase) + 1) / 2;
 
                 const radius = config.baseOrbRadius * proj.scale * (1 + pulse * 0.3);
-                const depthAlpha = Math.max(0.1, Math.min(0.9, (config.depthPerspective / (config.depthPerspective + proj.zDepth))));
+                const depthAlpha = Math.max(0.12, Math.min(0.95, (config.depthPerspective / (config.depthPerspective + proj.zDepth))));
 
-                ctx.shadowBlur = 25 * proj.scale;
-                ctx.shadowColor = `rgba(${r}, ${g}, ${b}, ${0.8 * depthAlpha})`;
+                ctx.shadowBlur = 24 * proj.scale;
+                ctx.shadowColor = `rgba(${r}, ${g}, ${b}, ${0.85 * depthAlpha})`;
 
                 const gradient = ctx.createRadialGradient(
                     proj.screenX, proj.screenY, 0,
                     proj.screenX, proj.screenY, radius
                 );
-                gradient.addColorStop(0, `rgba(255, 255, 255, ${0.9 * depthAlpha})`);
-                gradient.addColorStop(0.2, `rgba(255, 255, 255, ${0.7 * depthAlpha})`);
-                gradient.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, ${0.5 * depthAlpha})`);
+                gradient.addColorStop(0, `rgba(255, 255, 255, ${0.92 * depthAlpha})`);
+                gradient.addColorStop(0.2, `rgba(255, 255, 255, ${0.72 * depthAlpha})`);
+                gradient.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, ${0.55 * depthAlpha})`);
                 gradient.addColorStop(1, `rgba(0, 0, 0, 0)`);
 
                 ctx.fillStyle = gradient;
@@ -589,7 +944,7 @@
                 ctx.fill();
 
                 ctx.shadowBlur = 0;
-                ctx.fillStyle = `rgba(255, 255, 255, ${0.3 * depthAlpha})`;
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.32 * depthAlpha})`;
                 ctx.beginPath();
                 ctx.arc(proj.screenX, proj.screenY, radius * 0.4, 0, Math.PI * 2);
                 ctx.fill();
@@ -604,7 +959,106 @@
         requestAnimationFrame(draw);
 
         // ==========================================
-        // 2. PACKET INTELLIGENCE & URL EXPANDER
+        // 2. SYMBOLOGY SPECS, VALIDATION & MAPPING
+        // ==========================================
+        const SYMBOLOGY_SPECS = {
+            qrcode: {
+                bwip: 'qrcode', is2D: true, example: 'https://example.com',
+                rule: 'Accepts any text, URL, JSON, or Wi-Fi string.'
+            },
+            datamatrix: {
+                bwip: 'datamatrix', is2D: true, example: 'DM-99300063',
+                rule: 'Accepts ASCII/UTF-8 text or numeric serials.'
+            },
+            pdf417: {
+                bwip: 'pdf417', is2D: true, example: 'ID:99300063|DEPT:OPS',
+                rule: 'Accepts multi-line text, IDs, or structured packets.'
+            },
+            azteccode: {
+                bwip: 'azteccode', is2D: true, example: 'AZTEC-PASS-2026',
+                rule: 'Accepts text, tickets, or binary strings.'
+            },
+            code128: {
+                bwip: 'code128', is2D: false, example: '99300063',
+                rule: 'Accepts standard ASCII characters (letters, digits, symbols).'
+            },
+            code39: {
+                bwip: 'code39', is2D: false, example: 'ABC-123',
+                rule: 'Requires uppercase A–Z, digits 0–9, or symbols (- . $ / + % SPACE).'
+            },
+            code93: {
+                bwip: 'code93', is2D: false, example: 'CODE93-TEST',
+                rule: 'Requires uppercase A–Z, digits 0–9, or (- . $ / + % SPACE).'
+            },
+            upca: {
+                bwip: 'upca', is2D: false, example: '012345678905',
+                rule: 'Requires exactly 11 or 12 numeric digits (0–9).'
+            },
+            upce: {
+                bwip: 'upce', is2D: false, example: '01234565',
+                rule: 'Requires 7 or 8 numeric digits starting with 0 or 1.'
+            },
+            ean13: {
+                bwip: 'ean13', is2D: false, example: '5901234123457',
+                rule: 'Requires exactly 12 or 13 numeric digits (0–9).'
+            },
+            ean8: {
+                bwip: 'ean8', is2D: false, example: '96385074',
+                rule: 'Requires exactly 7 or 8 numeric digits (0–9).'
+            },
+            interleaved2of5: {
+                bwip: 'interleaved2of5', is2D: false, example: '12345678',
+                rule: 'Requires an even number of numeric digits (e.g., 8 or 14 digits).'
+            },
+            rationalizedCodabar: {
+                bwip: 'rationalizedCodabar', is2D: false, example: 'A12345B',
+                rule: 'Requires digits 0–9 or (- $ : / . +) framed by A–D start/stop letters.'
+            }
+        };
+
+        function mapDetectorFormatToBwip(detectorFormat) {
+            const f = detectorFormat.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const map = {
+                qrcode: 'qrcode',
+                datamatrix: 'datamatrix',
+                pdf417: 'pdf417',
+                aztec: 'azteccode',
+                code128: 'code128',
+                code39: 'code39',
+                code93: 'code93',
+                upca: 'upca',
+                upce: 'upce',
+                ean13: 'ean13',
+                ean8: 'ean8',
+                itf: 'interleaved2of5',
+                codabar: 'rationalizedCodabar'
+            };
+            return map[f] || 'code128';
+        }
+
+        function renderBarcodeToCanvas(targetCanvas, bwipId, rawText, scale = 2) {
+            const spec = SYMBOLOGY_SPECS[bwipId] || { bwip: bwipId, is2D: false };
+            const opts = {
+                bcid: spec.bwip,
+                text: rawText,
+                scale: scale,
+                backgroundcolor: 'ffffff',
+                paddingwidth: 6,
+                paddingheight: 6
+            };
+
+            // Only attach height & text options on 1D barcodes to avoid bwip-js undefined height error
+            if (!spec.is2D) {
+                opts.height = 14;
+                opts.includetext = true;
+                opts.textxalign = 'center';
+            }
+
+            window.bwipjs.toCanvas(targetCanvas, opts);
+        }
+
+        // ==========================================
+        // 3. PACKET INTELLIGENCE & URL EXPANDER
         // ==========================================
         const SHORTENERS = [
             'bit.ly', 'tinyurl.com', 't.co', 'goo.gl', 'ow.ly', 'is.gd',
@@ -614,12 +1068,14 @@
 
         function classifySymbology(format) {
             const f = format.toLowerCase();
-            if (f.includes('qr')) return { label: 'QR Code', color: '#00ff88', mods: { ringSpeedFactor: 5.5, baseOrbRadius: 9, radiusMultiplier: 0.25 } };
-            if (f.includes('data_matrix') || f.includes('aztec')) return { label: format.toUpperCase(), color: '#b84dff', mods: { axisSpeedFactor: 8.5, orbPulseFactor: 1.8, baseOrbRadius: 7 } };
-            if (f.includes('pdf417')) return { label: 'PDF417', color: '#ffaa00', mods: { radiusMultiplier: 0.35, ringSpeedFactor: 3.0, baseOrbRadius: 10 } };
-            if (f.includes('upc') || f.includes('ean')) return { label: format.toUpperCase(), color: '#ff3b5c', mods: { ringSpeedFactor: 6.5, axisSpeedFactor: 2.5, baseOrbRadius: 8.5 } };
-            if (f.includes('code_128') || f.includes('code_39') || f.includes('code_93') || f.includes('itf') || f.includes('codabar')) {
-                return { label: format.toUpperCase(), color: '#ff7b00', mods: { ringSpeedFactor: 5.0, orbPulseFactor: 1.5, baseOrbRadius: 8 } };
+            if (f.includes('qr')) return { label: 'QR Code', color: '#00ff88', mods: { ringSpeedFactor: 5.5, baseOrbRadius: 8.5, radiusMultiplier: 0.18 } };
+            if (f.includes('data_matrix') || f.includes('datamatrix') || f.includes('aztec')) {
+                return { label: format.toUpperCase(), color: '#b84dff', mods: { axisSpeedFactor: 8.5, orbPulseFactor: 1.8, baseOrbRadius: 7 } };
+            }
+            if (f.includes('pdf417')) return { label: 'PDF417', color: '#ffaa00', mods: { radiusMultiplier: 0.23, ringSpeedFactor: 3.0, baseOrbRadius: 9 } };
+            if (f.includes('upc') || f.includes('ean')) return { label: format.toUpperCase(), color: '#ff3b5c', mods: { ringSpeedFactor: 6.5, axisSpeedFactor: 2.5, baseOrbRadius: 8 } };
+            if (f.includes('code_128') || f.includes('code128') || f.includes('code_39') || f.includes('code39') || f.includes('code_93') || f.includes('code93') || f.includes('itf') || f.includes('codabar')) {
+                return { label: format.toUpperCase(), color: '#ff7b00', mods: { ringSpeedFactor: 5.0, orbPulseFactor: 1.5, baseOrbRadius: 7.5 } };
             }
             return { label: format.toUpperCase(), color: '#38bdf8', mods: {} };
         }
@@ -627,7 +1083,6 @@
         function analyzeDataPacket(raw) {
             const trimmed = raw.trim();
 
-            // 1. Web URL
             if (/^https?:\/\//i.test(trimmed) || /^www\./i.test(trimmed)) {
                 const fullUrl = /^www\./i.test(trimmed) ? `https://${trimmed}` : trimmed;
                 let isShortened = false;
@@ -643,7 +1098,6 @@
                 };
             }
 
-            // 2. Wi-Fi Network
             if (/^WIFI:/i.test(trimmed)) {
                 const ssid = (trimmed.match(/S:([^;]*)/i) || [])[1] || 'Unknown';
                 const pass = (trimmed.match(/P:([^;]*)/i) || [])[1] || '';
@@ -652,11 +1106,10 @@
                     type: 'WI-FI CREDENTIALS',
                     value: trimmed,
                     meta: { ssid, pass, enc },
-                    orbBoost: { axisSpeedFactor: 9.0, baseOrbRadius: 10 }
+                    orbBoost: { axisSpeedFactor: 9.0, baseOrbRadius: 9 }
                 };
             }
 
-            // 3. vCard Contact
             if (/^BEGIN:VCARD/i.test(trimmed)) {
                 const fn = (trimmed.match(/FN:(.*)/i) || [])[1]?.trim() || 'Contact';
                 const tel = (trimmed.match(/TEL[^:]*:(.*)/i) || [])[1]?.trim() || '';
@@ -665,11 +1118,10 @@
                     type: 'VCARD CONTACT',
                     value: trimmed,
                     meta: { fn, tel, email },
-                    orbBoost: { baseOrbRadius: 11, orbPulseFactor: 1.4 }
+                    orbBoost: { baseOrbRadius: 10, orbPulseFactor: 1.4 }
                 };
             }
 
-            // 4. JSON Data Packet
             if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
                 try {
                     const parsed = JSON.parse(trimmed);
@@ -681,23 +1133,29 @@
                 } catch {}
             }
 
-            // 5. Email / Phone / Geo
             if (/^mailto:/i.test(trimmed) || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
                 return { type: 'EMAIL ADDRESS', value: trimmed.replace(/^mailto:/i, ''), orbBoost: {} };
             }
-            if (/^tel:/i.test(trimmed) || /^\+?[\d\s\-().]{7,18}$/.test(trimmed)) {
-                return { type: 'PHONE / NUMERIC ID', value: trimmed.replace(/^tel:/i, ''), orbBoost: {} };
-            }
-            if (/^geo:/i.test(trimmed)) {
-                return { type: 'GEO COORDINATES', value: trimmed, orbBoost: { radiusMultiplier: 0.34 } };
+
+            // Explicit phone URIs or formatted phone numbers (with +, dashes, parens, or 10-digit US format)
+            if (/^tel:/i.test(trimmed) || (/^(\+?\d{1,2}[\s.-])?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}$/.test(trimmed))) {
+                return { type: 'PHONE NUMBER', value: trimmed.replace(/^tel:/i, ''), orbBoost: {} };
             }
 
-            // 6. Retail GTIN / UPC / EAN Digits
+            if (/^geo:/i.test(trimmed)) {
+                return { type: 'GEO COORDINATES', value: trimmed, orbBoost: { radiusMultiplier: 0.22 } };
+            }
+
+            // Standard retail GTINs (8, 12, 13, 14 digits)
             if (/^\d{8}$|^\d{12,14}$/.test(trimmed)) {
                 return { type: 'RETAIL GTIN / PRODUCT CODE', value: trimmed, orbBoost: { ringSpeedFactor: 6.5 } };
             }
 
-            // 7. Plain Text
+            // Pure numeric SKU / internal ID (such as 99300063)
+            if (/^\d+$/.test(trimmed)) {
+                return { type: 'NUMERIC ID / SKU', value: trimmed, orbBoost: {} };
+            }
+
             return { type: 'RAW TEXT PACKET', value: trimmed, orbBoost: {} };
         }
 
@@ -705,7 +1163,6 @@
             containerEl.style.display = 'block';
             containerEl.textContent = 'Resolving redirect destination...';
             try {
-                // Attempt direct fetch redirect inspection (works if endpoint permits CORS)
                 const controller = new AbortController();
                 const timer = setTimeout(() => controller.abort(), 4500);
                 const res = await fetch(shortUrl, { method: 'HEAD', redirect: 'follow', signal: controller.signal });
@@ -715,28 +1172,46 @@
                     containerEl.innerHTML = `<strong>Expanded Destination:</strong><br>${res.url}`;
                     return res.url;
                 }
-            } catch (err) {
-                // Fallback when CORS blocks client-side redirect inspection
-            }
-            containerEl.innerHTML = `<strong>Shortened URL Detected:</strong> Direct browser expansion blocked by remote CORS policy. Use <em>Inspect Redirect</em> below to preview safely.`;
+            } catch (err) {}
+            containerEl.innerHTML = `<strong>Shortened URL Detected:</strong> Direct browser expansion blocked by remote CORS policy. Use <em>Inspect Redirect</em> below.`;
             return null;
         }
 
         // ==========================================
-        // 3. SCANNER & UI CONTROLLER
+        // 4. SCANNER, BATCH CAPTURE & LIGHTBOX
         // ==========================================
         const detector = new BarcodeDetector();
         const video = document.getElementById('cameraFeed');
         const toggleCamBtn = document.getElementById('toggleCamBtn');
+        const torchBtn = document.getElementById('torchBtn');
+        const clearBatchBtn = document.getElementById('clearBatchBtn');
+        const resultCard = document.getElementById('resultCard');
+        const batchStrip = document.getElementById('batchStrip');
         const formatBadge = document.getElementById('formatBadge');
         const packetTypeBadge = document.getElementById('packetTypeBadge');
         const rawPayloadEl = document.getElementById('rawPayload');
+        const cloneThumbWrap = document.getElementById('cloneThumbWrap');
+        const cloneThumbCanvas = document.getElementById('cloneThumbCanvas');
         const expandedUrlContainer = document.getElementById('expandedUrlContainer');
         const actionGrid = document.getElementById('actionGrid');
 
         let stream = null;
         let scanning = false;
-        let lastScannedValue = '';
+        let torchOn = false;
+        let scanMode = 'single'; // 'single' | 'many'
+        let batchItems = [];     // Array of { id, format, rawValue, timestamp }
+        let selectedItemId = null;
+        let activeCloneMeta = null;
+
+        // Scan 1 / Scan Many Switch
+        document.querySelectorAll('#scanModeSwitch .seg-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#scanModeSwitch .seg-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                scanMode = btn.dataset.mode;
+                updateBatchUI();
+            });
+        });
 
         async function startCamera() {
             try {
@@ -748,14 +1223,22 @@
                 await video.play();
                 scanning = true;
                 toggleCamBtn.textContent = 'Stop Camera';
+                checkTorchSupport();
                 scanLoop();
             } catch (err) {
+                resultCard.style.display = 'block';
+                formatBadge.textContent = 'CAMERA ERROR';
+                packetTypeBadge.textContent = 'PERMISSION';
                 rawPayloadEl.textContent = `Camera access denied or unavailable: ${err.message}`;
             }
         }
 
         function stopCamera() {
             scanning = false;
+            torchOn = false;
+            torchBtn.style.display = 'none';
+            torchBtn.classList.remove('btn-active');
+            torchBtn.textContent = 'Torch Off';
             if (stream) {
                 stream.getTracks().forEach(t => t.stop());
                 stream = null;
@@ -763,6 +1246,30 @@
             video.srcObject = null;
             toggleCamBtn.textContent = 'Start Camera';
         }
+
+        function checkTorchSupport() {
+            if (!stream) return;
+            const track = stream.getVideoTracks()[0];
+            if (!track || !track.getCapabilities) return;
+            const caps = track.getCapabilities();
+            if (caps.torch) {
+                torchBtn.style.display = 'inline-flex';
+            }
+        }
+
+        torchBtn.addEventListener('click', async () => {
+            if (!stream) return;
+            const track = stream.getVideoTracks()[0];
+            if (!track) return;
+            try {
+                torchOn = !torchOn;
+                await track.applyConstraints({ advanced: [{ torch: torchOn }] });
+                torchBtn.textContent = torchOn ? 'Torch On' : 'Torch Off';
+                torchBtn.classList.toggle('btn-active', torchOn);
+            } catch (err) {
+                torchOn = false;
+            }
+        });
 
         toggleCamBtn.addEventListener('click', () => {
             if (scanning) stopCamera();
@@ -775,11 +1282,15 @@
                 try {
                     const barcodes = await detector.detect(video);
                     if (barcodes.length > 0) {
-                        const hit = barcodes[0];
-                        if (hit.rawValue !== lastScannedValue) {
-                            lastScannedValue = hit.rawValue;
-                            if (navigator.vibrate) navigator.vibrate(40);
-                            handleDetectedBarcode(hit.format, hit.rawValue);
+                        if (scanMode === 'single') {
+                            const hit = barcodes[0];
+                            const key = `${hit.format}::${hit.rawValue}`;
+                            if (selectedItemId !== key) {
+                                ingestScannedItems([hit], false);
+                            }
+                        } else {
+                            // Scan Many: ingest all distinct barcodes seen in frame or succession
+                            ingestScannedItems(barcodes, true);
                         }
                     }
                 } catch (e) {}
@@ -787,7 +1298,6 @@
             requestAnimationFrame(scanLoop);
         }
 
-        // Static Image Upload Scanner
         document.getElementById('imageFileInput').addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -796,22 +1306,93 @@
             await img.decode();
             const barcodes = await detector.detect(img);
             if (barcodes.length > 0) {
-                lastScannedValue = barcodes[0].rawValue;
-                handleDetectedBarcode(barcodes[0].format, barcodes[0].rawValue);
+                ingestScannedItems(barcodes, scanMode === 'many');
             } else {
-                formatBadge.textContent = 'NO BARCODE FOUND';
+                resultCard.style.display = 'block';
+                cloneThumbWrap.style.display = 'none';
+                formatBadge.textContent = 'NO BARCODE';
                 packetTypeBadge.textContent = 'IMAGE SCAN';
-                rawPayloadEl.textContent = 'Could not detect a readable barcode in the selected image.';
+                rawPayloadEl.textContent = 'No readable barcode detected in the selected image.';
                 actionGrid.innerHTML = '';
             }
             URL.revokeObjectURL(img.src);
+            e.target.value = '';
         });
 
-        async function handleDetectedBarcode(format, rawValue) {
-            const sym = classifySymbology(format);
-            const packet = analyzeDataPacket(rawValue);
+        function ingestScannedItems(hits, appendMode) {
+            let newestItem = null;
 
-            // Shift PS2 Orbs based on Symbology + Data Packet
+            hits.forEach(hit => {
+                const key = `${hit.format}::${hit.rawValue}`;
+                const existing = batchItems.find(item => item.id === key);
+
+                if (!existing) {
+                    const entry = {
+                        id: key,
+                        format: hit.format,
+                        rawValue: hit.rawValue,
+                        timestamp: Date.now()
+                    };
+                    if (appendMode) {
+                        batchItems.push(entry);
+                    } else {
+                        batchItems = [entry];
+                    }
+                    newestItem = entry;
+                    saveToHistory(entry);
+                } else if (!appendMode) {
+                    newestItem = existing;
+                }
+            });
+
+            if (newestItem) {
+                if (navigator.vibrate) navigator.vibrate(35);
+                selectScannedItem(newestItem.id);
+            }
+            updateBatchUI();
+        }
+
+        function updateBatchUI() {
+            if (scanMode === 'many' && batchItems.length > 0) {
+                clearBatchBtn.style.display = 'inline-flex';
+                clearBatchBtn.textContent = `Clear (${batchItems.length})`;
+                batchStrip.style.display = batchItems.length > 1 ? 'flex' : 'none';
+                batchStrip.innerHTML = '';
+
+                batchItems.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = `batch-item ${item.id === selectedItemId ? 'selected' : ''}`;
+                    const sym = classifySymbology(item.format);
+                    row.innerHTML = `
+                        <span class="batch-item-text">${escapeHtml(item.rawValue)}</span>
+                        <span class="batch-item-tag" style="color:${sym.color}; border: 1px solid ${sym.color}55;">${sym.label}</span>
+                    `;
+                    row.addEventListener('click', () => selectScannedItem(item.id));
+                    batchStrip.appendChild(row);
+                });
+            } else {
+                clearBatchBtn.style.display = 'none';
+                batchStrip.style.display = 'none';
+            }
+        }
+
+        clearBatchBtn.addEventListener('click', () => {
+            batchItems = [];
+            selectedItemId = null;
+            updateBatchUI();
+            resetViewState();
+        });
+
+        async function selectScannedItem(itemId) {
+            const item = batchItems.find(i => i.id === itemId);
+            if (!item) return;
+            selectedItemId = item.id;
+            updateBatchUI();
+
+            resultCard.style.display = 'block';
+            const sym = classifySymbology(item.format);
+            const packet = analyzeDataPacket(item.rawValue);
+
             setOrbProfile(sym.color, { ...sym.mods, ...packet.orbBoost });
 
             formatBadge.textContent = sym.label;
@@ -820,19 +1401,30 @@
             packetTypeBadge.textContent = packet.type;
             rawPayloadEl.textContent = packet.value;
 
+            // Recreate scanned barcode thumbnail
+            const bwipId = mapDetectorFormatToBwip(item.format);
+            try {
+                renderBarcodeToCanvas(cloneThumbCanvas, bwipId, item.rawValue, 2);
+                cloneThumbWrap.style.display = 'flex';
+                activeCloneMeta = { bwipId, rawValue: item.rawValue, label: sym.label };
+            } catch (err) {
+                cloneThumbWrap.style.display = 'none';
+                activeCloneMeta = null;
+            }
+
             expandedUrlContainer.style.display = 'none';
             actionGrid.innerHTML = '';
 
-            // Universal Action: Copy Payload
-            addActionBtn('Copy Data', () => navigator.clipboard.writeText(rawValue));
+            addActionBtn('Copy Data', () => navigator.clipboard.writeText(item.rawValue));
 
-            // Universal Action: Load into Writer Tab
-            addActionBtn('Edit / Re-Encode', () => {
-                document.getElementById('encodeInput').value = rawValue;
+            addActionBtn('Edit / Convert', () => {
+                document.getElementById('encodeInput').value = item.rawValue;
+                const selectEl = document.getElementById('symbologySelect');
+                if (SYMBOLOGY_SPECS[bwipId]) selectEl.value = bwipId;
                 switchTab('writePanel');
+                runBarcodeGenerator();
             });
 
-            // Packet-Specific Smart Actions
             if (packet.type === 'WEB URL' || packet.type === 'SHORTENED WEB LINK') {
                 let targetUrl = packet.value;
                 const openLink = addLinkBtn('Open in New Tab ↗', targetUrl);
@@ -848,12 +1440,12 @@
             } else if (packet.type === 'WI-FI CREDENTIALS') {
                 rawPayloadEl.textContent = `Network (SSID): ${packet.meta.ssid}\nSecurity: ${packet.meta.enc}\nPassword: ${packet.meta.pass || '(None)'}`;
                 if (packet.meta.pass) {
-                    addActionBtn('Copy Wi-Fi Password', () => navigator.clipboard.writeText(packet.meta.pass));
+                    addActionBtn('Copy Password', () => navigator.clipboard.writeText(packet.meta.pass));
                 }
             } else if (packet.type === 'VCARD CONTACT') {
-                rawPayloadEl.textContent = `Name: ${packet.meta.fn}\nPhone: ${packet.meta.tel}\nEmail: ${packet.meta.email}\n\n${rawValue}`;
+                rawPayloadEl.textContent = `Name: ${packet.meta.fn}\nPhone: ${packet.meta.tel}\nEmail: ${packet.meta.email}\n\n${item.rawValue}`;
                 addActionBtn('Save Contact (.vcf)', () => {
-                    const blob = new Blob([rawValue], { type: 'text/vcard' });
+                    const blob = new Blob([item.rawValue], { type: 'text/vcard' });
                     triggerDownload(blob, `${packet.meta.fn.replace(/\s+/g, '_')}.vcf`);
                 });
             } else if (packet.type === 'JSON PAYLOAD') {
@@ -863,15 +1455,40 @@
                 });
             } else if (packet.type === 'EMAIL ADDRESS') {
                 addLinkBtn('Compose Email', `mailto:${packet.value}`);
-            } else if (packet.type === 'PHONE / NUMERIC ID') {
+            } else if (packet.type === 'PHONE NUMBER') {
                 addLinkBtn('Call Number', `tel:${packet.value}`);
             } else if (packet.type === 'GEO COORDINATES') {
                 const coords = packet.value.replace(/^geo:/i, '');
                 addLinkBtn('Open in Maps', `https://maps.apple.com/?q=${encodeURIComponent(coords)}`);
             } else if (packet.type === 'RETAIL GTIN / PRODUCT CODE') {
                 addLinkBtn('Lookup Product', `https://www.google.com/search?q=${encodeURIComponent(packet.value)}`);
+            } else if (packet.type === 'NUMERIC ID / SKU') {
+                addLinkBtn('Search ID / SKU', `https://www.google.com/search?q=${encodeURIComponent(packet.value)}`);
             }
         }
+
+        // Lightbox Expand Handler
+        const barcodeLightbox = document.getElementById('barcodeLightbox');
+        const lightboxCanvas = document.getElementById('lightboxCanvas');
+        const lightboxCaption = document.getElementById('lightboxCaption');
+
+        function openBarcodeLightbox(bwipId, rawValue) {
+            try {
+                renderBarcodeToCanvas(lightboxCanvas, bwipId, rawValue, 4);
+                lightboxCaption.textContent = rawValue;
+                barcodeLightbox.classList.add('open');
+            } catch (e) {}
+        }
+
+        cloneThumbWrap.addEventListener('click', () => {
+            if (activeCloneMeta) {
+                openBarcodeLightbox(activeCloneMeta.bwipId, activeCloneMeta.rawValue);
+            }
+        });
+
+        barcodeLightbox.addEventListener('click', () => {
+            barcodeLightbox.classList.remove('open');
+        });
 
         function addActionBtn(label, onClick) {
             const btn = document.createElement('button');
@@ -907,78 +1524,196 @@
             setTimeout(() => URL.revokeObjectURL(url), 1000);
         }
 
-        document.getElementById('resetOrbsBtn').addEventListener('click', () => {
-            lastScannedValue = '';
-            setOrbProfile(DEFAULT_STATE.color, DEFAULT_STATE);
-            formatBadge.textContent = 'STANDBY';
-            formatBadge.style.borderColor = '';
-            formatBadge.style.color = '';
-            packetTypeBadge.textContent = 'AWAITING SIGNAL';
-            rawPayloadEl.textContent = 'Point camera at any 1D/2D barcode or upload an image to inspect its data packet...';
+        function resetViewState() {
+            selectedItemId = null;
+            activeCloneMeta = null;
+            resultCard.style.display = 'none';
+            cloneThumbWrap.style.display = 'none';
             expandedUrlContainer.style.display = 'none';
             actionGrid.innerHTML = '';
+            setOrbProfile(DEFAULT_STATE.color, DEFAULT_STATE);
+        }
+
+        document.getElementById('resetOrbsBtn').addEventListener('click', () => {
+            batchItems = [];
+            updateBatchUI();
+            resetViewState();
         });
 
         // ==========================================
-        // 4. BARCODE WRITER / GENERATOR
+        // 5. SCAN HISTORY DRAWER (LOCALSTORAGE)
         // ==========================================
+        const HISTORY_KEY = 'ps2_barcode_history_v1';
+        const historyDrawer = document.getElementById('historyDrawer');
+        const historyList = document.getElementById('historyList');
+
+        function loadHistory() {
+            try {
+                return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+            } catch {
+                return [];
+            }
+        }
+
+        function saveToHistory(entry) {
+            const list = loadHistory();
+            const filtered = list.filter(i => !(i.format === entry.format && i.rawValue === entry.rawValue));
+            filtered.unshift(entry);
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(filtered.slice(0, 30)));
+        }
+
+        function renderHistoryDrawer() {
+            const list = loadHistory();
+            historyList.innerHTML = '';
+
+            if (list.length === 0) {
+                historyList.innerHTML = '<div style="color:rgba(255,255,255,0.45); font-size:13px; text-align:center; padding:24px 0;">No saved scans yet.</div>';
+                return;
+            }
+
+            list.forEach(item => {
+                const sym = classifySymbology(item.format);
+                const timeStr = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const el = document.createElement('div');
+                el.className = 'history-item';
+                el.innerHTML = `
+                    <div class="history-meta">
+                        <span style="color:${sym.color};">${sym.label}</span>
+                        <span>${timeStr}</span>
+                    </div>
+                    <div class="history-val">${escapeHtml(item.rawValue)}</div>
+                `;
+                el.addEventListener('click', () => {
+                    historyDrawer.classList.remove('open');
+                    switchTab('scanPanel');
+                    const key = `${item.format}::${item.rawValue}`;
+                    if (!batchItems.some(b => b.id === key)) {
+                        if (scanMode === 'many') batchItems.push({ ...item, id: key });
+                        else batchItems = [{ ...item, id: key }];
+                    }
+                    selectScannedItem(key);
+                });
+                historyList.appendChild(el);
+            });
+        }
+
+        document.getElementById('openHistoryBtn').addEventListener('click', () => {
+            renderHistoryDrawer();
+            historyDrawer.classList.add('open');
+        });
+
+        document.getElementById('closeHistoryBtn').addEventListener('click', () => {
+            historyDrawer.classList.remove('open');
+        });
+
+        historyDrawer.addEventListener('click', (e) => {
+            if (e.target === historyDrawer) historyDrawer.classList.remove('open');
+        });
+
+        document.getElementById('clearHistoryBtn').addEventListener('click', () => {
+            localStorage.removeItem(HISTORY_KEY);
+            renderHistoryDrawer();
+        });
+
+        // ==========================================
+        // 6. BARCODE WRITER & LIVE CONVERTER
+        // ==========================================
+        const symbologySelect = document.getElementById('symbologySelect');
+        const encodeInput = document.getElementById('encodeInput');
         const generateBtn = document.getElementById('generateBtn');
         const downloadPngBtn = document.getElementById('downloadPngBtn');
         const sharePngBtn = document.getElementById('sharePngBtn');
         const outputBox = document.getElementById('barcodeOutputBox');
         const outputCanvas = document.getElementById('barcodeOutputCanvas');
-        const writerError = document.getElementById('writerError');
+        const writerValidationBox = document.getElementById('writerValidationBox');
+        const writerErrorText = document.getElementById('writerErrorText');
 
-        generateBtn.addEventListener('click', () => {
-            const bcid = document.getElementById('symbologySelect').value;
-            const text = document.getElementById('encodeInput').value.trim();
-            writerError.textContent = '';
+        function runBarcodeGenerator() {
+            const bcid = symbologySelect.value;
+            const text = encodeInput.value.trim();
+            const spec = SYMBOLOGY_SPECS[bcid] || { example: 'ABC-123', rule: 'Check character format.' };
+            writerValidationBox.style.display = 'none';
 
             if (!text) {
-                writerError.textContent = 'Enter data to encode into the barcode.';
+                outputBox.style.display = 'none';
+                downloadPngBtn.style.display = 'none';
+                sharePngBtn.style.display = 'none';
                 return;
             }
 
             try {
-                const is2D = ['qrcode', 'datamatrix', 'pdf417', 'azteccode'].includes(bcid);
-                window.bwipjs.toCanvas(outputCanvas, {
-                    bcid: bcid,
-                    text: text,
-                    scale: 3,
-                    height: is2D ? undefined : 14,
-                    includetext: !is2D,
-                    textxalign: 'center',
-                    backgroundcolor: 'ffffff',
-                    paddingwidth: 8,
-                    paddingheight: 8
-                });
-
+                renderBarcodeToCanvas(outputCanvas, bcid, text, 3);
                 outputBox.style.display = 'flex';
                 downloadPngBtn.style.display = 'inline-flex';
                 if (navigator.share) sharePngBtn.style.display = 'inline-flex';
 
-                // Update PS2 Orbs to reflect the generated format
                 const sym = classifySymbology(bcid);
                 setOrbProfile(sym.color, sym.mods);
             } catch (err) {
                 outputBox.style.display = 'none';
                 downloadPngBtn.style.display = 'none';
                 sharePngBtn.style.display = 'none';
-                writerError.textContent = `Encoding Error: ${err.message}`;
+
+                writerErrorText.innerHTML = `<strong>Format Mismatch:</strong> ${spec.rule}<br>Example: <code>${spec.example}</code>`;
+                writerValidationBox.style.display = 'flex';
             }
+        }
+
+        generateBtn.addEventListener('click', () => {
+            if (!encodeInput.value.trim()) {
+                const spec = SYMBOLOGY_SPECS[symbologySelect.value];
+                writerErrorText.innerHTML = `Enter data first. ${spec.rule}<br>Example: <code>${spec.example}</code>`;
+                writerValidationBox.style.display = 'flex';
+                return;
+            }
+            runBarcodeGenerator();
+        });
+
+        // Live switching between barcode types
+        symbologySelect.addEventListener('change', () => {
+            if (encodeInput.value.trim()) {
+                runBarcodeGenerator();
+            } else {
+                const sym = classifySymbology(symbologySelect.value);
+                setOrbProfile(sym.color, sym.mods);
+            }
+        });
+
+        document.getElementById('loadExampleBtn').addEventListener('click', () => {
+            const spec = SYMBOLOGY_SPECS[symbologySelect.value];
+            if (spec) {
+                encodeInput.value = spec.example;
+                runBarcodeGenerator();
+            }
+        });
+
+        document.getElementById('pasteClipboardBtn').addEventListener('click', async () => {
+            try {
+                const clipText = await navigator.clipboard.readText();
+                if (clipText) {
+                    encodeInput.value = clipText.trim();
+                    runBarcodeGenerator();
+                }
+            } catch (err) {
+                writerErrorText.textContent = 'Clipboard permission blocked by Safari. Tap inside the text box and select Paste.';
+                writerValidationBox.style.display = 'flex';
+            }
+        });
+
+        outputBox.addEventListener('click', () => {
+            const text = encodeInput.value.trim();
+            if (text) openBarcodeLightbox(symbologySelect.value, text);
         });
 
         downloadPngBtn.addEventListener('click', () => {
             outputCanvas.toBlob(blob => {
-                const bcid = document.getElementById('symbologySelect').value;
-                triggerDownload(blob, `barcode_${bcid}.png`);
+                triggerDownload(blob, `barcode_${symbologySelect.value}.png`);
             }, 'image/png');
         });
 
         sharePngBtn.addEventListener('click', () => {
             outputCanvas.toBlob(async blob => {
-                const bcid = document.getElementById('symbologySelect').value;
-                const file = new File([blob], `barcode_${bcid}.png`, { type: 'image/png' });
+                const file = new File([blob], `barcode_${symbologySelect.value}.png`, { type: 'image/png' });
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
                     await navigator.share({ files: [file], title: 'Generated Barcode' });
                 }
@@ -986,17 +1721,27 @@
         });
 
         // ==========================================
-        // 5. TAB NAVIGATION
+        // 7. TAB NAVIGATION & UTILITIES
         // ==========================================
         function switchTab(targetId) {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === targetId));
-            document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === targetId));
+            document.querySelectorAll('.header-controls .seg-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.tab === targetId);
+            });
+            document.querySelectorAll('.panel').forEach(p => {
+                p.classList.toggle('active', p.id === targetId);
+            });
             if (targetId !== 'scanPanel' && scanning) stopCamera();
         }
 
-        document.querySelectorAll('.tab-btn').forEach(btn => {
+        document.querySelectorAll('.header-controls .seg-btn').forEach(btn => {
             btn.addEventListener('click', () => switchTab(btn.dataset.tab));
         });
+
+        function escapeHtml(str) {
+            return str.replace(/[&<>"']/g, m => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[m]));
+        }
     </script>
 </body>
 </html>
