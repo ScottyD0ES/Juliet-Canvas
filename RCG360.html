@@ -485,6 +485,14 @@
           </div>
         </div>
 
+        <div>
+          <label>Sub-Grid Alignment Mode</label>
+          <div class="row">
+            <button type="button" class="active" id="zerodModeBtn">Zero'd Grid (1 1111)</button>
+            <button type="button" id="configuredModeBtn">Configured Seed</button>
+          </div>
+        </div>
+
         <div class="row">
           <button type="button" class="primary" id="nextWordBtn">Next Word</button>
           <button type="button" id="stepBackBtn">Step Back</button>
@@ -503,7 +511,7 @@
         </div>
         <div>
           <span>MAP (Q1 Q2 Q3 Q4)</span>
-          <strong id="telMap">1 2 3 4</strong>
+          <strong id="telMap">1 1 1 1</strong>
         </div>
         <div>
           <span>NEXT WORD CLICK</span>
@@ -784,7 +792,6 @@
         for (const ch of messageWords[wIdx]) {
           streamTokens.push({ ch, tag: "CHAR" });
         }
-        // Add single-digit delimiter after every word (or between words when no Y-block follows)
         if (wIdx < messageWords.length - 1 || yBlock) {
           const delimChar = baseGrid[wIdx % 36];
           const delimDigit = String(charToTAI(delimChar) % 10);
@@ -798,15 +805,12 @@
         for (const ch of yBlock) {
           streamTokens.push({ ch, tag: "Y-LOG" });
         }
-        // Step word rotors once after Y...Y block before entering X...X padding
         streamTokens.push({ ch: null, tag: "Y-BOUNDARY" });
       }
 
-      // Count actual encodable characters so far
       const coreCharCount = streamTokens.filter((t) => t.ch !== null).length;
 
       // Step 5: Compute X...X padding length to reach (36 * N) - 1
-      // Minimum X...X wrapper is "XX" (length 2)
       const blockCount = Math.ceil((coreCharCount + 3) / 36);
       const targetStreamLen = blockCount * 36 - 1;
       const padTotalLen = targetStreamLen - coreCharCount;
@@ -891,14 +895,14 @@
       };
     }
 
-    // Peel X...X reverse Cell-36 buffer strictly from the end of the decoded stream
+    // Peel trailing X...X reverse Cell-36 buffer reliably even when 'X' appears inside reverse Cell-36
     function peelTrailingXBuffer(stream, baseGrid) {
-      if (stream.length < 2 || stream[stream.length - 1] !== "X") {
+      if (stream.length < 3 || stream[stream.length - 1] !== "X") {
         throw new Error("Could not verify trailing X...X padding buffer. Check keyword or ciphertext.");
       }
 
-      // Max possible X...X block length in a 36-char block system is 36 chars (X + up to 34 inner + X)
-      const maxXLen = Math.min(stream.length, 36);
+      const maxXLen = Math.min(stream.length - 1, 36);
+      const validSplits = [];
       let innerIdx = 0;
 
       for (let pos = stream.length - 2; pos >= stream.length - maxXLen; pos--) {
@@ -906,25 +910,25 @@
         const expectedPadChar = baseGrid[35 - (innerIdx % 36)];
 
         if (ch === "X") {
-          // If 'X' also happens to be the expected reverse Cell-36 char (e.g. innerIdx === 12 on standard TAI),
-          // check if the character immediately before it continues the reverse Cell-36 sequence
-          const prevCh = pos > 0 ? stream[pos - 1] : "";
-          const nextExpected = baseGrid[35 - ((innerIdx + 1) % 36)];
-          if (ch !== expectedPadChar || prevCh !== nextExpected) {
-            return {
-              trimmedStream: stream.slice(0, pos),
-              xBlock: stream.slice(pos)
-            };
-          }
+          validSplits.push(pos);
         }
 
         if (ch !== expectedPadChar) {
-          throw new Error("Could not verify trailing X...X padding buffer. Check keyword or ciphertext.");
+          break;
         }
         innerIdx++;
       }
 
-      throw new Error("Could not verify trailing X...X padding buffer. Check keyword or ciphertext.");
+      if (validSplits.length === 0) {
+        throw new Error("Could not verify trailing X...X padding buffer. Check keyword or ciphertext.");
+      }
+
+      // Prefer the longest valid reverse-Cell-36 X...X wrapper (handles inner 'X' when innerPadLen >= 13)
+      const xStart = validSplits[validSplits.length - 1];
+      return {
+        trimmedStream: stream.slice(0, xStart),
+        xBlock: stream.slice(xStart)
+      };
     }
 
     function decodeRGC36(rawCipher, keyword, useYWrapper) {
@@ -1000,13 +1004,12 @@
             pendingZOpen = true;
           }
 
-          if (useYWrapper && atWordStart && pChar === "Y") {
+          if (atWordStart && pChar === "Y") {
             inYBlock = true;
             ySawPayload = false;
           } else if (inYBlock) {
             if (pChar === "Y" && ySawPayload) {
               inYBlock = false;
-              // Closing 'Y' finishes the protected Y...Y formatting word
               masterGrid = ((wordStartMaster - 2 + 4) % 4) + 1;
               wordStartMaster = masterGrid;
               const qToRotate = (wordIndex - 1) % 4;
@@ -1026,35 +1029,26 @@
 
       const rawDecodedStream = decodedChars.join("");
 
-      // =======================================================================
-      // STRICT OUTSIDE-IN PEEL ORDER:
+      // Strict Outside-In Peel Order:
       // 1. Remove X...X padding buffer first
-      // 2. Remove Y...Y formatting log (+ its preceding delimiter digit)
-      // 3. Remove word delimiters (excluding Z...Z)
-      // 4. Remove Z...Z wrappers
-      // 5. Add back punctuation and formatting data
-      // =======================================================================
       const peelRes = peelTrailingXBuffer(rawDecodedStream, baseGrid);
-      let streamAfterX = peelRes.trimmedStream;
+      const streamAfterX = peelRes.trimmedStream;
 
+      // 2. Remove Y...Y formatting log (+ its preceding delimiter digit) if present
       let yPayload = "";
       let yFullBlock = "(None)";
       let streamAfterY = streamAfterX;
 
-      if (useYWrapper && streamAfterY.endsWith("Y")) {
+      if (streamAfterY.endsWith("Y")) {
         const yStart = streamAfterY.lastIndexOf("Y", streamAfterY.length - 2);
-        if (yStart !== -1) {
+        if (yStart !== -1 && yStart > 0 && /[0-9]/.test(streamAfterY[yStart - 1])) {
           yFullBlock = streamAfterY.slice(yStart);
           yPayload = streamAfterY.slice(yStart + 1, -1);
-          streamAfterY = streamAfterY.slice(0, yStart);
-          // Strip the single delimiter digit separating the last message word from Y...Y
-          if (/[0-9]/.test(streamAfterY[streamAfterY.length - 1])) {
-            streamAfterY = streamAfterY.slice(0, -1);
-          }
+          streamAfterY = streamAfterY.slice(0, yStart - 1);
         }
       }
 
-      // Split message words on expected delimiter digits (ignoring digits inside Z<digits>Z)
+      // 3. Split message words on expected delimiter digits (excluding Z<digits>Z)
       const words = [];
       let currentWord = "";
       let wIdx = 0;
@@ -1084,11 +1078,11 @@
       }
       if (currentWord) words.push(currentWord);
 
-      // Remove Z...Z wrappers
+      // 4. Remove Z...Z wrappers
       const zUnwrappedText = words.map(unwrapNumbers).join(" ");
 
-      // Add back punctuation and formatting data
-      const reconstructed = useYWrapper
+      // 5. Add back punctuation and formatting data
+      const reconstructed = useYWrapper && yPayload
         ? restoreFormatting(zUnwrappedText, yPayload)
         : zUnwrappedText.toLowerCase();
 
@@ -1122,11 +1116,16 @@
       startMaster: 1,
       wordStartMaster: 1,
       masterGrid: 1,
-      mapState: [1, 2, 3, 4],
+      mapState: [1, 1, 1, 1],
+      useConfiguredSeed: false,
       wordNumber: 1,
       history: [],
       anim: null
     };
+
+    function getBaselineMap(baseGrid) {
+      return refState.useConfiguredSeed ? getInitialMap(baseGrid) : [1, 1, 1, 1];
+    }
 
     function snapshotRefState() {
       refState.history.push({
@@ -1148,13 +1147,13 @@
 
     function syncReferenceToKeyword(resetAll = true) {
       const baseGrid = buildKeyedAlphabet(document.getElementById("keywordInput").value);
-      const initMap = getInitialMap(baseGrid);
+      const baselineMap = getBaselineMap(baseGrid);
 
       if (resetAll) {
         refState.wordNumber = 1;
         refState.masterGrid = refState.startMaster;
         refState.wordStartMaster = refState.startMaster;
-        refState.mapState = initMap;
+        refState.mapState = baselineMap;
         refState.history = [];
         refState.anim = null;
       }
@@ -1523,6 +1522,20 @@
       });
     });
 
+    document.getElementById("zerodModeBtn").addEventListener("click", () => {
+      refState.useConfiguredSeed = false;
+      document.getElementById("zerodModeBtn").classList.add("active");
+      document.getElementById("configuredModeBtn").classList.remove("active");
+      syncReferenceToKeyword(true);
+    });
+
+    document.getElementById("configuredModeBtn").addEventListener("click", () => {
+      refState.useConfiguredSeed = true;
+      document.getElementById("configuredModeBtn").classList.add("active");
+      document.getElementById("zerodModeBtn").classList.remove("active");
+      syncReferenceToKeyword(true);
+    });
+
     document.getElementById("nextWordBtn").addEventListener("click", () => {
       if (refState.anim) return;
 
@@ -1565,6 +1578,7 @@
       syncReferenceToKeyword(true);
     });
 
+    // Initialize Zero'd 1 1111 Reference Grid on load
     syncReferenceToKeyword(true);
   </script>
 </body>
