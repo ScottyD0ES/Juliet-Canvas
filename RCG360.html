@@ -243,7 +243,6 @@
       display: block;
     }
 
-    /* Full-Page Reference Grid View */
     .ref-toolbar {
       display: flex;
       justify-content: space-between;
@@ -327,7 +326,6 @@
     </nav>
   </header>
 
-  <!-- Primary View: Encode & Decode Utility -->
   <main id="cipherView" class="view-section active">
     <div class="panel">
       <h2>Cipher Operations</h2>
@@ -375,7 +373,6 @@
     </div>
   </main>
 
-  <!-- Secondary Full-Page View: Interactive Reference Grid -->
   <section id="gridView" class="view-section">
     <div class="panel">
       <h2>Interactive Mechanical Reference Grid</h2>
@@ -651,7 +648,7 @@
     }
 
     // =========================================================================
-    // 4. RGC36 ENCODE & DECODE PIPELINE
+    // 4. RGC36 ENCODE & DECODE PIPELINE (STRICT OUTSIDE-IN PEEL ORDER)
     // =========================================================================
     function encodeRGC36(rawText, keyword, useYWrapper) {
       if (!rawText || !rawText.trim()) {
@@ -662,6 +659,7 @@
       const initialMap = getInitialMap(baseGrid);
       const debugLines = [];
 
+      // 1. Extract formatting log (Y...Y)
       let workingText = "";
       let yBlock = "";
       if (useYWrapper) {
@@ -680,8 +678,10 @@
         throw new Error("Input contains no encodable alphanumeric characters.");
       }
 
+      // 2. Wrap numbers in Z...Z
       workingText = wrapNumbers(workingText);
 
+      // 3. Assemble words + optional Y...Y formatting word
       const words = workingText.split(" ").filter(Boolean);
       if (yBlock) {
         words.push(yBlock);
@@ -689,20 +689,21 @@
 
       let coreLength = 0;
       for (const w of words) coreLength += w.length;
-      coreLength += words.length;
+      coreLength += words.length; // 1 delimiter digit after each word
 
       const blockCount = Math.ceil((coreLength + 3) / 36);
       const targetStreamLen = blockCount * 36 - 1;
       const padTotalLen = targetStreamLen - coreLength;
 
+      // 4. Reverse Cell-36 X...X padding buffer (Cell 36 -> 35 -> 34 -> ...)
       const innerPadLen = padTotalLen - 2;
       let innerPad = "";
       for (let i = 0; i < innerPadLen; i++) {
-        const revIdx = 35 - (i % 36);
-        innerPad += baseGrid[revIdx];
+        innerPad += baseGrid[35 - (i % 36)];
       }
       const xBlock = "X" + innerPad + "X";
 
+      // 5. Build full token stream with single-digit delimiters
       const streamTokens = [];
       for (let wIdx = 0; wIdx < words.length; wIdx++) {
         for (const ch of words[wIdx]) {
@@ -716,6 +717,7 @@
         streamTokens.push({ ch, isDelimiter: false });
       }
 
+      // 6. Seed Master Grid from first stream character's TAI mod 4
       const originModulo = mod4OneBased(charToTAI(streamTokens[0].ch));
       const originHintChar = HINT_LETTERS[originModulo - 1];
 
@@ -763,6 +765,38 @@
       };
     }
 
+    // Peel trailing X...X reverse Cell-36 buffer from decoded stream
+    function peelTrailingXBuffer(stream, baseGrid) {
+      if (stream.length < 2 || stream[stream.length - 1] !== "X") {
+        throw new Error("Could not verify trailing X...X padding buffer. Check keyword or ciphertext.");
+      }
+
+      // Walk backward from stream[stream.length - 2] checking reverse Cell-36 sequence
+      // until hitting the opening 'X' preceded by a delimiter digit
+      let innerIdx = 0;
+      for (let pos = stream.length - 2; pos >= 1; pos--) {
+        const ch = stream[pos];
+        const prevCh = stream[pos - 1];
+        const expectedPadChar = baseGrid[35 - (innerIdx % 36)];
+
+        if (ch === "X" && /[0-9]/.test(prevCh)) {
+          // Verify whether this 'X' is the opening wrapper or part of a >=24-char inner pad
+          // If prevCh is a digit and pos-1 is the delimiter before X...X, check if continuing
+          // could still match reverse Cell-36; if not (or if prevCh is the delimiter), we found xStart
+          if (ch !== expectedPadChar || pos < 2 || stream[pos - 2] !== baseGrid[35 - ((innerIdx + 1) % 36)]) {
+            return stream.slice(0, pos);
+          }
+        }
+
+        if (ch !== expectedPadChar) {
+          throw new Error("Could not verify trailing X...X padding buffer. Check keyword or ciphertext.");
+        }
+        innerIdx++;
+      }
+
+      throw new Error("Could not verify trailing X...X padding buffer. Check keyword or ciphertext.");
+    }
+
     function decodeRGC36(rawCipher, keyword, useYWrapper) {
       const cleaned = (rawCipher || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
       if (cleaned.length < 36 || cleaned.length % 36 !== 0) {
@@ -785,7 +819,11 @@
       const mapState = initialMap.slice();
       let wordIndex = 1;
 
-      let inZBlock = false;
+      // Track protected Z<digits>Z and Y<payload>Y blocks during rotor stepping
+      let inZDigits = false;
+      let pendingZOpen = false;
+      let inYBlock = false;
+      let ySawPayload = false;
       let atWordStart = true;
 
       debugLines.push(`KEYWORD GRID : ${baseGrid.join("")}`);
@@ -807,7 +845,8 @@
 
         const expectedDelimDigit = String(charToTAI(baseGrid[(wordIndex - 1) % 36]) % 10);
         const isDelimiter =
-          !inZBlock &&
+          !inZDigits &&
+          !inYBlock &&
           !atWordStart &&
           /[0-9]/.test(pChar) &&
           pChar === expectedDelimDigit;
@@ -826,34 +865,51 @@
           mapState[qToRotate] = (mapState[qToRotate] % 4) + 1;
           wordIndex++;
           atWordStart = true;
+          pendingZOpen = false;
+          inZDigits = false;
         } else {
-          if (pChar === "Z") {
-            inZBlock = !inZBlock;
+          if (inZDigits) {
+            if (pChar === "Z") inZDigits = false;
+          } else if (pendingZOpen) {
+            if (/[0-9]/.test(pChar)) inZDigits = true;
+            pendingZOpen = false;
+          } else if (pChar === "Z") {
+            pendingZOpen = true;
           }
+
+          if (useYWrapper && atWordStart && pChar === "Y") {
+            inYBlock = true;
+            ySawPayload = false;
+          } else if (inYBlock) {
+            if (pChar === "Y" && ySawPayload) {
+              inYBlock = false;
+            } else {
+              ySawPayload = true;
+            }
+          }
+
           atWordStart = false;
           masterGrid = (masterGrid % 4) + 1;
         }
       }
 
+      // =======================================================================
+      // ORDER OF OPERATIONS PEEL:
+      // 1. Remove X...X padding buffer (+ its preceding delimiter digit)
+      // 2. Extract Y...Y formatting log (+ its preceding delimiter digit)
+      // 3. Split remaining message body on word delimiters (excluding Z...Z)
+      // 4. Remove Z...Z number wrappers
+      // 5. Add back punctuation and formatting data
+      // =======================================================================
       let stream = decodedChars.join("");
 
-      const xStart = stream.lastIndexOf("X", stream.length - 2);
-      if (xStart === -1 || stream[stream.length - 1] !== "X") {
-        throw new Error("Could not verify trailing X...X padding buffer. Check keyword or ciphertext.");
-      }
-      const innerPad = stream.slice(xStart + 1, -1);
-      for (let i = 0; i < innerPad.length; i++) {
-        const expectedChar = baseGrid[35 - (i % 36)];
-        if (innerPad[i] !== expectedChar) {
-          throw new Error("Padding verification failed (reverse Cell-36 mismatch). Check keyword.");
-        }
-      }
-      stream = stream.slice(0, xStart);
-
+      // Step 1: Remove X...X buffer and trailing delimiter digit
+      stream = peelTrailingXBuffer(stream, baseGrid);
       if (/[0-9]/.test(stream[stream.length - 1])) {
         stream = stream.slice(0, -1);
       }
 
+      // Step 2: Extract Y...Y formatting log before delimiter parsing
       let yPayload = "";
       if (useYWrapper && stream.endsWith("Y")) {
         const yStart = stream.lastIndexOf("Y", stream.length - 2);
@@ -866,27 +922,40 @@
         }
       }
 
+      // Step 3: Split message words at expected delimiter digits (skipping Z<digits>Z)
       const words = [];
       let currentWord = "";
       let wIdx = 0;
-      let zOpen = false;
+      let zDigitsOpen = false;
+      let zCandidate = false;
 
       for (let i = 0; i < stream.length; i++) {
         const ch = stream[i];
         const expectedDelim = String(charToTAI(baseGrid[wIdx % 36]) % 10);
 
-        if (!zOpen && currentWord.length > 0 && ch === expectedDelim) {
+        if (!zDigitsOpen && currentWord.length > 0 && ch === expectedDelim) {
           words.push(currentWord);
           currentWord = "";
           wIdx++;
+          zCandidate = false;
         } else {
-          if (ch === "Z") zOpen = !zOpen;
+          if (zDigitsOpen) {
+            if (ch === "Z") zDigitsOpen = false;
+          } else if (zCandidate) {
+            if (/[0-9]/.test(ch)) zDigitsOpen = true;
+            zCandidate = false;
+          } else if (ch === "Z") {
+            zCandidate = true;
+          }
           currentWord += ch;
         }
       }
       if (currentWord) words.push(currentWord);
 
+      // Step 4: Remove Z...Z wrappers
       let reconstructed = words.map(unwrapNumbers).join(" ");
+
+      // Step 5: Restore punctuation & case formatting
       if (useYWrapper) {
         reconstructed = restoreFormatting(reconstructed, yPayload);
       } else {
@@ -912,7 +981,7 @@
       mapState: [1, 2, 3, 4],
       wordNumber: 1,
       history: [],
-      anim: null // { type: 'master' | 'quadrant' | 'word', qIdx?: number, deltaAngle: number, fromCells: string[], toCells: string[], startTime: number, duration: number }
+      anim: null
     };
 
     function snapshotRefState() {
@@ -1008,7 +1077,6 @@
       const centerX = W / 2;
       const centerY = H / 2;
 
-      // Outer dark background (tappable for Master Grid +1 CW)
       ctx.fillStyle = "#0b0d11";
       ctx.fillRect(0, 0, W, H);
 
@@ -1025,7 +1093,6 @@
       const isAnimating = anim && progress < 1;
 
       if (isAnimating && anim.type === "master") {
-        // Physically spin the entire 6x6 board from its previous state by deltaAngle
         const angle = anim.deltaAngle * progress;
 
         ctx.save();
@@ -1036,25 +1103,20 @@
         drawBoardContents(margin, gridSize, cellSize, anim.fromCells);
         ctx.restore();
       } else if (isAnimating && anim.type === "quadrant") {
-        // Draw static quadrants normally, and physically spin the target 3x3 quadrant in place
         const angle = anim.deltaAngle * progress;
         const targetQ = anim.qIdx;
 
-        // 1. Draw static quadrant backgrounds and cells
         for (let q = 0; q < 4; q++) {
           if (q === targetQ) continue;
           drawQuadrantBlock(margin, cellSize, q, anim.toCells, 0);
         }
 
-        // 2. Draw rotating quadrant on top with subtle highlight
         drawQuadrantBlock(margin, cellSize, targetQ, anim.fromCells, angle, true);
         drawBoardFrame(margin, gridSize);
       } else {
-        // Resting frame
         drawBoardContents(margin, gridSize, cellSize, currentCells);
       }
 
-      // Quadrant footer status badges
       const qLabels = [
         { label: `Q1:${refState.mapState[0]}`, x: margin + 6, y: H - 18 },
         { label: `Q2:${refState.mapState[1]}`, x: margin + 96, y: H - 18 },
@@ -1128,9 +1190,8 @@
       drawBoardFrame(margin, gridSize);
     }
 
-    // Canvas Tap Handling with Physical Rotation Animation
     canvas.addEventListener("click", (e) => {
-      if (refState.anim) return; // Ignore taps mid-spin
+      if (refState.anim) return;
 
       const rect = canvas.getBoundingClientRect();
       const scaleX = canvas.width / rect.width;
@@ -1148,7 +1209,6 @@
       snapshotRefState();
 
       if (x < margin || x > margin + gridSize || y < margin || y > margin + gridSize) {
-        // Outer dark border tapped -> spin Master Grid +90° CW
         refState.masterGrid = (refState.masterGrid % 4) + 1;
         const toCells = getActiveGrid(baseGrid, refState.masterGrid, refState.mapState);
 
@@ -1159,7 +1219,6 @@
           toCells
         });
       } else {
-        // Inside 6x6 grid -> spin spatially locked quadrant +90° CW
         const colRight = x >= margin + half ? 1 : 0;
         const rowBottom = y >= margin + half ? 2 : 0;
         const qIdx = rowBottom + colRight;
@@ -1268,7 +1327,6 @@
       document.getElementById("debugBox").classList.toggle("visible", e.target.checked);
     });
 
-    // Keep main keyword input and reference-view keyword input in sync
     const mainKwInput = document.getElementById("keywordInput");
     const refKwMirror = document.getElementById("refKeywordMirror");
 
@@ -1299,19 +1357,15 @@
 
       snapshotRefState();
 
-      // Master Grid cascades -1 from previous word's starting orientation
-      const prevMaster = refState.masterGrid;
       refState.masterGrid = ((refState.wordStartMaster - 2 + 4) % 4) + 1;
       refState.wordStartMaster = refState.masterGrid;
 
-      // Walking Click: advance one sub-grid +1 CW in sequence Q1 -> Q2 -> Q3 -> Q4
       const qIdx = (refState.wordNumber - 1) % 4;
       refState.mapState[qIdx] = (refState.mapState[qIdx] % 4) + 1;
       refState.wordNumber++;
 
       const toCells = getActiveGrid(baseGrid, refState.masterGrid, refState.mapState);
 
-      // Animate the quadrant click on word transition
       triggerRotationAnimation({
         type: "quadrant",
         qIdx,
@@ -1337,7 +1391,6 @@
       syncReferenceToKeyword(true);
     });
 
-    // Initialize blank-keyword TAI grid on load
     syncReferenceToKeyword(true);
   </script>
 </body>
