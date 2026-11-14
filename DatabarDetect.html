@@ -48,6 +48,12 @@
             max-width: 680px;
             margin: 0 auto;
             padding: env(safe-area-inset-top, 14px) 16px env(safe-area-inset-bottom, 14px) 16px;
+            transition: opacity 0.45s ease;
+        }
+
+        #app.screensaver-hidden {
+            opacity: 0;
+            pointer-events: none;
         }
 
         header {
@@ -744,10 +750,11 @@
         import { BarcodeDetector } from "https://fastly.jsdelivr.net/npm/barcode-detector@3/dist/es/ponyfill.min.js";
 
         // ==========================================
-        // 1. PS2 REACTIVE ORB ENGINE (LOWER REGION)
+        // 1. PS2 REACTIVE ORB ENGINE & SCREENSAVER
         // ==========================================
         const canvas = document.getElementById('ps2Canvas');
         const ctx = canvas.getContext('2d');
+        const appContainer = document.getElementById('app');
 
         const DEFAULT_STATE = {
             ringSpeedFactor: 4.0,
@@ -771,6 +778,10 @@
         const PS2_SPEEDS = [2.0, 1.9, 1.8, 1.7, 1.6, 1.5, 1.4];
         let currentCenterY = window.innerHeight * 0.74;
 
+        // Rainbow Screensaver State
+        let isScreensaverActive = false;
+        let screensaverHue = 200;
+
         function hexToRgb(hex) {
             const res = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
             return res ? {
@@ -778,6 +789,19 @@
                 g: parseInt(res[2], 16),
                 b: parseInt(res[3], 16)
             } : { r: 0, g: 162, b: 255 };
+        }
+
+        function hslToRgb(h, s, l) {
+            s /= 100;
+            l /= 100;
+            const k = n => (n + h / 30) % 12;
+            const a = s * Math.min(l, 1 - l);
+            const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+            return {
+                r: Math.round(255 * f(0)),
+                g: Math.round(255 * f(8)),
+                b: Math.round(255 * f(4))
+            };
         }
 
         function setOrbProfile(hexColor, mods = {}) {
@@ -796,6 +820,23 @@
             dot.style.boxShadow = `0 0 14px ${hexColor}`;
             reticle.style.borderColor = hexColor;
             scanLine.style.background = `linear-gradient(90deg, transparent, ${hexColor}, transparent)`;
+        }
+
+        function enterScreensaver() {
+            isScreensaverActive = true;
+            screensaverHue = 200; // Start smoothly from PS2 blue
+            appContainer.classList.add('screensaver-hidden');
+            targetConfig.radiusMultiplier = 0.28;
+            targetConfig.baseOrbRadius = 9.0;
+            targetConfig.ringSpeedFactor = 4.5;
+            targetConfig.axisSpeedFactor = 5.5;
+        }
+
+        function exitScreensaver() {
+            if (!isScreensaverActive) return;
+            isScreensaverActive = false;
+            appContainer.classList.remove('screensaver-hidden');
+            setOrbProfile(DEFAULT_STATE.color, DEFAULT_STATE);
         }
 
         function resizeCanvas() {
@@ -828,7 +869,11 @@
             }
         }
 
-        function computeLowerAnchorY() {
+        function computeAnchorY() {
+            if (isScreensaverActive) {
+                return canvas.height * 0.5;
+            }
+
             const scanPanelActive = document.getElementById('scanPanel').classList.contains('active');
             const resultCard = document.getElementById('resultCard');
             const viewfinderCard = document.getElementById('viewfinderCard');
@@ -869,6 +914,11 @@
         }
 
         function draw() {
+            if (isScreensaverActive) {
+                screensaverHue = (screensaverHue + 0.45) % 360;
+                Object.assign(targetRgb, hslToRgb(screensaverHue, 100, 56));
+            }
+
             const lerp = 0.05;
             currentRgb.r += (targetRgb.r - currentRgb.r) * lerp;
             currentRgb.g += (targetRgb.g - currentRgb.g) * lerp;
@@ -880,8 +930,8 @@
             config.baseOrbRadius += (targetConfig.baseOrbRadius - config.baseOrbRadius) * lerp;
             config.radiusMultiplier += (targetConfig.radiusMultiplier - config.radiusMultiplier) * lerp;
 
-            const targetY = computeLowerAnchorY();
-            currentCenterY += (targetY - currentCenterY) * 0.08;
+            const targetY = computeAnchorY();
+            currentCenterY += (targetY - currentCenterY) * 0.07;
 
             config.ringRadius = Math.min(canvas.width, canvas.height) * config.radiusMultiplier;
             config.depthPerspective = config.ringRadius * 1.85;
@@ -957,6 +1007,34 @@
         initOrbs();
         resizeCanvas();
         requestAnimationFrame(draw);
+
+        // Global Tap Listener for Entering & Exiting Fullscreen Rainbow Screensaver
+        document.addEventListener('click', (e) => {
+            if (isScreensaverActive) {
+                e.preventDefault();
+                e.stopPropagation();
+                exitScreensaver();
+                return;
+            }
+
+            // Only trigger screensaver when on Scan tab, no data is present, and drawers/lightboxes are closed
+            const scanPanelActive = document.getElementById('scanPanel').classList.contains('active');
+            const hasNoData = resultCard.style.display === 'none' && batchItems.length === 0;
+            const overlaysClosed = !barcodeLightbox.classList.contains('open') && !historyDrawer.classList.contains('open');
+
+            if (scanPanelActive && hasNoData && overlaysClosed) {
+                // Ensure tap wasn't on a button, input, or inside the viewfinder card
+                if (e.target.closest('button, label, input, select, textarea, .viewfinder-card, header')) {
+                    return;
+                }
+
+                const centerX = canvas.width / 2;
+                const dist = Math.hypot(e.clientX - centerX, e.clientY - currentCenterY);
+                if (dist <= config.ringRadius * 1.6) {
+                    enterScreensaver();
+                }
+            }
+        }, true);
 
         // ==========================================
         // 2. SYMBOLOGY SPECS, VALIDATION & MAPPING
@@ -1047,7 +1125,6 @@
                 paddingheight: 6
             };
 
-            // Only attach height & text options on 1D barcodes to avoid bwip-js undefined height error
             if (!spec.is2D) {
                 opts.height = 14;
                 opts.includetext = true;
@@ -1137,7 +1214,6 @@
                 return { type: 'EMAIL ADDRESS', value: trimmed.replace(/^mailto:/i, ''), orbBoost: {} };
             }
 
-            // Explicit phone URIs or formatted phone numbers (with +, dashes, parens, or 10-digit US format)
             if (/^tel:/i.test(trimmed) || (/^(\+?\d{1,2}[\s.-])?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}$/.test(trimmed))) {
                 return { type: 'PHONE NUMBER', value: trimmed.replace(/^tel:/i, ''), orbBoost: {} };
             }
@@ -1146,12 +1222,10 @@
                 return { type: 'GEO COORDINATES', value: trimmed, orbBoost: { radiusMultiplier: 0.22 } };
             }
 
-            // Standard retail GTINs (8, 12, 13, 14 digits)
             if (/^\d{8}$|^\d{12,14}$/.test(trimmed)) {
                 return { type: 'RETAIL GTIN / PRODUCT CODE', value: trimmed, orbBoost: { ringSpeedFactor: 6.5 } };
             }
 
-            // Pure numeric SKU / internal ID (such as 99300063)
             if (/^\d+$/.test(trimmed)) {
                 return { type: 'NUMERIC ID / SKU', value: trimmed, orbBoost: {} };
             }
@@ -1198,12 +1272,11 @@
         let stream = null;
         let scanning = false;
         let torchOn = false;
-        let scanMode = 'single'; // 'single' | 'many'
-        let batchItems = [];     // Array of { id, format, rawValue, timestamp }
+        let scanMode = 'single';
+        let batchItems = [];
         let selectedItemId = null;
         let activeCloneMeta = null;
 
-        // Scan 1 / Scan Many Switch
         document.querySelectorAll('#scanModeSwitch .seg-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('#scanModeSwitch .seg-btn').forEach(b => b.classList.remove('active'));
@@ -1289,7 +1362,6 @@
                                 ingestScannedItems([hit], false);
                             }
                         } else {
-                            // Scan Many: ingest all distinct barcodes seen in frame or succession
                             ingestScannedItems(barcodes, true);
                         }
                     }
@@ -1401,7 +1473,6 @@
             packetTypeBadge.textContent = packet.type;
             rawPayloadEl.textContent = packet.value;
 
-            // Recreate scanned barcode thumbnail
             const bwipId = mapDetectorFormatToBwip(item.format);
             try {
                 renderBarcodeToCanvas(cloneThumbCanvas, bwipId, item.rawValue, 2);
@@ -1669,7 +1740,6 @@
             runBarcodeGenerator();
         });
 
-        // Live switching between barcode types
         symbologySelect.addEventListener('change', () => {
             if (encodeInput.value.trim()) {
                 runBarcodeGenerator();
@@ -1741,6 +1811,15 @@
             return str.replace(/[&<>"']/g, m => ({
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
             }[m]));
+        }
+
+        // ==========================================
+        // 8. OFFLINE SERVICE WORKER REGISTRATION
+        // ==========================================
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(() => {});
+            });
         }
     </script>
 </body>
