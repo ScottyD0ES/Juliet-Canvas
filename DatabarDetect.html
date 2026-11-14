@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>PS2 Barcode & Packet Telemetry Utility</title>
+    
+    <!-- bwip-js for multi-format barcode generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bwip-js/4.11.4/bwip-js-min.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000000;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+            color: #ffffff;
+        }
+
+        /* Fullscreen PS2 Canvas Background */
+        #ps2Canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* Foreground Glassmorphic HUD */
+        #app {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            max-width: 680px;
+            margin: 0 auto;
+            padding: env(safe-area-inset-top, 16px) 16px env(safe-area-inset-bottom, 16px) 16px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 4px 14px 4px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #00a2ff;
+            box-shadow: 0 0 12px #00a2ff;
+            transition: background 0.4s ease, box-shadow 0.4s ease;
+        }
+
+        h1 {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .tabs {
+            display: flex;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 3px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            padding: 6px 14px;
+            border-radius: 7px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn.active {
+            background: rgba(255, 255, 255, 0.18);
+            color: #ffffff;
+        }
+
+        .panel {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+            padding-bottom: 12px;
+        }
+
+        .panel.active {
+            display: flex;
+        }
+
+        /* Camera Viewport */
+        .viewfinder-card {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            max-height: 44vh;
+            background: rgba(10, 14, 24, 0.55);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            overflow: hidden;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .reticle {
+            position: absolute;
+            width: 68%;
+            height: 58%;
+            border: 2px solid rgba(0, 162, 255, 0.65);
+            border-radius: 14px;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
+            pointer-events: none;
+            transition: border-color 0.4s ease;
+        }
+
+        .scan-line {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00a2ff, transparent);
+            top: 0;
+            animation: scanSweep 2.4s ease-in-out infinite;
+        }
+
+        @keyframes scanSweep {
+            0%, 100% { top: 6%; opacity: 0.3; }
+            50% { top: 94%; opacity: 1; }
+        }
+
+        .cam-controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        /* Glass Cards & Buttons */
+        .glass-card {
+            background: rgba(12, 16, 26, 0.68);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 16px;
+            padding: 14px;
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            color: #fff;
+            padding: 9px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            text-decoration: none;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-primary {
+            background: rgba(0, 162, 255, 0.32);
+            border-color: rgba(0, 162, 255, 0.6);
+        }
+
+        /* Packet Telemetry Output */
+        .telemetry-header {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .badge {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding: 4px 8px;
+            border-radius: 6px;
+            background: rgba(0, 162, 255, 0.25);
+            border: 1px solid rgba(0, 162, 255, 0.5);
+            color: #7cd2ff;
+        }
+
+        .badge.type-badge {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.25);
+            color: #e2e8f0;
+        }
+
+        .raw-payload {
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 10px;
+            font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.45;
+            word-break: break-all;
+            max-height: 130px;
+            overflow-y: auto;
+            color: #f1f5f9;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        .expanded-box {
+            margin-top: 8px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            font-size: 12px;
+            color: #a7f3d0;
+            word-break: break-all;
+        }
+
+        .action-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        /* Writer Panel Controls */
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: rgba(255, 255, 255, 0.65);
+            margin-bottom: 6px;
+        }
+
+        select, textarea, input[type="text"] {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 10px 12px;
+            color: #ffffff;
+            font-size: 14px;
+            font-family: inherit;
+            margin-bottom: 12px;
+            outline: none;
+        }
+
+        select:focus, textarea:focus, input[type="text"]:focus {
+            border-color: #00a2ff;
+        }
+
+        .barcode-output-box {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 150px;
+            margin-top: 8px;
+        }
+
+        #barcodeOutputCanvas {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .error-text {
+            color: #ff6b81;
+            font-size: 12px;
+            margin-top: 6px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Ambient PS2 Reactive Canvas -->
+    <canvas id="ps2Canvas"></canvas>
+
+    <!-- Interactive HUD -->
+    <div id="app">
+        <header>
+            <div class="brand">
+                <div class="status-dot" id="statusDot"></div>
+                <h1>Packet Scanner</h1>
+            </div>
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="scanPanel">Scan</button>
+                <button class="tab-btn" data-tab="writePanel">Write</button>
+            </div>
+        </header>
+
+        <!-- SCANNER PANEL -->
+        <section id="scanPanel" class="panel active">
+            <div class="viewfinder-card">
+                <video id="cameraFeed" playsinline autoplay muted></video>
+                <div class="reticle" id="reticle">
+                    <div class="scan-line" id="scanLine"></div>
+                </div>
+                <div class="cam-controls">
+                    <button class="btn btn-primary" id="toggleCamBtn">Start Camera</button>
+                    <label class="btn" style="margin:0; text-transform:none; letter-spacing:0; color:#fff;">
+                        Scan Image
+                        <input type="file" id="imageFileInput" accept="image/*" hidden>
+                    </label>
+                    <button class="btn" id="resetOrbsBtn">Reset Orbs</button>
+                </div>
+            </div>
+
+            <div class="glass-card" id="resultCard">
+                <div class="telemetry-header">
+                    <span class="badge" id="formatBadge">STANDBY</span>
+                    <span class="badge type-badge" id="packetTypeBadge">AWAITING SIGNAL</span>
+                </div>
+                <div class="raw-payload" id="rawPayload">Point camera at any 1D/2D barcode or upload an image to inspect its data packet...</div>
+                <div id="expandedUrlContainer" class="expanded-box" style="display:none;"></div>
+                <div class="action-grid" id="actionGrid"></div>
+            </div>
+        </section>
+
+        <!-- WRITER PANEL -->
+        <section id="writePanel" class="panel">
+            <div class="glass-card">
+                <label for="symbologySelect">Barcode Symbology</label>
+                <select id="symbologySelect">
+                    <optgroup label="2D Matrix Codes">
+                        <option value="qrcode" selected>QR Code</option>
+                        <option value="datamatrix">Data Matrix</option>
+                        <option value="pdf417">PDF417</option>
+                        <option value="azteccode">Aztec Code</option>
+                    </optgroup>
+                    <optgroup label="1D Retail & Logistics">
+                        <option value="code128">Code 128 (ASCII)</option>
+                        <option value="code39">Code 39</option>
+                        <option value="code93">Code 93</option>
+                        <option value="upca">UPC-A (11 or 12 digits)</option>
+                        <option value="upce">UPC-E (7 or 8 digits)</option>
+                        <option value="ean13">EAN-13 (12 or 13 digits)</option>
+                        <option value="ean8">EAN-8 (7 or 8 digits)</option>
+                        <option value="interleaved2of5">ITF (Interleaved 2 of 5)</option>
+                        <option value="rationalizedCodabar">Codabar</option>
+                    </optgroup>
+                </select>
+
+                <label for="encodeInput">Data Packet Payload</label>
+                <textarea id="encodeInput" rows="3" placeholder="Enter URL, text, JSON, WIFI:S:MyNet;T:WPA;P:Secret;; or digits..."></textarea>
+
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="btn btn-primary" id="generateBtn">Encode Barcode</button>
+                    <button class="btn" id="downloadPngBtn" style="display:none;">Save PNG</button>
+                    <button class="btn" id="sharePngBtn" style="display:none;">Share</button>
+                </div>
+                <div id="writerError" class="error-text"></div>
+
+                <div class="barcode-output-box" id="barcodeOutputBox" style="display:none;">
+                    <canvas id="barcodeOutputCanvas"></canvas>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Main Application & ZXing-WASM Barcode Detector -->
+    <script type="module">
+        import { BarcodeDetector } from "https://fastly.jsdelivr.net/npm/barcode-detector@3/dist/es/ponyfill.min.js";
+
+        // ==========================================
+        // 1. PS2 REACTIVE ORB ENGINE
+        // ==========================================
+        const canvas = document.getElementById('ps2Canvas');
+        const ctx = canvas.getContext('2d');
+
+        const DEFAULT_STATE = {
+            ringSpeedFactor: 4.0,
+            orbPulseFactor: 1.0,
+            axisSpeedFactor: 5.0,
+            tiltAngle: 0.7,
+            color: '#00a2ff',
+            cloudOpacity: 0.3,
+            baseOrbRadius: 8,
+            radiusMultiplier: 0.28
+        };
+
+        // Live & Target states for smooth visual interpolation
+        const config = { ...DEFAULT_STATE, ringRadius: 200, depthPerspective: 350 };
+        const targetConfig = { ...DEFAULT_STATE };
+        const currentRgb = { r: 0, g: 162, b: 255 };
+        const targetRgb = { r: 0, g: 162, b: 255 };
+
+        const orbs = [];
+        const numOrbs = 7;
+        let cloudParticles = [];
+        const PS2_SPEEDS = [2.0, 1.9, 1.8, 1.7, 1.6, 1.5, 1.4];
+
+        function hexToRgb(hex) {
+            const res = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return res ? {
+                r: parseInt(res[1], 16),
+                g: parseInt(res[2], 16),
+                b: parseInt(res[3], 16)
+            } : { r: 0, g: 162, b: 255 };
+        }
+
+        function setOrbProfile(hexColor, mods = {}) {
+            targetConfig.color = hexColor;
+            Object.assign(targetRgb, hexToRgb(hexColor));
+            targetConfig.ringSpeedFactor = mods.ringSpeedFactor ?? DEFAULT_STATE.ringSpeedFactor;
+            targetConfig.orbPulseFactor = mods.orbPulseFactor ?? DEFAULT_STATE.orbPulseFactor;
+            targetConfig.axisSpeedFactor = mods.axisSpeedFactor ?? DEFAULT_STATE.axisSpeedFactor;
+            targetConfig.baseOrbRadius = mods.baseOrbRadius ?? DEFAULT_STATE.baseOrbRadius;
+            targetConfig.radiusMultiplier = mods.radiusMultiplier ?? DEFAULT_STATE.radiusMultiplier;
+
+            // Sync HUD accent elements
+            const dot = document.getElementById('statusDot');
+            const reticle = document.getElementById('reticle');
+            const scanLine = document.getElementById('scanLine');
+            dot.style.background = hexColor;
+            dot.style.boxShadow = `0 0 12px ${hexColor}`;
+            reticle.style.borderColor = hexColor;
+            scanLine.style.background = `linear-gradient(90deg, transparent, ${hexColor}, transparent)`;
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            initCloud();
+        }
+
+        function initOrbs() {
+            for (let i = 0; i < numOrbs; i++) {
+                orbs.push({
+                    baseAngle: (i / numOrbs) * Math.PI * 2,
+                    currentAngleOffset: 0,
+                    speedMultiplier: PS2_SPEEDS[i],
+                    pulsePhase: Math.random() * Math.PI * 2,
+                });
+            }
+        }
+
+        function initCloud() {
+            cloudParticles = [];
+            for (let i = 0; i < 50; i++) {
+                cloudParticles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 0.3,
+                    vy: (Math.random() - 0.5) * 0.3,
+                    radius: Math.random() * 2 + 0.5,
+                });
+            }
+        }
+
+        function project3D(x, y, z, centerX, centerY) {
+            const tiltCos = Math.cos(config.tiltAngle);
+            const tiltSin = Math.sin(config.tiltAngle);
+            const tiltedY = y * tiltCos - z * tiltSin;
+            const tiltedZ = y * tiltSin + z * tiltCos;
+            const scale = config.depthPerspective / (config.depthPerspective + tiltedZ);
+            return {
+                screenX: x * scale + centerX,
+                screenY: tiltedY * scale + centerY,
+                scale: scale,
+                zDepth: tiltedZ
+            };
+        }
+
+        function draw() {
+            // Smoothly interpolate color and orbital physics
+            const lerp = 0.05;
+            currentRgb.r += (targetRgb.r - currentRgb.r) * lerp;
+            currentRgb.g += (targetRgb.g - currentRgb.g) * lerp;
+            currentRgb.b += (targetRgb.b - currentRgb.b) * lerp;
+
+            config.ringSpeedFactor += (targetConfig.ringSpeedFactor - config.ringSpeedFactor) * lerp;
+            config.orbPulseFactor += (targetConfig.orbPulseFactor - config.orbPulseFactor) * lerp;
+            config.axisSpeedFactor += (targetConfig.axisSpeedFactor - config.axisSpeedFactor) * lerp;
+            config.baseOrbRadius += (targetConfig.baseOrbRadius - config.baseOrbRadius) * lerp;
+            config.radiusMultiplier += (targetConfig.radiusMultiplier - config.radiusMultiplier) * lerp;
+
+            config.ringRadius = Math.min(canvas.width, canvas.height) * config.radiusMultiplier;
+            config.depthPerspective = config.ringRadius * 1.8;
+
+            ctx.fillStyle = `rgba(0, 0, 0, ${1 - config.cloudOpacity})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const r = Math.round(currentRgb.r);
+            const g = Math.round(currentRgb.g);
+            const b = Math.round(currentRgb.b);
+
+            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.2)`;
+            cloudParticles.forEach(p => {
+                p.x += p.vx; p.y += p.vy;
+                if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            const projectedOrbs = orbs.map(orb => {
+                orb.currentAngleOffset += 0.005 * config.ringSpeedFactor * orb.speedMultiplier;
+                const totalAngle = orb.baseAngle + orb.currentAngleOffset;
+                const startX = config.ringRadius * Math.cos(totalAngle);
+                const startY = config.ringRadius * Math.sin(totalAngle);
+                const projection = project3D(startX, startY, 0, centerX, centerY);
+                projection.orbConfig = orb;
+                return projection;
+            });
+
+            config.tiltAngle += 0.002 * config.axisSpeedFactor;
+            projectedOrbs.sort((a, b) => b.zDepth - a.zDepth);
+
+            projectedOrbs.forEach(proj => {
+                const orb = proj.orbConfig;
+                orb.pulsePhase += 0.05 * config.orbPulseFactor;
+                const pulse = (Math.sin(orb.pulsePhase) + 1) / 2;
+
+                const radius = config.baseOrbRadius * proj.scale * (1 + pulse * 0.3);
+                const depthAlpha = Math.max(0.1, Math.min(0.9, (config.depthPerspective / (config.depthPerspective + proj.zDepth))));
+
+                ctx.shadowBlur = 25 * proj.scale;
+                ctx.shadowColor = `rgba(${r}, ${g}, ${b}, ${0.8 * depthAlpha})`;
+
+                const gradient = ctx.createRadialGradient(
+                    proj.screenX, proj.screenY, 0,
+                    proj.screenX, proj.screenY, radius
+                );
+                gradient.addColorStop(0, `rgba(255, 255, 255, ${0.9 * depthAlpha})`);
+                gradient.addColorStop(0.2, `rgba(255, 255, 255, ${0.7 * depthAlpha})`);
+                gradient.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, ${0.5 * depthAlpha})`);
+                gradient.addColorStop(1, `rgba(0, 0, 0, 0)`);
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(proj.screenX, proj.screenY, radius * 1.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.3 * depthAlpha})`;
+                ctx.beginPath();
+                ctx.arc(proj.screenX, proj.screenY, radius * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            requestAnimationFrame(draw);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        initOrbs();
+        resizeCanvas();
+        requestAnimationFrame(draw);
+
+        // ==========================================
+        // 2. PACKET INTELLIGENCE & URL EXPANDER
+        // ==========================================
+        const SHORTENERS = [
+            'bit.ly', 'tinyurl.com', 't.co', 'goo.gl', 'ow.ly', 'is.gd',
+            'buff.ly', 'adf.ly', 'bit.do', 'mcaf.ee', 'su.pr', 'rb.gy',
+            'cutt.ly', 'shorturl.at', 'qr.ae', 'v.gd', 'tr.im', 'x.co'
+        ];
+
+        function classifySymbology(format) {
+            const f = format.toLowerCase();
+            if (f.includes('qr')) return { label: 'QR Code', color: '#00ff88', mods: { ringSpeedFactor: 5.5, baseOrbRadius: 9, radiusMultiplier: 0.25 } };
+            if (f.includes('data_matrix') || f.includes('aztec')) return { label: format.toUpperCase(), color: '#b84dff', mods: { axisSpeedFactor: 8.5, orbPulseFactor: 1.8, baseOrbRadius: 7 } };
+            if (f.includes('pdf417')) return { label: 'PDF417', color: '#ffaa00', mods: { radiusMultiplier: 0.35, ringSpeedFactor: 3.0, baseOrbRadius: 10 } };
+            if (f.includes('upc') || f.includes('ean')) return { label: format.toUpperCase(), color: '#ff3b5c', mods: { ringSpeedFactor: 6.5, axisSpeedFactor: 2.5, baseOrbRadius: 8.5 } };
+            if (f.includes('code_128') || f.includes('code_39') || f.includes('code_93') || f.includes('itf') || f.includes('codabar')) {
+                return { label: format.toUpperCase(), color: '#ff7b00', mods: { ringSpeedFactor: 5.0, orbPulseFactor: 1.5, baseOrbRadius: 8 } };
+            }
+            return { label: format.toUpperCase(), color: '#38bdf8', mods: {} };
+        }
+
+        function analyzeDataPacket(raw) {
+            const trimmed = raw.trim();
+
+            // 1. Web URL
+            if (/^https?:\/\//i.test(trimmed) || /^www\./i.test(trimmed)) {
+                const fullUrl = /^www\./i.test(trimmed) ? `https://${trimmed}` : trimmed;
+                let isShortened = false;
+                try {
+                    const host = new URL(fullUrl).hostname.replace(/^www\./, '').toLowerCase();
+                    isShortened = SHORTENERS.includes(host);
+                } catch {}
+                return {
+                    type: isShortened ? 'SHORTENED WEB LINK' : 'WEB URL',
+                    value: fullUrl,
+                    isShortened,
+                    orbBoost: { ringSpeedFactor: 7.5, orbPulseFactor: 2.0 }
+                };
+            }
+
+            // 2. Wi-Fi Network
+            if (/^WIFI:/i.test(trimmed)) {
+                const ssid = (trimmed.match(/S:([^;]*)/i) || [])[1] || 'Unknown';
+                const pass = (trimmed.match(/P:([^;]*)/i) || [])[1] || '';
+                const enc = (trimmed.match(/T:([^;]*)/i) || [])[1] || 'None';
+                return {
+                    type: 'WI-FI CREDENTIALS',
+                    value: trimmed,
+                    meta: { ssid, pass, enc },
+                    orbBoost: { axisSpeedFactor: 9.0, baseOrbRadius: 10 }
+                };
+            }
+
+            // 3. vCard Contact
+            if (/^BEGIN:VCARD/i.test(trimmed)) {
+                const fn = (trimmed.match(/FN:(.*)/i) || [])[1]?.trim() || 'Contact';
+                const tel = (trimmed.match(/TEL[^:]*:(.*)/i) || [])[1]?.trim() || '';
+                const email = (trimmed.match(/EMAIL[^:]*:(.*)/i) || [])[1]?.trim() || '';
+                return {
+                    type: 'VCARD CONTACT',
+                    value: trimmed,
+                    meta: { fn, tel, email },
+                    orbBoost: { baseOrbRadius: 11, orbPulseFactor: 1.4 }
+                };
+            }
+
+            // 4. JSON Data Packet
+            if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    return {
+                        type: 'JSON PAYLOAD',
+                        value: JSON.stringify(parsed, null, 2),
+                        orbBoost: { axisSpeedFactor: 7.0, ringSpeedFactor: 5.5 }
+                    };
+                } catch {}
+            }
+
+            // 5. Email / Phone / Geo
+            if (/^mailto:/i.test(trimmed) || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+                return { type: 'EMAIL ADDRESS', value: trimmed.replace(/^mailto:/i, ''), orbBoost: {} };
+            }
+            if (/^tel:/i.test(trimmed) || /^\+?[\d\s\-().]{7,18}$/.test(trimmed)) {
+                return { type: 'PHONE / NUMERIC ID', value: trimmed.replace(/^tel:/i, ''), orbBoost: {} };
+            }
+            if (/^geo:/i.test(trimmed)) {
+                return { type: 'GEO COORDINATES', value: trimmed, orbBoost: { radiusMultiplier: 0.34 } };
+            }
+
+            // 6. Retail GTIN / UPC / EAN Digits
+            if (/^\d{8}$|^\d{12,14}$/.test(trimmed)) {
+                return { type: 'RETAIL GTIN / PRODUCT CODE', value: trimmed, orbBoost: { ringSpeedFactor: 6.5 } };
+            }
+
+            // 7. Plain Text
+            return { type: 'RAW TEXT PACKET', value: trimmed, orbBoost: {} };
+        }
+
+        async function attemptExpandUrl(shortUrl, containerEl) {
+            containerEl.style.display = 'block';
+            containerEl.textContent = 'Resolving redirect destination...';
+            try {
+                // Attempt direct fetch redirect inspection (works if endpoint permits CORS)
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 4500);
+                const res = await fetch(shortUrl, { method: 'HEAD', redirect: 'follow', signal: controller.signal });
+                clearTimeout(timer);
+
+                if (res.url && res.url !== shortUrl) {
+                    containerEl.innerHTML = `<strong>Expanded Destination:</strong><br>${res.url}`;
+                    return res.url;
+                }
+            } catch (err) {
+                // Fallback when CORS blocks client-side redirect inspection
+            }
+            containerEl.innerHTML = `<strong>Shortened URL Detected:</strong> Direct browser expansion blocked by remote CORS policy. Use <em>Inspect Redirect</em> below to preview safely.`;
+            return null;
+        }
+
+        // ==========================================
+        // 3. SCANNER & UI CONTROLLER
+        // ==========================================
+        const detector = new BarcodeDetector();
+        const video = document.getElementById('cameraFeed');
+        const toggleCamBtn = document.getElementById('toggleCamBtn');
+        const formatBadge = document.getElementById('formatBadge');
+        const packetTypeBadge = document.getElementById('packetTypeBadge');
+        const rawPayloadEl = document.getElementById('rawPayload');
+        const expandedUrlContainer = document.getElementById('expandedUrlContainer');
+        const actionGrid = document.getElementById('actionGrid');
+
+        let stream = null;
+        let scanning = false;
+        let lastScannedValue = '';
+
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+                    audio: false
+                });
+                video.srcObject = stream;
+                await video.play();
+                scanning = true;
+                toggleCamBtn.textContent = 'Stop Camera';
+                scanLoop();
+            } catch (err) {
+                rawPayloadEl.textContent = `Camera access denied or unavailable: ${err.message}`;
+            }
+        }
+
+        function stopCamera() {
+            scanning = false;
+            if (stream) {
+                stream.getTracks().forEach(t => t.stop());
+                stream = null;
+            }
+            video.srcObject = null;
+            toggleCamBtn.textContent = 'Start Camera';
+        }
+
+        toggleCamBtn.addEventListener('click', () => {
+            if (scanning) stopCamera();
+            else startCamera();
+        });
+
+        async function scanLoop() {
+            if (!scanning) return;
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                try {
+                    const barcodes = await detector.detect(video);
+                    if (barcodes.length > 0) {
+                        const hit = barcodes[0];
+                        if (hit.rawValue !== lastScannedValue) {
+                            lastScannedValue = hit.rawValue;
+                            if (navigator.vibrate) navigator.vibrate(40);
+                            handleDetectedBarcode(hit.format, hit.rawValue);
+                        }
+                    }
+                } catch (e) {}
+            }
+            requestAnimationFrame(scanLoop);
+        }
+
+        // Static Image Upload Scanner
+        document.getElementById('imageFileInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+            await img.decode();
+            const barcodes = await detector.detect(img);
+            if (barcodes.length > 0) {
+                lastScannedValue = barcodes[0].rawValue;
+                handleDetectedBarcode(barcodes[0].format, barcodes[0].rawValue);
+            } else {
+                formatBadge.textContent = 'NO BARCODE FOUND';
+                packetTypeBadge.textContent = 'IMAGE SCAN';
+                rawPayloadEl.textContent = 'Could not detect a readable barcode in the selected image.';
+                actionGrid.innerHTML = '';
+            }
+            URL.revokeObjectURL(img.src);
+        });
+
+        async function handleDetectedBarcode(format, rawValue) {
+            const sym = classifySymbology(format);
+            const packet = analyzeDataPacket(rawValue);
+
+            // Shift PS2 Orbs based on Symbology + Data Packet
+            setOrbProfile(sym.color, { ...sym.mods, ...packet.orbBoost });
+
+            formatBadge.textContent = sym.label;
+            formatBadge.style.borderColor = sym.color;
+            formatBadge.style.color = sym.color;
+            packetTypeBadge.textContent = packet.type;
+            rawPayloadEl.textContent = packet.value;
+
+            expandedUrlContainer.style.display = 'none';
+            actionGrid.innerHTML = '';
+
+            // Universal Action: Copy Payload
+            addActionBtn('Copy Data', () => navigator.clipboard.writeText(rawValue));
+
+            // Universal Action: Load into Writer Tab
+            addActionBtn('Edit / Re-Encode', () => {
+                document.getElementById('encodeInput').value = rawValue;
+                switchTab('writePanel');
+            });
+
+            // Packet-Specific Smart Actions
+            if (packet.type === 'WEB URL' || packet.type === 'SHORTENED WEB LINK') {
+                let targetUrl = packet.value;
+                const openLink = addLinkBtn('Open in New Tab ↗', targetUrl);
+
+                if (packet.isShortened) {
+                    addLinkBtn('Inspect Redirect', `https://wheregoes.com/?url=${encodeURIComponent(targetUrl)}`);
+                    const expanded = await attemptExpandUrl(targetUrl, expandedUrlContainer);
+                    if (expanded) {
+                        openLink.href = expanded;
+                        openLink.textContent = 'Open Expanded URL ↗';
+                    }
+                }
+            } else if (packet.type === 'WI-FI CREDENTIALS') {
+                rawPayloadEl.textContent = `Network (SSID): ${packet.meta.ssid}\nSecurity: ${packet.meta.enc}\nPassword: ${packet.meta.pass || '(None)'}`;
+                if (packet.meta.pass) {
+                    addActionBtn('Copy Wi-Fi Password', () => navigator.clipboard.writeText(packet.meta.pass));
+                }
+            } else if (packet.type === 'VCARD CONTACT') {
+                rawPayloadEl.textContent = `Name: ${packet.meta.fn}\nPhone: ${packet.meta.tel}\nEmail: ${packet.meta.email}\n\n${rawValue}`;
+                addActionBtn('Save Contact (.vcf)', () => {
+                    const blob = new Blob([rawValue], { type: 'text/vcard' });
+                    triggerDownload(blob, `${packet.meta.fn.replace(/\s+/g, '_')}.vcf`);
+                });
+            } else if (packet.type === 'JSON PAYLOAD') {
+                addActionBtn('Download .JSON', () => {
+                    const blob = new Blob([packet.value], { type: 'application/json' });
+                    triggerDownload(blob, 'decoded_packet.json');
+                });
+            } else if (packet.type === 'EMAIL ADDRESS') {
+                addLinkBtn('Compose Email', `mailto:${packet.value}`);
+            } else if (packet.type === 'PHONE / NUMERIC ID') {
+                addLinkBtn('Call Number', `tel:${packet.value}`);
+            } else if (packet.type === 'GEO COORDINATES') {
+                const coords = packet.value.replace(/^geo:/i, '');
+                addLinkBtn('Open in Maps', `https://maps.apple.com/?q=${encodeURIComponent(coords)}`);
+            } else if (packet.type === 'RETAIL GTIN / PRODUCT CODE') {
+                addLinkBtn('Lookup Product', `https://www.google.com/search?q=${encodeURIComponent(packet.value)}`);
+            }
+        }
+
+        function addActionBtn(label, onClick) {
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-primary';
+            btn.textContent = label;
+            btn.addEventListener('click', () => {
+                onClick();
+                const orig = btn.textContent;
+                btn.textContent = 'Done ✓';
+                setTimeout(() => btn.textContent = orig, 1200);
+            });
+            actionGrid.appendChild(btn);
+            return btn;
+        }
+
+        function addLinkBtn(label, href) {
+            const a = document.createElement('a');
+            a.className = 'btn btn-primary';
+            a.textContent = label;
+            a.href = href;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            actionGrid.appendChild(a);
+            return a;
+        }
+
+        function triggerDownload(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        document.getElementById('resetOrbsBtn').addEventListener('click', () => {
+            lastScannedValue = '';
+            setOrbProfile(DEFAULT_STATE.color, DEFAULT_STATE);
+            formatBadge.textContent = 'STANDBY';
+            formatBadge.style.borderColor = '';
+            formatBadge.style.color = '';
+            packetTypeBadge.textContent = 'AWAITING SIGNAL';
+            rawPayloadEl.textContent = 'Point camera at any 1D/2D barcode or upload an image to inspect its data packet...';
+            expandedUrlContainer.style.display = 'none';
+            actionGrid.innerHTML = '';
+        });
+
+        // ==========================================
+        // 4. BARCODE WRITER / GENERATOR
+        // ==========================================
+        const generateBtn = document.getElementById('generateBtn');
+        const downloadPngBtn = document.getElementById('downloadPngBtn');
+        const sharePngBtn = document.getElementById('sharePngBtn');
+        const outputBox = document.getElementById('barcodeOutputBox');
+        const outputCanvas = document.getElementById('barcodeOutputCanvas');
+        const writerError = document.getElementById('writerError');
+
+        generateBtn.addEventListener('click', () => {
+            const bcid = document.getElementById('symbologySelect').value;
+            const text = document.getElementById('encodeInput').value.trim();
+            writerError.textContent = '';
+
+            if (!text) {
+                writerError.textContent = 'Enter data to encode into the barcode.';
+                return;
+            }
+
+            try {
+                const is2D = ['qrcode', 'datamatrix', 'pdf417', 'azteccode'].includes(bcid);
+                window.bwipjs.toCanvas(outputCanvas, {
+                    bcid: bcid,
+                    text: text,
+                    scale: 3,
+                    height: is2D ? undefined : 14,
+                    includetext: !is2D,
+                    textxalign: 'center',
+                    backgroundcolor: 'ffffff',
+                    paddingwidth: 8,
+                    paddingheight: 8
+                });
+
+                outputBox.style.display = 'flex';
+                downloadPngBtn.style.display = 'inline-flex';
+                if (navigator.share) sharePngBtn.style.display = 'inline-flex';
+
+                // Update PS2 Orbs to reflect the generated format
+                const sym = classifySymbology(bcid);
+                setOrbProfile(sym.color, sym.mods);
+            } catch (err) {
+                outputBox.style.display = 'none';
+                downloadPngBtn.style.display = 'none';
+                sharePngBtn.style.display = 'none';
+                writerError.textContent = `Encoding Error: ${err.message}`;
+            }
+        });
+
+        downloadPngBtn.addEventListener('click', () => {
+            outputCanvas.toBlob(blob => {
+                const bcid = document.getElementById('symbologySelect').value;
+                triggerDownload(blob, `barcode_${bcid}.png`);
+            }, 'image/png');
+        });
+
+        sharePngBtn.addEventListener('click', () => {
+            outputCanvas.toBlob(async blob => {
+                const bcid = document.getElementById('symbologySelect').value;
+                const file = new File([blob], `barcode_${bcid}.png`, { type: 'image/png' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({ files: [file], title: 'Generated Barcode' });
+                }
+            }, 'image/png');
+        });
+
+        // ==========================================
+        // 5. TAB NAVIGATION
+        // ==========================================
+        function switchTab(targetId) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === targetId));
+            document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === targetId));
+            if (targetId !== 'scanPanel' && scanning) stopCamera();
+        }
+
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+        });
+    </script>
+</body>
+</html>
