@@ -552,7 +552,7 @@
             color: rgba(255, 255, 255, 0.7);
         }
 
-        select, textarea {
+        select, textarea, input[type="text"], input[type="number"] {
             width: 100%;
             background: rgba(0, 0, 0, 0.34);
             border: 1px solid rgba(255, 255, 255, 0.18);
@@ -565,8 +565,33 @@
             outline: none;
         }
 
-        select:focus, textarea:focus {
+        select:focus, textarea:focus, input[type="text"]:focus, input[type="number"]:focus {
             border-color: #00a2ff;
+        }
+
+        /* Produce PLU Quick-Fill Helper Box */
+        .plu-helper-box {
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            border-radius: 12px;
+            background: rgba(34, 197, 94, 0.12);
+            border: 1px solid rgba(34, 197, 94, 0.35);
+        }
+
+        .plu-helper-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .plu-helper-row input {
+            margin-bottom: 0;
+            padding: 8px 10px;
+            font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+            font-size: 14px;
         }
 
         .barcode-output-box {
@@ -574,8 +599,10 @@
             border-radius: 12px;
             padding: 16px;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
+            gap: 8px;
             min-height: 140px;
             margin-top: 10px;
             cursor: pointer;
@@ -584,6 +611,14 @@
         #barcodeOutputCanvas {
             max-width: 100%;
             height: auto;
+        }
+
+        .output-gtin-caption {
+            color: #334155;
+            font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+            font-size: 11px;
+            font-weight: 700;
+            text-align: center;
         }
 
         .validation-box {
@@ -685,9 +720,9 @@
                         <option value="azteccode">Aztec Code</option>
                     </optgroup>
                     <optgroup label="GS1 Retail, Produce & Logistics">
-                        <option value="gs1-128">GS1-128 (Case / Pallet)</option>
-                        <option value="databarstackedomni">GS1 DataBar Stacked (Produce)</option>
+                        <option value="databarstackedomni">GS1 DataBar Stacked (Produce PLU)</option>
                         <option value="databarexpandedstacked">GS1 DataBar Expanded Stacked</option>
+                        <option value="gs1-128">GS1-128 (Case / Pallet)</option>
                     </optgroup>
                     <optgroup label="1D Retail & Industrial">
                         <option value="code128">Code 128 (ASCII)</option>
@@ -702,11 +737,24 @@
                     </optgroup>
                 </select>
 
+                <!-- Contextual Produce PLU Builder (visible when DataBar Stacked/Expanded is chosen) -->
+                <div class="plu-helper-box" id="pluHelperBox">
+                    <div class="label-row" style="margin-bottom:0;">
+                        <label class="field-label" style="color:#86efac;">Produce PLU Auto-Builder</label>
+                        <span style="font-size:10px; color:rgba(255,255,255,0.65);">Auto-fills GTIN-14 + Check Digit</span>
+                    </div>
+                    <div class="plu-helper-row">
+                        <input type="text" id="pluQuickInput" inputmode="numeric" maxlength="5" placeholder="PLU (e.g. 4011 or 94011)">
+                        <button class="btn" id="toggleOrganicBtn" style="white-space:nowrap;">+ Organic (9)</button>
+                        <button class="btn btn-primary" id="buildPluBtn" style="white-space:nowrap;">Build Sticker</button>
+                    </div>
+                </div>
+
                 <div class="label-row">
                     <label class="field-label" for="encodeInput">Data Packet Payload</label>
                     <button class="btn" id="pasteClipboardBtn" style="padding: 4px 10px; font-size: 11px;">Paste Clipboard</button>
                 </div>
-                <textarea id="encodeInput" rows="3" placeholder="Enter or paste text, URL, JSON, GS1 AIs, or numeric code..."></textarea>
+                <textarea id="encodeInput" rows="3" placeholder="Enter or paste text, URL, JSON, GS1 AIs, or a 4–5 digit produce PLU..."></textarea>
 
                 <div style="display:flex; gap:8px; flex-wrap:wrap;">
                     <button class="btn btn-primary" id="generateBtn">Encode Barcode</button>
@@ -723,6 +771,7 @@
 
                 <div class="barcode-output-box" id="barcodeOutputBox" style="display:none;" title="Tap to expand barcode">
                     <canvas id="barcodeOutputCanvas"></canvas>
+                    <div class="output-gtin-caption" id="outputGtinCaption" style="display:none;"></div>
                 </div>
             </div>
         </section>
@@ -1109,7 +1158,6 @@
 
         initBarcodeWorker();
 
-        // Main-thread fallback helper (used only for static image uploads or if Worker blocked)
         const prepCanvas = document.createElement('canvas');
         const prepCtx = prepCanvas.getContext('2d');
 
@@ -1133,7 +1181,34 @@
         }
 
         // ==========================================
-        // 3. SYMBOLOGY SPECS, VALIDATION & MAPPING
+        // 3. GS1 PRODUCE PLU & GTIN-14 AUTO-BUILDER
+        // ==========================================
+        function computeGs1CheckDigit(first13Digits) {
+            let sum = 0;
+            for (let i = 0; i < 13; i++) {
+                const digit = parseInt(first13Digits[i], 10);
+                // From right to left (index 12 is position 1 -> multiplier 3)
+                sum += (i % 2 === 0) ? digit * 3 : digit;
+            }
+            return ((10 - (sum % 10)) % 10).toString();
+        }
+
+        function buildProduceGs1FromPlu(pluInput) {
+            const cleanPlu = pluInput.replace(/\D/g, '');
+            if (!/^\d{4,5}$/.test(cleanPlu)) return null;
+            // Pad indicator '0' + dummy company prefix zeros + 4- or 5-digit PLU to 13 digits
+            const base13 = '0' + cleanPlu.padStart(12, '0');
+            const checkDigit = computeGs1CheckDigit(base13);
+            const gtin14 = base13 + checkDigit;
+            return {
+                plu: cleanPlu,
+                gtin14,
+                aiString: `(01)${gtin14}`
+            };
+        }
+
+        // ==========================================
+        // 4. SYMBOLOGY SPECS, VALIDATION & MAPPING
         // ==========================================
         const SYMBOLOGY_SPECS = {
             qrcode: {
@@ -1152,17 +1227,17 @@
                 bwip: 'azteccode', is2D: true, example: 'AZTEC-PASS-2026',
                 rule: 'Accepts text, tickets, or binary strings.'
             },
+            databarstackedomni: {
+                bwip: 'databarstackedomni', is2D: true, example: '4011',
+                rule: 'Enter a 4–5 digit Produce PLU (e.g., 4011 or 94011) or full (01)14-digit GTIN.'
+            },
+            databarexpandedstacked: {
+                bwip: 'databarexpandedstacked', is2D: true, example: '(01)00000000040116(10)BATCH1',
+                rule: 'Enter a 4–5 digit Produce PLU or parenthesized GS1 AIs starting with (01)14-digit GTIN.'
+            },
             'gs1-128': {
                 bwip: 'gs1-128', is2D: false, example: '(01)00071142012248(17)260714(10)20F1',
                 rule: 'Requires parenthesized GS1 Application Identifiers, e.g., (01)14-digit-GTIN(17)YYMMDD(10)LOT.'
-            },
-            databarstackedomni: {
-                bwip: 'databarstackedomni', is2D: true, example: '(01)00000000004011',
-                rule: 'Requires (01) followed by a 14-digit GTIN (e.g., (01)00000000004011 for PLU 4011).'
-            },
-            databarexpandedstacked: {
-                bwip: 'databarexpandedstacked', is2D: true, example: '(01)00000000004011(10)BATCH1',
-                rule: 'Requires parenthesized GS1 AIs starting with (01)14-digit-GTIN.'
             },
             code128: {
                 bwip: 'code128', is2D: false, example: '99300063',
@@ -1230,11 +1305,25 @@
         }
 
         function formatRawForBwip(bwipId, rawText) {
-            if ((bwipId === 'gs1-128' || bwipId.startsWith('databar')) && !rawText.startsWith('(')) {
-                const parsed = parseGs1ElementString(rawText);
+            const trimmed = rawText.trim();
+
+            if (bwipId === 'databarstackedomni' || bwipId === 'databarexpandedstacked') {
+                // Shorthand 4- or 5-digit PLU -> auto-build full valid GS1 GTIN-14
+                if (/^\d{4,5}$/.test(trimmed)) {
+                    const built = buildProduceGs1FromPlu(trimmed);
+                    if (built) return built.aiString;
+                }
+                // 14-digit GTIN without (01) prefix -> wrap in (01)
+                if (/^\d{14}$/.test(trimmed)) {
+                    return `(01)${trimmed}`;
+                }
+            }
+
+            if ((bwipId === 'gs1-128' || bwipId.startsWith('databar')) && !trimmed.startsWith('(')) {
+                const parsed = parseGs1ElementString(trimmed);
                 if (parsed && parsed.formattedAIs) return parsed.formattedAIs;
             }
-            return rawText;
+            return trimmed;
         }
 
         function renderBarcodeToCanvas(targetCanvas, bwipId, rawText, scale = 2) {
@@ -1257,10 +1346,11 @@
             }
 
             window.bwipjs.toCanvas(targetCanvas, opts);
+            return preparedText;
         }
 
         // ==========================================
-        // 4. GS1 APPLICATION IDENTIFIER PARSER
+        // 5. GS1 APPLICATION IDENTIFIER PARSER
         // ==========================================
         const GS1_FIXED_LENGTHS = {
             '00': 18, '01': 14, '02': 14,
@@ -1368,7 +1458,7 @@
         }
 
         // ==========================================
-        // 5. PACKET INTELLIGENCE & URL EXPANDER
+        // 6. PACKET INTELLIGENCE & URL EXPANDER
         // ==========================================
         const SHORTENERS = [
             'bit.ly', 'tinyurl.com', 't.co', 'goo.gl', 'ow.ly', 'is.gd',
@@ -1401,9 +1491,13 @@
                 const lines = gs1Data.fields.map(f => `[${f.ai}] ${f.label}: ${f.value}`);
                 const gtinField = gs1Data.fields.find(f => f.ai === '01');
                 let pluNote = '';
-                if (gtinField && /^0{9,10}\d{4,5}$/.test(gtinField.value)) {
-                    const plu = gtinField.value.replace(/^0+/, '');
-                    pluNote = `\nProduce PLU: #${plu}`;
+                if (gtinField && /^0{8,10}\d{4,6}$/.test(gtinField.value)) {
+                    // Extract 4- or 5-digit PLU ignoring leading zeros and final check digit
+                    const body13 = gtinField.value.slice(0, 13);
+                    const plu = body13.replace(/^0+/, '');
+                    if (/^\d{4,5}$/.test(plu)) {
+                        pluNote = `\nProduce PLU: #${plu}`;
+                    }
                 }
                 return {
                     type: 'GS1 LOGISTICS / RETAIL PACKET',
@@ -1507,7 +1601,7 @@
         }
 
         // ==========================================
-        // 6. FULL-FPS CAMERA & ZERO-STUTTER WORKER SCANNER
+        // 7. FULL-FPS CAMERA & ZERO-STUTTER WORKER SCANNER
         // ==========================================
         const video = document.getElementById('cameraFeed');
         const toggleCamBtn = document.getElementById('toggleCamBtn');
@@ -1543,7 +1637,6 @@
 
         async function startCamera() {
             try {
-                // Full native camera FPS with crisp 1080p ideal resolution
                 stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
                     audio: false
@@ -1638,7 +1731,6 @@
                 if (vw > 0 && vh > 0 && scanWorker && typeof createImageBitmap === 'function') {
                     try {
                         workerBusy = true;
-                        // Crop just the center reticle band (zero-copy GPU ImageBitmap transfer)
                         const cropX = Math.floor(vw * 0.06);
                         const cropY = Math.floor(vh * 0.22);
                         const cropW = Math.floor(vw * 0.88);
@@ -1650,7 +1742,6 @@
                         workerBusy = false;
                     }
                 } else if (!scanWorker) {
-                    // Fallback only if browser blocks module Workers
                     try {
                         const hits = await fallbackDetector.detect(video);
                         if (hits.length > 0) handleDetectedHits(hits);
@@ -1791,6 +1882,7 @@
                 document.getElementById('encodeInput').value = formatRawForBwip(bwipId, item.rawValue);
                 const selectEl = document.getElementById('symbologySelect');
                 if (SYMBOLOGY_SPECS[bwipId]) selectEl.value = bwipId;
+                updatePluHelperVisibility();
                 switchTab('writePanel');
                 runBarcodeGenerator();
             });
@@ -1847,8 +1939,8 @@
 
         function openBarcodeLightbox(bwipId, rawValue) {
             try {
-                renderBarcodeToCanvas(lightboxCanvas, bwipId, rawValue, 4);
-                lightboxCaption.textContent = formatRawForBwip(bwipId, rawValue);
+                const formatted = renderBarcodeToCanvas(lightboxCanvas, bwipId, rawValue, 4);
+                lightboxCaption.textContent = formatted;
                 barcodeLightbox.classList.add('open');
             } catch (e) {}
         }
@@ -1914,7 +2006,7 @@
         });
 
         // ==========================================
-        // 7. SCAN HISTORY DRAWER (LOCALSTORAGE)
+        // 8. SCAN HISTORY DRAWER (LOCALSTORAGE)
         // ==========================================
         const HISTORY_KEY = 'ps2_barcode_history_v1';
         const historyDrawer = document.getElementById('historyDrawer');
@@ -1989,7 +2081,7 @@
         });
 
         // ==========================================
-        // 8. BARCODE WRITER & LIVE CONVERTER
+        // 9. BARCODE WRITER, PRODUCE PLU BUILDER & CONVERTER
         // ==========================================
         const symbologySelect = document.getElementById('symbologySelect');
         const encodeInput = document.getElementById('encodeInput');
@@ -1998,8 +2090,57 @@
         const sharePngBtn = document.getElementById('sharePngBtn');
         const outputBox = document.getElementById('barcodeOutputBox');
         const outputCanvas = document.getElementById('barcodeOutputCanvas');
+        const outputGtinCaption = document.getElementById('outputGtinCaption');
         const writerValidationBox = document.getElementById('writerValidationBox');
         const writerErrorText = document.getElementById('writerErrorText');
+        const pluHelperBox = document.getElementById('pluHelperBox');
+        const pluQuickInput = document.getElementById('pluQuickInput');
+        const toggleOrganicBtn = document.getElementById('toggleOrganicBtn');
+        const buildPluBtn = document.getElementById('buildPluBtn');
+
+        function updatePluHelperVisibility() {
+            const val = symbologySelect.value;
+            const isDataBar = val === 'databarstackedomni' || val === 'databarexpandedstacked';
+            pluHelperBox.style.display = isDataBar ? 'flex' : 'none';
+        }
+
+        function triggerPluQuickBuild() {
+            const rawPlu = pluQuickInput.value.trim();
+            const built = buildProduceGs1FromPlu(rawPlu);
+            if (!built) {
+                writerErrorText.innerHTML = 'Enter a valid 4- or 5-digit produce PLU (for example, <code>4011</code> or <code>94011</code>).';
+                writerValidationBox.style.display = 'flex';
+                return;
+            }
+            encodeInput.value = built.aiString;
+            runBarcodeGenerator();
+        }
+
+        toggleOrganicBtn.addEventListener('click', () => {
+            let digits = pluQuickInput.value.replace(/\D/g, '');
+            if (!digits) {
+                pluQuickInput.value = '9';
+                pluQuickInput.focus();
+                return;
+            }
+            if (digits.length === 5 && digits.startsWith('9')) {
+                pluQuickInput.value = digits.slice(1);
+            } else if (digits.length === 4) {
+                pluQuickInput.value = '9' + digits;
+            }
+            if (/^\d{4,5}$/.test(pluQuickInput.value)) {
+                triggerPluQuickBuild();
+            }
+        });
+
+        buildPluBtn.addEventListener('click', triggerPluQuickBuild);
+
+        pluQuickInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                triggerPluQuickBuild();
+            }
+        });
 
         function runBarcodeGenerator() {
             const bcid = symbologySelect.value;
@@ -2009,21 +2150,30 @@
 
             if (!text) {
                 outputBox.style.display = 'none';
+                outputGtinCaption.style.display = 'none';
                 downloadPngBtn.style.display = 'none';
                 sharePngBtn.style.display = 'none';
                 return;
             }
 
             try {
-                renderBarcodeToCanvas(outputCanvas, bcid, text, 3);
+                const encodedString = renderBarcodeToCanvas(outputCanvas, bcid, text, 3);
                 outputBox.style.display = 'flex';
                 downloadPngBtn.style.display = 'inline-flex';
                 if (navigator.share) sharePngBtn.style.display = 'inline-flex';
+
+                if (bcid === 'databarstackedomni' || bcid === 'databarexpandedstacked') {
+                    outputGtinCaption.textContent = encodedString;
+                    outputGtinCaption.style.display = 'block';
+                } else {
+                    outputGtinCaption.style.display = 'none';
+                }
 
                 const sym = classifySymbology(bcid);
                 setOrbProfile(sym.color, sym.mods);
             } catch (err) {
                 outputBox.style.display = 'none';
+                outputGtinCaption.style.display = 'none';
                 downloadPngBtn.style.display = 'none';
                 sharePngBtn.style.display = 'none';
 
@@ -2043,6 +2193,7 @@
         });
 
         symbologySelect.addEventListener('change', () => {
+            updatePluHelperVisibility();
             if (encodeInput.value.trim()) {
                 runBarcodeGenerator();
             } else {
@@ -2093,7 +2244,7 @@
         });
 
         // ==========================================
-        // 9. TAB NAVIGATION & UTILITIES
+        // 10. TAB NAVIGATION & UTILITIES
         // ==========================================
         function switchTab(targetId) {
             document.querySelectorAll('.header-controls .seg-btn').forEach(b => {
@@ -2114,6 +2265,8 @@
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
             }[m]));
         }
+
+        updatePluHelperVisibility();
     </script>
 </body>
 </html>
