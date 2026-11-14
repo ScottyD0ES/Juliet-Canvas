@@ -475,7 +475,7 @@
 </head>
 <body>
   <div class="app-shell">
-    <!-- Persistent Header -->
+    <!-- Persistent Top Bar -->
     <header class="top-bar">
       <div class="brand" onclick="App.navigate('page-home')" title="Return to Main Menu">
         <span class="brand-title">RPC36</span>
@@ -635,7 +635,7 @@
       </div>
     </section>
 
-    <!-- KEYWORD GRID SHEET MODAL / VIEW -->
+    <!-- KEYWORD GRID SHEET VIEW -->
     <section id="page-grid" class="page">
       <div class="card">
         <div class="card-header">
@@ -834,8 +834,13 @@
         if (padNeeded === 1) {
           xBuffer = "X";
         } else if (padNeeded >= 2) {
-          // Treated as a single word with X at start and X at end
-          xBuffer = "X" + "X".repeat(padNeeded - 2) + "X";
+          // Wrapped in leading X and trailing X, filled from the start of the keyed alphabet (baseGrid)
+          const innerCount = padNeeded - 2;
+          let innerFill = "";
+          for (let i = 0; i < innerCount; i++) {
+            innerFill += baseGrid[i % 36];
+          }
+          xBuffer = "X" + innerFill + "X";
         }
 
         const fullPreparedStream = stream + xBuffer;
@@ -894,7 +899,6 @@
 
           // Track ZZ protection state so protected digits don't trigger word shifts
           if (ch === "Z") {
-            // Check if opening or closing Z around digits
             if (!insideZZ && i + 1 < stream.length && /\d/.test(stream[i + 1])) {
               insideZZ = true;
             } else if (insideZZ) {
@@ -973,7 +977,7 @@
           orientationTrace.push(currentOrientation);
 
           if (plainChar === "Z") {
-            if (!insideZZ && i + 1 < payload.length) {
+            if (!insideZZ && i + 1 < payload.length && /\d/.test(payload[i + 1])) {
               insideZZ = true;
             } else if (insideZZ) {
               insideZZ = false;
@@ -991,7 +995,9 @@
         }
 
         // 3. Strip X-buffer padding (final delimiter + trailing X...X word)
-        const withoutXBuffer = decodedStream.replace(/\dX+$/, "");
+        // Because the X-buffer contains keyed alphabet characters (which can include digits like 1936),
+        // we locate the last non-ZZ-protected delimiter that precedes the trailing X-wrapped buffer word.
+        const withoutXBuffer = stripTrailingXBuffer(decodedStream);
 
         // 4. Replace remaining non-protected delimiter digits with spaces
         let withSpaces = "";
@@ -1030,6 +1036,34 @@
           finalPlaintext,
           orientationTrace
         };
+      }
+
+      function stripTrailingXBuffer(decodedStream) {
+        // Walk through the stream tracking ZZ protection so we find the exact index of the final delimiter
+        let inZ = false;
+        let lastDelimiterIdx = -1;
+
+        for (let i = 0; i < decodedStream.length; i++) {
+          const ch = decodedStream[i];
+          if (ch === "Z") {
+            if (!inZ && i + 1 < decodedStream.length && /\d/.test(decodedStream[i + 1])) {
+              inZ = true;
+            } else if (inZ) {
+              inZ = false;
+            }
+          } else if (/\d/.test(ch) && !inZ) {
+            lastDelimiterIdx = i;
+          }
+        }
+
+        if (lastDelimiterIdx !== -1 && decodedStream[decodedStream.length - 1] === "X") {
+          const candidateBuffer = decodedStream.slice(lastDelimiterIdx + 1);
+          if (candidateBuffer.startsWith("X") && candidateBuffer.endsWith("X")) {
+            return decodedStream.slice(0, lastDelimiterIdx);
+          }
+        }
+
+        return decodedStream;
       }
 
       function chunkBy36(str) {
@@ -1135,10 +1169,8 @@
         ctx.strokeStyle = "#3f4756";
         ctx.lineWidth = 2.5;
         ctx.beginPath();
-        // Vertical center
         ctx.moveTo(offsetX + gridSize / 2, offsetY);
         ctx.lineTo(offsetX + gridSize / 2, offsetY + gridSize);
-        // Horizontal center
         ctx.moveTo(offsetX, offsetY + gridSize / 2);
         ctx.lineTo(offsetX + gridSize, offsetY + gridSize / 2);
         ctx.stroke();
@@ -1259,7 +1291,7 @@
               { title: "1. Normalized Input", val: res.prep.cleanedInput },
               { title: "2. Number Z-Wrapped Words", val: res.prep.zzWords.join(" ") },
               { title: "3. Sequential Delimiters (Base Grid Mod 10)", val: res.prep.delimitersUsed.join(", ") || "None" },
-              { title: "4. X-Buffer Padding Word", val: res.prep.xBuffer || "(None needed)" },
+              { title: "4. X-Buffer Padding Word (Keyed Alphabet Fill)", val: res.prep.xBuffer || "(None needed)" },
               { title: "5. Complete Pre-Cipher Stream (36N - 1 chars)", val: res.prep.fullPreparedStream },
               { title: "6. Master Grid Rotation Trace (Per Character)", val: res.orientationTrace.join("") },
               { title: "7. Final Encoded Output (With Hint Character)", val: res.formattedRows }
