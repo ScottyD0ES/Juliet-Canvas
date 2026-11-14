@@ -153,8 +153,8 @@
 
         .reticle {
             position: absolute;
-            width: 68%;
-            height: 56%;
+            width: 78%;
+            height: 54%;
             border: 2px solid rgba(0, 162, 255, 0.65);
             border-radius: 14px;
             box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.28);
@@ -338,14 +338,15 @@
             border-radius: 10px;
             padding: 9px 10px;
             font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
-            font-size: 13px;
-            line-height: 1.4;
+            font-size: 12.5px;
+            line-height: 1.45;
             word-break: break-all;
-            max-height: 96px;
+            max-height: 112px;
             overflow-y: auto;
             color: #f8fafc;
             user-select: text;
             -webkit-user-select: text;
+            white-space: pre-wrap;
         }
 
         /* Recreated Barcode Thumbnail */
@@ -683,7 +684,12 @@
                         <option value="pdf417">PDF417</option>
                         <option value="azteccode">Aztec Code</option>
                     </optgroup>
-                    <optgroup label="1D Retail & Logistics">
+                    <optgroup label="GS1 Retail, Produce & Logistics">
+                        <option value="gs1-128">GS1-128 (Case / Pallet)</option>
+                        <option value="databarstackedomni">GS1 DataBar Stacked (Produce)</option>
+                        <option value="databarexpandedstacked">GS1 DataBar Expanded Stacked</option>
+                    </optgroup>
+                    <optgroup label="1D Retail & Industrial">
                         <option value="code128">Code 128 (ASCII)</option>
                         <option value="code39">Code 39</option>
                         <option value="code93">Code 93</option>
@@ -691,7 +697,7 @@
                         <option value="upce">UPC-E (7–8 digits)</option>
                         <option value="ean13">EAN-13 (12–13 digits)</option>
                         <option value="ean8">EAN-8 (7–8 digits)</option>
-                        <option value="interleaved2of5">ITF (Even digits)</option>
+                        <option value="interleaved2of5">ITF / ITF-14 (Even digits)</option>
                         <option value="rationalizedCodabar">Codabar</option>
                     </optgroup>
                 </select>
@@ -700,7 +706,7 @@
                     <label class="field-label" for="encodeInput">Data Packet Payload</label>
                     <button class="btn" id="pasteClipboardBtn" style="padding: 4px 10px; font-size: 11px;">Paste Clipboard</button>
                 </div>
-                <textarea id="encodeInput" rows="3" placeholder="Enter or paste text, URL, JSON, or numeric code..."></textarea>
+                <textarea id="encodeInput" rows="3" placeholder="Enter or paste text, URL, JSON, GS1 AIs, or numeric code..."></textarea>
 
                 <div style="display:flex; gap:8px; flex-wrap:wrap;">
                     <button class="btn btn-primary" id="generateBtn">Encode Barcode</button>
@@ -778,7 +784,6 @@
         const PS2_SPEEDS = [2.0, 1.9, 1.8, 1.7, 1.6, 1.5, 1.4];
         let currentCenterY = window.innerHeight * 0.74;
 
-        // Rainbow Screensaver State
         let isScreensaverActive = false;
         let screensaverHue = 200;
 
@@ -824,7 +829,7 @@
 
         function enterScreensaver() {
             isScreensaverActive = true;
-            screensaverHue = 200; // Start smoothly from PS2 blue
+            screensaverHue = 200;
             appContainer.classList.add('screensaver-hidden');
             targetConfig.radiusMultiplier = 0.28;
             targetConfig.baseOrbRadius = 9.0;
@@ -1017,13 +1022,11 @@
                 return;
             }
 
-            // Only trigger screensaver when on Scan tab, no data is present, and drawers/lightboxes are closed
             const scanPanelActive = document.getElementById('scanPanel').classList.contains('active');
             const hasNoData = resultCard.style.display === 'none' && batchItems.length === 0;
             const overlaysClosed = !barcodeLightbox.classList.contains('open') && !historyDrawer.classList.contains('open');
 
             if (scanPanelActive && hasNoData && overlaysClosed) {
-                // Ensure tap wasn't on a button, input, or inside the viewfinder card
                 if (e.target.closest('button, label, input, select, textarea, .viewfinder-card, header')) {
                     return;
                 }
@@ -1037,7 +1040,29 @@
         }, true);
 
         // ==========================================
-        // 2. SYMBOLOGY SPECS, VALIDATION & MAPPING
+        // 2. QUIET-ZONE PRE-PROCESSOR (FOR EDGE-TO-EDGE 1D)
+        // ==========================================
+        const prepCanvas = document.createElement('canvas');
+        const prepCtx = prepCanvas.getContext('2d');
+
+        function createPaddedFrame(source, pad = 44, cropRect = null) {
+            const sx = cropRect ? cropRect.x : 0;
+            const sy = cropRect ? cropRect.y : 0;
+            const sw = cropRect ? cropRect.w : (source.videoWidth || source.naturalWidth || source.width);
+            const sh = cropRect ? cropRect.h : (source.videoHeight || source.naturalHeight || source.height);
+
+            if (!sw || !sh) return source;
+
+            prepCanvas.width = sw + pad * 2;
+            prepCanvas.height = sh + pad * 2;
+            prepCtx.fillStyle = '#ffffff';
+            prepCtx.fillRect(0, 0, prepCanvas.width, prepCanvas.height);
+            prepCtx.drawImage(source, sx, sy, sw, sh, pad, pad, sw, sh);
+            return prepCanvas;
+        }
+
+        // ==========================================
+        // 3. SYMBOLOGY SPECS, VALIDATION & MAPPING
         // ==========================================
         const SYMBOLOGY_SPECS = {
             qrcode: {
@@ -1055,6 +1080,18 @@
             azteccode: {
                 bwip: 'azteccode', is2D: true, example: 'AZTEC-PASS-2026',
                 rule: 'Accepts text, tickets, or binary strings.'
+            },
+            'gs1-128': {
+                bwip: 'gs1-128', is2D: false, example: '(01)00071142012248(17)260714(10)20F1',
+                rule: 'Requires parenthesized GS1 Application Identifiers, e.g., (01)14-digit-GTIN(17)YYMMDD(10)LOT.'
+            },
+            databarstackedomni: {
+                bwip: 'databarstackedomni', is2D: true, example: '(01)00000000004011',
+                rule: 'Requires (01) followed by a 14-digit GTIN (e.g., (01)00000000004011 for PLU 4011).'
+            },
+            databarexpandedstacked: {
+                bwip: 'databarexpandedstacked', is2D: true, example: '(01)00000000004011(10)BATCH1',
+                rule: 'Requires parenthesized GS1 AIs starting with (01)14-digit-GTIN.'
             },
             code128: {
                 bwip: 'code128', is2D: false, example: '99300063',
@@ -1094,8 +1131,16 @@
             }
         };
 
-        function mapDetectorFormatToBwip(detectorFormat) {
+        function mapDetectorFormatToBwip(detectorFormat, rawValue = '') {
             const f = detectorFormat.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (f === 'rss14') return 'databarstackedomni';
+            if (f === 'rssexpanded') return 'databarexpandedstacked';
+
+            // If Code 128 contains GS1 FNC1 / Group Separator control codes, map to gs1-128
+            if (f === 'code128' && (/[\x1d]/.test(rawValue) || /^\(01\)/.test(rawValue))) {
+                return 'gs1-128';
+            }
+
             const map = {
                 qrcode: 'qrcode',
                 datamatrix: 'datamatrix',
@@ -1114,15 +1159,26 @@
             return map[f] || 'code128';
         }
 
+        function formatRawForBwip(bwipId, rawText) {
+            // Convert raw GS1 control characters (0x1D / FNC1) into parenthesized AI format if needed
+            if ((bwipId === 'gs1-128' || bwipId.startsWith('databar')) && !rawText.startsWith('(')) {
+                const parsed = parseGs1ElementString(rawText);
+                if (parsed && parsed.formattedAIs) return parsed.formattedAIs;
+            }
+            return rawText;
+        }
+
         function renderBarcodeToCanvas(targetCanvas, bwipId, rawText, scale = 2) {
             const spec = SYMBOLOGY_SPECS[bwipId] || { bwip: bwipId, is2D: false };
+            const preparedText = formatRawForBwip(spec.bwip, rawText);
+
             const opts = {
                 bcid: spec.bwip,
-                text: rawText,
+                text: preparedText,
                 scale: scale,
                 backgroundcolor: 'ffffff',
-                paddingwidth: 6,
-                paddingheight: 6
+                paddingwidth: 8,
+                paddingheight: 8
             };
 
             if (!spec.is2D) {
@@ -1135,7 +1191,119 @@
         }
 
         // ==========================================
-        // 3. PACKET INTELLIGENCE & URL EXPANDER
+        // 4. GS1 APPLICATION IDENTIFIER PARSER
+        // ==========================================
+        const GS1_FIXED_LENGTHS = {
+            '00': 18, '01': 14, '02': 14,
+            '11': 6, '12': 6, '13': 6, '15': 6, '16': 6, '17': 6,
+            '20': 2
+        };
+
+        const GS1_AI_LABELS = {
+            '00': 'SSCC',
+            '01': 'GTIN',
+            '02': 'Content GTIN',
+            '10': 'Batch / Lot',
+            '11': 'Prod Date',
+            '13': 'Pack Date',
+            '15': 'Best Before',
+            '17': 'Expiration Date',
+            '20': 'Variant',
+            '21': 'Serial Number',
+            '30': 'Variable Count',
+            '37': 'Count of Trade Items',
+            '310': 'Net Weight (kg)',
+            '320': 'Net Weight (lb)',
+            '400': 'Customer PO',
+            '410': 'Ship To GLN',
+            '420': 'Ship To Postal'
+        };
+
+        function formatGs1Date(yymmdd) {
+            if (!/^\d{6}$/.test(yymmdd)) return yymmdd;
+            const yy = yymmdd.slice(0, 2);
+            const mm = yymmdd.slice(2, 4);
+            const dd = yymmdd.slice(4, 6);
+            return `${mm}/${dd}/20${yy}`;
+        }
+
+        function parseGs1ElementString(raw) {
+            // Strip symbology identifiers like ]C1, ]e0, ]d2
+            let clean = raw.replace(/^\][A-Za-z0-9]{2}/, '').trim();
+
+            // Check if already formatted with parentheses: (01)00071142012248(17)260714
+            if (/^\(\d{2,4}\)/.test(clean)) {
+                const fields = [];
+                const regex = /\((\d{2,4})\)([^(]+)/g;
+                let m;
+                while ((m = regex.exec(clean)) !== null) {
+                    const ai = m[1];
+                    let val = m[2].replace(/\x1d/g, '');
+                    const label = GS1_AI_LABELS[ai] || GS1_AI_LABELS[ai.slice(0, 3)] || `AI (${ai})`;
+                    if (['11', '13', '15', '16', '17'].includes(ai)) val = `${formatGs1Date(val)} (${val})`;
+                    fields.push({ ai, label, value: val });
+                }
+                if (fields.length > 0) {
+                    return { fields, formattedAIs: clean };
+                }
+            }
+
+            // Parse raw unparenthesized GS1 stream with 0x1D (GS) separators
+            if (/^(00\d{18}|01\d{14}|02\d{14})/.test(clean)) {
+                const fields = [];
+                let formattedAIs = '';
+                let pos = 0;
+
+                while (pos < clean.length) {
+                    if (clean[pos] === '\x1d') {
+                        pos++;
+                        continue;
+                    }
+
+                    const ai2 = clean.slice(pos, pos + 2);
+                    const ai3 = clean.slice(pos, pos + 3);
+
+                    if (GS1_FIXED_LENGTHS[ai2]) {
+                        const len = GS1_FIXED_LENGTHS[ai2];
+                        const val = clean.slice(pos + 2, pos + 2 + len);
+                        if (val.length < len) break;
+                        const label = GS1_AI_LABELS[ai2] || `AI (${ai2})`;
+                        const displayVal = ['11', '13', '15', '16', '17'].includes(ai2) ? `${formatGs1Date(val)} (${val})` : val;
+                        fields.push({ ai: ai2, label, value: displayVal });
+                        formattedAIs += `(${ai2})${val}`;
+                        pos += 2 + len;
+                    } else if (/^(310|320)\d$/.test(clean.slice(pos, pos + 4))) {
+                        const ai4 = clean.slice(pos, pos + 4);
+                        const decimals = parseInt(ai4[3], 10);
+                        const rawNum = clean.slice(pos + 4, pos + 10);
+                        if (rawNum.length < 6) break;
+                        const numVal = (parseInt(rawNum, 10) / Math.pow(10, decimals)).toFixed(decimals);
+                        const label = GS1_AI_LABELS[ai3] || `AI (${ai4})`;
+                        fields.push({ ai: ai4, label, value: numVal });
+                        formattedAIs += `(${ai4})${rawNum}`;
+                        pos += 10;
+                    } else {
+                        // Variable-length AI terminated by 0x1D or end of string
+                        const nextGs = clean.indexOf('\x1d', pos);
+                        const end = nextGs === -1 ? clean.length : nextGs;
+                        const val = clean.slice(pos + 2, end);
+                        const label = GS1_AI_LABELS[ai2] || `AI (${ai2})`;
+                        fields.push({ ai: ai2, label, value: val });
+                        formattedAIs += `(${ai2})${val}`;
+                        pos = end + 1;
+                    }
+                }
+
+                if (fields.length > 0) {
+                    return { fields, formattedAIs };
+                }
+            }
+
+            return null;
+        }
+
+        // ==========================================
+        // 5. PACKET INTELLIGENCE & URL EXPANDER
         // ==========================================
         const SHORTENERS = [
             'bit.ly', 'tinyurl.com', 't.co', 'goo.gl', 'ow.ly', 'is.gd',
@@ -1150,31 +1318,57 @@
                 return { label: format.toUpperCase(), color: '#b84dff', mods: { axisSpeedFactor: 8.5, orbPulseFactor: 1.8, baseOrbRadius: 7 } };
             }
             if (f.includes('pdf417')) return { label: 'PDF417', color: '#ffaa00', mods: { radiusMultiplier: 0.23, ringSpeedFactor: 3.0, baseOrbRadius: 9 } };
+            if (f.includes('rss') || f.includes('databar')) {
+                return { label: 'GS1 DATABAR', color: '#22c55e', mods: { ringSpeedFactor: 6.0, orbPulseFactor: 1.6, baseOrbRadius: 8 } };
+            }
             if (f.includes('upc') || f.includes('ean')) return { label: format.toUpperCase(), color: '#ff3b5c', mods: { ringSpeedFactor: 6.5, axisSpeedFactor: 2.5, baseOrbRadius: 8 } };
-            if (f.includes('code_128') || f.includes('code128') || f.includes('code_39') || f.includes('code39') || f.includes('code_93') || f.includes('code93') || f.includes('itf') || f.includes('codabar')) {
+            if (f.includes('code_128') || f.includes('code128') || f.includes('gs1-128') || f.includes('code_39') || f.includes('code39') || f.includes('code_93') || f.includes('code93') || f.includes('itf') || f.includes('codabar')) {
                 return { label: format.toUpperCase(), color: '#ff7b00', mods: { ringSpeedFactor: 5.0, orbPulseFactor: 1.5, baseOrbRadius: 7.5 } };
             }
             return { label: format.toUpperCase(), color: '#38bdf8', mods: {} };
         }
 
-        function analyzeDataPacket(raw) {
+        function analyzeDataPacket(raw, format = '') {
             const trimmed = raw.trim();
 
+            // 1. GS1 Element Strings (GS1-128, GS1 DataBar, GS1 DataMatrix)
+            const gs1Data = parseGs1ElementString(trimmed);
+            if (gs1Data) {
+                const lines = gs1Data.fields.map(f => `[${f.ai}] ${f.label}: ${f.value}`);
+                const gtinField = gs1Data.fields.find(f => f.ai === '01');
+                // Check if produce PLU embedded in GTIN (010000000000XXXX)
+                let pluNote = '';
+                if (gtinField && /^0{9,10}\d{4,5}$/.test(gtinField.value)) {
+                    const plu = gtinField.value.replace(/^0+/, '');
+                    pluNote = `\nProduce PLU: #${plu}`;
+                }
+                return {
+                    type: 'GS1 LOGISTICS / RETAIL PACKET',
+                    value: `${lines.join('\n')}${pluNote}\n\nRaw: ${gs1Data.formattedAIs}`,
+                    gtin: gtinField ? gtinField.value : null,
+                    orbBoost: { ringSpeedFactor: 6.2, axisSpeedFactor: 6.5 }
+                };
+            }
+
+            // 2. Web URL & GS1 Digital Link URLs
             if (/^https?:\/\//i.test(trimmed) || /^www\./i.test(trimmed)) {
                 const fullUrl = /^www\./i.test(trimmed) ? `https://${trimmed}` : trimmed;
                 let isShortened = false;
+                let gs1DigitalMatch = fullUrl.match(/\/01\/(\d{14})/);
                 try {
                     const host = new URL(fullUrl).hostname.replace(/^www\./, '').toLowerCase();
                     isShortened = SHORTENERS.includes(host);
                 } catch {}
                 return {
-                    type: isShortened ? 'SHORTENED WEB LINK' : 'WEB URL',
-                    value: fullUrl,
+                    type: gs1DigitalMatch ? 'GS1 DIGITAL LINK URL' : (isShortened ? 'SHORTENED WEB LINK' : 'WEB URL'),
+                    value: gs1DigitalMatch ? `GTIN: ${gs1DigitalMatch[1]}\n${fullUrl}` : fullUrl,
+                    url: fullUrl,
                     isShortened,
                     orbBoost: { ringSpeedFactor: 7.5, orbPulseFactor: 2.0 }
                 };
             }
 
+            // 3. Wi-Fi Credentials
             if (/^WIFI:/i.test(trimmed)) {
                 const ssid = (trimmed.match(/S:([^;]*)/i) || [])[1] || 'Unknown';
                 const pass = (trimmed.match(/P:([^;]*)/i) || [])[1] || '';
@@ -1187,6 +1381,7 @@
                 };
             }
 
+            // 4. vCard Contact
             if (/^BEGIN:VCARD/i.test(trimmed)) {
                 const fn = (trimmed.match(/FN:(.*)/i) || [])[1]?.trim() || 'Contact';
                 const tel = (trimmed.match(/TEL[^:]*:(.*)/i) || [])[1]?.trim() || '';
@@ -1199,6 +1394,7 @@
                 };
             }
 
+            // 5. JSON Data Packet
             if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
                 try {
                     const parsed = JSON.parse(trimmed);
@@ -1210,6 +1406,7 @@
                 } catch {}
             }
 
+            // 6. Email / Phone / Geo
             if (/^mailto:/i.test(trimmed) || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
                 return { type: 'EMAIL ADDRESS', value: trimmed.replace(/^mailto:/i, ''), orbBoost: {} };
             }
@@ -1222,6 +1419,7 @@
                 return { type: 'GEO COORDINATES', value: trimmed, orbBoost: { radiusMultiplier: 0.22 } };
             }
 
+            // 7. Retail GTINs & Pure Numeric SKUs
             if (/^\d{8}$|^\d{12,14}$/.test(trimmed)) {
                 return { type: 'RETAIL GTIN / PRODUCT CODE', value: trimmed, orbBoost: { ringSpeedFactor: 6.5 } };
             }
@@ -1252,7 +1450,7 @@
         }
 
         // ==========================================
-        // 4. SCANNER, BATCH CAPTURE & LIGHTBOX
+        // 6. SCANNER, BATCH CAPTURE & LIGHTBOX
         // ==========================================
         const detector = new BarcodeDetector();
         const video = document.getElementById('cameraFeed');
@@ -1276,6 +1474,7 @@
         let batchItems = [];
         let selectedItemId = null;
         let activeCloneMeta = null;
+        let frameCounter = 0;
 
         document.querySelectorAll('#scanModeSwitch .seg-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -1289,7 +1488,7 @@
         async function startCamera() {
             try {
                 stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+                    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
                     audio: false
                 });
                 video.srcObject = stream;
@@ -1353,7 +1552,22 @@
             if (!scanning) return;
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
                 try {
-                    const barcodes = await detector.detect(video);
+                    frameCounter++;
+                    let barcodes = await detector.detect(video);
+
+                    // Every 3rd frame, if full frame found nothing, run a padded center-band crop pass for wide 1D case barcodes
+                    if (barcodes.length === 0 && frameCounter % 3 === 0) {
+                        const vw = video.videoWidth;
+                        const vh = video.videoHeight;
+                        const paddedCrop = createPaddedFrame(video, 44, {
+                            x: 0,
+                            y: Math.floor(vh * 0.22),
+                            w: vw,
+                            h: Math.floor(vh * 0.56)
+                        });
+                        barcodes = await detector.detect(paddedCrop);
+                    }
+
                     if (barcodes.length > 0) {
                         if (scanMode === 'single') {
                             const hit = barcodes[0];
@@ -1370,13 +1584,23 @@
             requestAnimationFrame(scanLoop);
         }
 
+        // Static Image Upload Scanner with Quiet-Zone Padding
         document.getElementById('imageFileInput').addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
             const img = new Image();
             img.src = URL.createObjectURL(file);
             await img.decode();
-            const barcodes = await detector.detect(img);
+
+            // Pass 1: Direct detection
+            let barcodes = await detector.detect(img);
+
+            // Pass 2: White quiet-zone padded pass (rescues edge-to-edge 1D barcodes like case labels)
+            if (barcodes.length === 0) {
+                const paddedImg = createPaddedFrame(img, 56);
+                barcodes = await detector.detect(paddedImg);
+            }
+
             if (barcodes.length > 0) {
                 ingestScannedItems(barcodes, scanMode === 'many');
             } else {
@@ -1463,7 +1687,7 @@
 
             resultCard.style.display = 'block';
             const sym = classifySymbology(item.format);
-            const packet = analyzeDataPacket(item.rawValue);
+            const packet = analyzeDataPacket(item.rawValue, item.format);
 
             setOrbProfile(sym.color, { ...sym.mods, ...packet.orbBoost });
 
@@ -1473,7 +1697,7 @@
             packetTypeBadge.textContent = packet.type;
             rawPayloadEl.textContent = packet.value;
 
-            const bwipId = mapDetectorFormatToBwip(item.format);
+            const bwipId = mapDetectorFormatToBwip(item.format, item.rawValue);
             try {
                 renderBarcodeToCanvas(cloneThumbCanvas, bwipId, item.rawValue, 2);
                 cloneThumbWrap.style.display = 'flex';
@@ -1489,15 +1713,18 @@
             addActionBtn('Copy Data', () => navigator.clipboard.writeText(item.rawValue));
 
             addActionBtn('Edit / Convert', () => {
-                document.getElementById('encodeInput').value = item.rawValue;
+                document.getElementById('encodeInput').value = formatRawForBwip(bwipId, item.rawValue);
                 const selectEl = document.getElementById('symbologySelect');
                 if (SYMBOLOGY_SPECS[bwipId]) selectEl.value = bwipId;
                 switchTab('writePanel');
                 runBarcodeGenerator();
             });
 
-            if (packet.type === 'WEB URL' || packet.type === 'SHORTENED WEB LINK') {
-                let targetUrl = packet.value;
+            if (packet.type === 'GS1 LOGISTICS / RETAIL PACKET' && packet.gtin) {
+                addActionBtn('Copy GTIN', () => navigator.clipboard.writeText(packet.gtin));
+                addLinkBtn('Lookup GTIN', `https://www.google.com/search?q=${encodeURIComponent(packet.gtin)}`);
+            } else if (packet.type === 'WEB URL' || packet.type === 'SHORTENED WEB LINK' || packet.type === 'GS1 DIGITAL LINK URL') {
+                let targetUrl = packet.url || packet.value;
                 const openLink = addLinkBtn('Open in New Tab ↗', targetUrl);
 
                 if (packet.isShortened) {
@@ -1546,7 +1773,7 @@
         function openBarcodeLightbox(bwipId, rawValue) {
             try {
                 renderBarcodeToCanvas(lightboxCanvas, bwipId, rawValue, 4);
-                lightboxCaption.textContent = rawValue;
+                lightboxCaption.textContent = formatRawForBwip(bwipId, rawValue);
                 barcodeLightbox.classList.add('open');
             } catch (e) {}
         }
@@ -1612,7 +1839,7 @@
         });
 
         // ==========================================
-        // 5. SCAN HISTORY DRAWER (LOCALSTORAGE)
+        // 7. SCAN HISTORY DRAWER (LOCALSTORAGE)
         // ==========================================
         const HISTORY_KEY = 'ps2_barcode_history_v1';
         const historyDrawer = document.getElementById('historyDrawer');
@@ -1687,7 +1914,7 @@
         });
 
         // ==========================================
-        // 6. BARCODE WRITER & LIVE CONVERTER
+        // 8. BARCODE WRITER & LIVE CONVERTER
         // ==========================================
         const symbologySelect = document.getElementById('symbologySelect');
         const encodeInput = document.getElementById('encodeInput');
@@ -1791,7 +2018,7 @@
         });
 
         // ==========================================
-        // 7. TAB NAVIGATION & UTILITIES
+        // 9. TAB NAVIGATION & UTILITIES
         // ==========================================
         function switchTab(targetId) {
             document.querySelectorAll('.header-controls .seg-btn').forEach(b => {
@@ -1811,15 +2038,6 @@
             return str.replace(/[&<>"']/g, m => ({
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
             }[m]));
-        }
-
-        // ==========================================
-        // 8. OFFLINE SERVICE WORKER REGISTRATION
-        // ==========================================
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(() => {});
-            });
         }
     </script>
 </body>
