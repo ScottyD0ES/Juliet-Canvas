@@ -756,7 +756,7 @@
         import { BarcodeDetector } from "https://fastly.jsdelivr.net/npm/barcode-detector@3/dist/es/ponyfill.min.js";
 
         // ==========================================
-        // 1. PS2 REACTIVE ORB ENGINE & SCREENSAVER
+        // 1. PS2 REACTIVE ORB ENGINE (DELTA-TIME SMOOTHED)
         // ==========================================
         const canvas = document.getElementById('ps2Canvas');
         const ctx = canvas.getContext('2d');
@@ -783,6 +783,7 @@
         let cloudParticles = [];
         const PS2_SPEEDS = [2.0, 1.9, 1.8, 1.7, 1.6, 1.5, 1.4];
         let currentCenterY = window.innerHeight * 0.74;
+        let lastFrameTime = performance.now();
 
         let isScreensaverActive = false;
         let screensaverHue = 200;
@@ -918,13 +919,17 @@
             };
         }
 
-        function draw() {
+        function draw(now) {
+            // Normalize delta-time against a 60fps baseline (16.67ms), capped to prevent jumps
+            const dt = Math.min(2.5, (now - lastFrameTime) / 16.667);
+            lastFrameTime = now;
+
             if (isScreensaverActive) {
-                screensaverHue = (screensaverHue + 0.45) % 360;
+                screensaverHue = (screensaverHue + 0.45 * dt) % 360;
                 Object.assign(targetRgb, hslToRgb(screensaverHue, 100, 56));
             }
 
-            const lerp = 0.05;
+            const lerp = Math.min(1, 0.05 * dt);
             currentRgb.r += (targetRgb.r - currentRgb.r) * lerp;
             currentRgb.g += (targetRgb.g - currentRgb.g) * lerp;
             currentRgb.b += (targetRgb.b - currentRgb.b) * lerp;
@@ -936,7 +941,7 @@
             config.radiusMultiplier += (targetConfig.radiusMultiplier - config.radiusMultiplier) * lerp;
 
             const targetY = computeAnchorY();
-            currentCenterY += (targetY - currentCenterY) * 0.07;
+            currentCenterY += (targetY - currentCenterY) * Math.min(1, 0.07 * dt);
 
             config.ringRadius = Math.min(canvas.width, canvas.height) * config.radiusMultiplier;
             config.depthPerspective = config.ringRadius * 1.85;
@@ -952,7 +957,8 @@
 
             ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.22)`;
             cloudParticles.forEach(p => {
-                p.x += p.vx; p.y += p.vy;
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
                 if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
                 if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
                 ctx.beginPath();
@@ -961,7 +967,7 @@
             });
 
             const projectedOrbs = orbs.map(orb => {
-                orb.currentAngleOffset += 0.005 * config.ringSpeedFactor * orb.speedMultiplier;
+                orb.currentAngleOffset += 0.005 * config.ringSpeedFactor * orb.speedMultiplier * dt;
                 const totalAngle = orb.baseAngle + orb.currentAngleOffset;
                 const startX = config.ringRadius * Math.cos(totalAngle);
                 const startY = config.ringRadius * Math.sin(totalAngle);
@@ -970,12 +976,12 @@
                 return projection;
             });
 
-            config.tiltAngle += 0.002 * config.axisSpeedFactor;
+            config.tiltAngle += 0.002 * config.axisSpeedFactor * dt;
             projectedOrbs.sort((a, b) => b.zDepth - a.zDepth);
 
             projectedOrbs.forEach(proj => {
                 const orb = proj.orbConfig;
-                orb.pulsePhase += 0.05 * config.orbPulseFactor;
+                orb.pulsePhase += 0.05 * config.orbPulseFactor * dt;
                 const pulse = (Math.sin(orb.pulsePhase) + 1) / 2;
 
                 const radius = config.baseOrbRadius * proj.scale * (1 + pulse * 0.3);
@@ -1043,7 +1049,7 @@
         // 2. QUIET-ZONE PRE-PROCESSOR (FOR EDGE-TO-EDGE 1D)
         // ==========================================
         const prepCanvas = document.createElement('canvas');
-        const prepCtx = prepCanvas.getContext('2d');
+        const prepCtx = prepCanvas.getContext('2d', { willReadFrequently: false });
 
         function createPaddedFrame(source, pad = 44, cropRect = null) {
             const sx = cropRect ? cropRect.x : 0;
@@ -1053,10 +1059,13 @@
 
             if (!sw || !sh) return source;
 
-            prepCanvas.width = sw + pad * 2;
-            prepCanvas.height = sh + pad * 2;
+            const targetW = sw + pad * 2;
+            const targetH = sh + pad * 2;
+            if (prepCanvas.width !== targetW) prepCanvas.width = targetW;
+            if (prepCanvas.height !== targetH) prepCanvas.height = targetH;
+
             prepCtx.fillStyle = '#ffffff';
-            prepCtx.fillRect(0, 0, prepCanvas.width, prepCanvas.height);
+            prepCtx.fillRect(0, 0, targetW, targetH);
             prepCtx.drawImage(source, sx, sy, sw, sh, pad, pad, sw, sh);
             return prepCanvas;
         }
@@ -1136,7 +1145,6 @@
             if (f === 'rss14') return 'databarstackedomni';
             if (f === 'rssexpanded') return 'databarexpandedstacked';
 
-            // If Code 128 contains GS1 FNC1 / Group Separator control codes, map to gs1-128
             if (f === 'code128' && (/[\x1d]/.test(rawValue) || /^\(01\)/.test(rawValue))) {
                 return 'gs1-128';
             }
@@ -1160,7 +1168,6 @@
         }
 
         function formatRawForBwip(bwipId, rawText) {
-            // Convert raw GS1 control characters (0x1D / FNC1) into parenthesized AI format if needed
             if ((bwipId === 'gs1-128' || bwipId.startsWith('databar')) && !rawText.startsWith('(')) {
                 const parsed = parseGs1ElementString(rawText);
                 if (parsed && parsed.formattedAIs) return parsed.formattedAIs;
@@ -1228,10 +1235,8 @@
         }
 
         function parseGs1ElementString(raw) {
-            // Strip symbology identifiers like ]C1, ]e0, ]d2
             let clean = raw.replace(/^\][A-Za-z0-9]{2}/, '').trim();
 
-            // Check if already formatted with parentheses: (01)00071142012248(17)260714
             if (/^\(\d{2,4}\)/.test(clean)) {
                 const fields = [];
                 const regex = /\((\d{2,4})\)([^(]+)/g;
@@ -1248,7 +1253,6 @@
                 }
             }
 
-            // Parse raw unparenthesized GS1 stream with 0x1D (GS) separators
             if (/^(00\d{18}|01\d{14}|02\d{14})/.test(clean)) {
                 const fields = [];
                 let formattedAIs = '';
@@ -1283,7 +1287,6 @@
                         formattedAIs += `(${ai4})${rawNum}`;
                         pos += 10;
                     } else {
-                        // Variable-length AI terminated by 0x1D or end of string
                         const nextGs = clean.indexOf('\x1d', pos);
                         const end = nextGs === -1 ? clean.length : nextGs;
                         const val = clean.slice(pos + 2, end);
@@ -1331,12 +1334,10 @@
         function analyzeDataPacket(raw, format = '') {
             const trimmed = raw.trim();
 
-            // 1. GS1 Element Strings (GS1-128, GS1 DataBar, GS1 DataMatrix)
             const gs1Data = parseGs1ElementString(trimmed);
             if (gs1Data) {
                 const lines = gs1Data.fields.map(f => `[${f.ai}] ${f.label}: ${f.value}`);
                 const gtinField = gs1Data.fields.find(f => f.ai === '01');
-                // Check if produce PLU embedded in GTIN (010000000000XXXX)
                 let pluNote = '';
                 if (gtinField && /^0{9,10}\d{4,5}$/.test(gtinField.value)) {
                     const plu = gtinField.value.replace(/^0+/, '');
@@ -1350,7 +1351,6 @@
                 };
             }
 
-            // 2. Web URL & GS1 Digital Link URLs
             if (/^https?:\/\//i.test(trimmed) || /^www\./i.test(trimmed)) {
                 const fullUrl = /^www\./i.test(trimmed) ? `https://${trimmed}` : trimmed;
                 let isShortened = false;
@@ -1368,7 +1368,6 @@
                 };
             }
 
-            // 3. Wi-Fi Credentials
             if (/^WIFI:/i.test(trimmed)) {
                 const ssid = (trimmed.match(/S:([^;]*)/i) || [])[1] || 'Unknown';
                 const pass = (trimmed.match(/P:([^;]*)/i) || [])[1] || '';
@@ -1381,7 +1380,6 @@
                 };
             }
 
-            // 4. vCard Contact
             if (/^BEGIN:VCARD/i.test(trimmed)) {
                 const fn = (trimmed.match(/FN:(.*)/i) || [])[1]?.trim() || 'Contact';
                 const tel = (trimmed.match(/TEL[^:]*:(.*)/i) || [])[1]?.trim() || '';
@@ -1394,7 +1392,6 @@
                 };
             }
 
-            // 5. JSON Data Packet
             if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
                 try {
                     const parsed = JSON.parse(trimmed);
@@ -1406,7 +1403,6 @@
                 } catch {}
             }
 
-            // 6. Email / Phone / Geo
             if (/^mailto:/i.test(trimmed) || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
                 return { type: 'EMAIL ADDRESS', value: trimmed.replace(/^mailto:/i, ''), orbBoost: {} };
             }
@@ -1419,7 +1415,6 @@
                 return { type: 'GEO COORDINATES', value: trimmed, orbBoost: { radiusMultiplier: 0.22 } };
             }
 
-            // 7. Retail GTINs & Pure Numeric SKUs
             if (/^\d{8}$|^\d{12,14}$/.test(trimmed)) {
                 return { type: 'RETAIL GTIN / PRODUCT CODE', value: trimmed, orbBoost: { ringSpeedFactor: 6.5 } };
             }
@@ -1450,7 +1445,7 @@
         }
 
         // ==========================================
-        // 6. SCANNER, BATCH CAPTURE & LIGHTBOX
+        // 6. THROTTLED SCANNER, BATCH CAPTURE & LIGHTBOX
         // ==========================================
         const detector = new BarcodeDetector();
         const video = document.getElementById('cameraFeed');
@@ -1469,12 +1464,13 @@
 
         let stream = null;
         let scanning = false;
+        let scanTimer = null;
         let torchOn = false;
         let scanMode = 'single';
         let batchItems = [];
         let selectedItemId = null;
         let activeCloneMeta = null;
-        let frameCounter = 0;
+        let scanTickCount = 0;
 
         document.querySelectorAll('#scanModeSwitch .seg-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -1487,8 +1483,9 @@
 
         async function startCamera() {
             try {
+                // 720p keeps CPU/GPU transfer light so the 60fps canvas stays silky smooth
                 stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+                    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
                     audio: false
                 });
                 video.srcObject = stream;
@@ -1496,7 +1493,7 @@
                 scanning = true;
                 toggleCamBtn.textContent = 'Stop Camera';
                 checkTorchSupport();
-                scanLoop();
+                scheduleNextScan();
             } catch (err) {
                 resultCard.style.display = 'block';
                 formatBadge.textContent = 'CAMERA ERROR';
@@ -1507,6 +1504,10 @@
 
         function stopCamera() {
             scanning = false;
+            if (scanTimer) {
+                clearTimeout(scanTimer);
+                scanTimer = null;
+            }
             torchOn = false;
             torchBtn.style.display = 'none';
             torchBtn.classList.remove('btn-active');
@@ -1548,22 +1549,28 @@
             else startCamera();
         });
 
-        async function scanLoop() {
+        // Throttled ~9 Hz scanner loop so main-thread orb animation never stutters
+        function scheduleNextScan() {
+            if (!scanning) return;
+            scanTimer = setTimeout(runSingleScanPass, 110);
+        }
+
+        async function runSingleScanPass() {
             if (!scanning) return;
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
                 try {
-                    frameCounter++;
+                    scanTickCount++;
                     let barcodes = await detector.detect(video);
 
-                    // Every 3rd frame, if full frame found nothing, run a padded center-band crop pass for wide 1D case barcodes
-                    if (barcodes.length === 0 && frameCounter % 3 === 0) {
+                    // Every 3rd scan tick, run a padded center-band crop pass for edge-to-edge 1D case barcodes
+                    if (barcodes.length === 0 && scanTickCount % 3 === 0) {
                         const vw = video.videoWidth;
                         const vh = video.videoHeight;
-                        const paddedCrop = createPaddedFrame(video, 44, {
+                        const paddedCrop = createPaddedFrame(video, 40, {
                             x: 0,
-                            y: Math.floor(vh * 0.22),
+                            y: Math.floor(vh * 0.24),
                             w: vw,
-                            h: Math.floor(vh * 0.56)
+                            h: Math.floor(vh * 0.52)
                         });
                         barcodes = await detector.detect(paddedCrop);
                     }
@@ -1581,7 +1588,7 @@
                     }
                 } catch (e) {}
             }
-            requestAnimationFrame(scanLoop);
+            scheduleNextScan();
         }
 
         // Static Image Upload Scanner with Quiet-Zone Padding
@@ -1592,10 +1599,8 @@
             img.src = URL.createObjectURL(file);
             await img.decode();
 
-            // Pass 1: Direct detection
             let barcodes = await detector.detect(img);
 
-            // Pass 2: White quiet-zone padded pass (rescues edge-to-edge 1D barcodes like case labels)
             if (barcodes.length === 0) {
                 const paddedImg = createPaddedFrame(img, 56);
                 barcodes = await detector.detect(paddedImg);
