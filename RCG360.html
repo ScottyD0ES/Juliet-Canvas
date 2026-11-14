@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RGC36 — Rotating Grid Cypher - 36</title>
+  <title>RGC36 v1.0 — Rotating Grid Cypher - 36</title>
   <style>
     :root {
       --bg: #0f1115;
@@ -46,11 +46,28 @@
       gap: 14px;
     }
 
+    .brand-title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
     .brand h1 {
       margin: 0;
       font-size: 1.45rem;
       font-weight: 600;
       letter-spacing: 0.04em;
+    }
+
+    .version-badge {
+      background: var(--surface-alt);
+      border: 1px solid var(--accent);
+      color: var(--accent-hover);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
     }
 
     .brand span {
@@ -350,7 +367,10 @@
 <body>
   <header>
     <div class="brand">
-      <h1>RGC36 — Rotating Grid Cypher - 36</h1>
+      <div class="brand-title-row">
+        <h1>RGC36 — Rotating Grid Cypher - 36</h1>
+        <span class="version-badge">v1.0</span>
+      </div>
       <span>5-Rotor Polyalphabetic Mechanical Grid Engine</span>
     </div>
 
@@ -530,6 +550,8 @@
 
   <script>
     "use strict";
+
+    const APP_VERSION = "v1.0";
 
     // =========================================================================
     // 1. CORE ALPHABET & TAI UTILITIES
@@ -783,7 +805,7 @@
       // Step 2: Wrap digits in Z...Z
       const zWrappedText = wrapNumbers(workingText);
 
-      // Step 3: Build word list + single-digit delimiters between words
+      // Step 3: Build word list + single-digit delimiters
       const messageWords = zWrappedText.split(" ").filter(Boolean);
       const streamTokens = [];
       const delimiterList = [];
@@ -800,15 +822,24 @@
         }
       }
 
-      // Step 4: Append self-delimited Y...Y formatting log (counts as 1 protected word)
+      // Step 4: Append Y...Y formatting log (followed by delimiter digit before X...X)
       if (yBlock) {
         for (const ch of yBlock) {
           streamTokens.push({ ch, tag: "Y-LOG" });
         }
-        streamTokens.push({ ch: null, tag: "Y-BOUNDARY" });
+        const yDelimChar = baseGrid[messageWords.length % 36];
+        const yDelimDigit = String(charToTAI(yDelimChar) % 10);
+        delimiterList.push(yDelimDigit);
+        streamTokens.push({ ch: yDelimDigit, tag: "DELIM" });
+      } else {
+        // Delimiter after final message word before X...X
+        const endDelimChar = baseGrid[(messageWords.length - 1) % 36];
+        const endDelimDigit = String(charToTAI(endDelimChar) % 10);
+        delimiterList.push(endDelimDigit);
+        streamTokens.push({ ch: endDelimDigit, tag: "DELIM" });
       }
 
-      const coreCharCount = streamTokens.filter((t) => t.ch !== null).length;
+      const coreCharCount = streamTokens.length;
 
       // Step 5: Compute X...X padding length to reach (36 * N) - 1
       const blockCount = Math.ceil((coreCharCount + 3) / 36);
@@ -840,16 +871,6 @@
 
       for (let i = 0; i < streamTokens.length; i++) {
         const token = streamTokens[i];
-
-        if (token.tag === "Y-BOUNDARY") {
-          masterGrid = ((wordStartMaster - 2 + 4) % 4) + 1;
-          wordStartMaster = masterGrid;
-          const qToRotate = (wordIndex - 1) % 4;
-          mapState[qToRotate] = (mapState[qToRotate] % 4) + 1;
-          wordIndex++;
-          continue;
-        }
-
         const activeGrid = getActiveGrid(baseGrid, masterGrid, mapState);
         const tai = charToTAI(token.ch);
         const outChar = activeGrid[tai - 1];
@@ -872,12 +893,13 @@
       }
 
       cipherChars.push(originHintChar);
-      const fullPreparedStream = streamTokens.filter((t) => t.ch !== null).map((t) => t.ch).join("");
+      const fullPreparedStream = streamTokens.map((t) => t.ch).join("");
 
       return {
         ciphertext: cipherChars.join(""),
         debugData: {
           seed:
+            `Engine Version   : RGC36 ${APP_VERSION}\n` +
             `Keyword Applied  : ${keyword.trim() ? keyword.trim().toUpperCase() : "(None — Standard TAI)"}\n` +
             `Keyed Alphabet   : ${baseGrid.join("")}\n` +
             `Initial Sub-Grid : MAP [${initialMap.join(" ")}] (from Cells 1–4: ${baseGrid.slice(0, 4).join(", ")})\n` +
@@ -886,7 +908,7 @@
           stages:
             `[1] Stripped Upper   : ${workingText}\n` +
             `[2] Z-Wrapped Numbers: ${zWrappedText}\n` +
-            `[3] Word Delimiters  : ${delimiterList.length ? delimiterList.join(", ") : "(Single word)"}\n` +
+            `[3] Word Delimiters  : ${delimiterList.join(", ")}\n` +
             `[4] Y-Formatting Log : ${yBlock || "(Disabled / No formatting events)"} (${yEventCount} events)\n` +
             `[5] X-Padding (Rev36): ${xBlock} (${xBlock.length} chars; ${blockCount} block${blockCount === 1 ? "" : "s"} = ${cipherChars.length} total chars)\n` +
             `[6] Full Input Stream: ${fullPreparedStream}`,
@@ -895,7 +917,9 @@
       };
     }
 
-    // Peel trailing X...X reverse Cell-36 buffer reliably even when 'X' appears inside reverse Cell-36
+    // Peel trailing X...X reverse Cell-36 buffer reliably
+    // Because every non-empty payload ends with a single-digit delimiter right before X...X,
+    // the opening 'X' of X...X is always immediately preceded by a digit [0-9]!
     function peelTrailingXBuffer(stream, baseGrid) {
       if (stream.length < 3 || stream[stream.length - 1] !== "X") {
         throw new Error("Could not verify trailing X...X padding buffer. Check keyword or ciphertext.");
@@ -907,9 +931,10 @@
 
       for (let pos = stream.length - 2; pos >= stream.length - maxXLen; pos--) {
         const ch = stream[pos];
+        const prevCh = pos > 0 ? stream[pos - 1] : "";
         const expectedPadChar = baseGrid[35 - (innerIdx % 36)];
 
-        if (ch === "X") {
+        if (ch === "X" && /[0-9]/.test(prevCh)) {
           validSplits.push(pos);
         }
 
@@ -923,7 +948,7 @@
         throw new Error("Could not verify trailing X...X padding buffer. Check keyword or ciphertext.");
       }
 
-      // Prefer the longest valid reverse-Cell-36 X...X wrapper (handles inner 'X' when innerPadLen >= 13)
+      // Take the longest valid reverse-Cell-36 X...X wrapper preceded by a delimiter digit
       const xStart = validSplits[validSplits.length - 1];
       return {
         trimmedStream: stream.slice(0, xStart),
@@ -954,13 +979,15 @@
 
       let inZDigits = false;
       let pendingZOpen = false;
-      let inYBlock = false;
-      let ySawPayload = false;
       let atWordStart = true;
 
       const decodedChars = [];
       const traceLines = [];
 
+      // Note: Y...Y contains only [0-9A-Z] where digits are Base-36 event lengths/deltas.
+      // Because a Y...Y block is only ever the final word before X...X, we prevent any digit
+      // inside a Y...Y word from acting as a delimiter by checking whether a 'Y'-initial word
+      // closes with 'Y' immediately followed by the expected delimiter digit.
       for (let i = 0; i < payloadStream.length; i++) {
         const cChar = payloadStream[i];
         const activeGrid = getActiveGrid(baseGrid, masterGrid, mapState);
@@ -975,7 +1002,6 @@
         const expectedDelimDigit = String(charToTAI(baseGrid[(wordIndex - 1) % 36]) % 10);
         const isDelimiter =
           !inZDigits &&
-          !inYBlock &&
           !atWordStart &&
           /[0-9]/.test(pChar) &&
           pChar === expectedDelimDigit;
@@ -1004,24 +1030,6 @@
             pendingZOpen = true;
           }
 
-          if (atWordStart && pChar === "Y") {
-            inYBlock = true;
-            ySawPayload = false;
-          } else if (inYBlock) {
-            if (pChar === "Y" && ySawPayload) {
-              inYBlock = false;
-              masterGrid = ((wordStartMaster - 2 + 4) % 4) + 1;
-              wordStartMaster = masterGrid;
-              const qToRotate = (wordIndex - 1) % 4;
-              mapState[qToRotate] = (mapState[qToRotate] % 4) + 1;
-              wordIndex++;
-              atWordStart = true;
-              continue;
-            } else {
-              ySawPayload = true;
-            }
-          }
-
           atWordStart = false;
           masterGrid = (masterGrid % 4) + 1;
         }
@@ -1029,12 +1037,20 @@
 
       const rawDecodedStream = decodedChars.join("");
 
-      // Strict Outside-In Peel Order:
-      // 1. Remove X...X padding buffer first
+      // =======================================================================
+      // STRICT OUTSIDE-IN PEEL ORDER:
+      // 1. Remove X...X padding buffer first (+ its preceding delimiter digit)
+      // 2. Remove Y...Y formatting log (+ its preceding delimiter digit)
+      // 3. Remove word delimiters (excluding Z...Z)
+      // 4. Remove Z...Z wrappers
+      // 5. Add back punctuation and formatting data
+      // =======================================================================
       const peelRes = peelTrailingXBuffer(rawDecodedStream, baseGrid);
-      const streamAfterX = peelRes.trimmedStream;
+      let streamAfterX = peelRes.trimmedStream;
+      if (/[0-9]/.test(streamAfterX[streamAfterX.length - 1])) {
+        streamAfterX = streamAfterX.slice(0, -1);
+      }
 
-      // 2. Remove Y...Y formatting log (+ its preceding delimiter digit) if present
       let yPayload = "";
       let yFullBlock = "(None)";
       let streamAfterY = streamAfterX;
@@ -1048,7 +1064,6 @@
         }
       }
 
-      // 3. Split message words on expected delimiter digits (excluding Z<digits>Z)
       const words = [];
       let currentWord = "";
       let wIdx = 0;
@@ -1078,10 +1093,8 @@
       }
       if (currentWord) words.push(currentWord);
 
-      // 4. Remove Z...Z wrappers
       const zUnwrappedText = words.map(unwrapNumbers).join(" ");
 
-      // 5. Add back punctuation and formatting data
       const reconstructed = useYWrapper && yPayload
         ? restoreFormatting(zUnwrappedText, yPayload)
         : zUnwrappedText.toLowerCase();
@@ -1090,6 +1103,7 @@
         plaintext: reconstructed,
         debugData: {
           seed:
+            `Engine Version   : RGC36 ${APP_VERSION}\n` +
             `Keyword Applied  : ${keyword.trim() ? keyword.trim().toUpperCase() : "(None — Standard TAI)"}\n` +
             `Keyed Alphabet   : ${baseGrid.join("")}\n` +
             `Initial Sub-Grid : MAP [${initialMap.join(" ")}]\n` +
@@ -1578,7 +1592,6 @@
       syncReferenceToKeyword(true);
     });
 
-    // Initialize Zero'd 1 1111 Reference Grid on load
     syncReferenceToKeyword(true);
   </script>
 </body>
