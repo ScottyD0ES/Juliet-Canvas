@@ -635,7 +635,7 @@
       </div>
     </section>
 
-    <!-- KEYWORD GRID SHEET VIEW -->
+    <!-- KEYWORD GRID SHEET MODAL / VIEW -->
     <section id="page-grid" class="page">
       <div class="card">
         <div class="card-header">
@@ -742,8 +742,6 @@
         }
 
         // Future Hook: Independent 3x3 Quadrant Rotations (MAP: q1 q2 q3 q4)
-        // Quadrants: 0=Top-Left (rows 0..2, cols 0..2), 1=Top-Right (rows 0..2, cols 3..5),
-        //            2=Bottom-Left (rows 3..5, cols 0..2), 3=Bottom-Right (rows 3..5, cols 3..5)
         const offsets = [
           [0, 0], [0, 3],
           [3, 0], [3, 3]
@@ -778,7 +776,6 @@
        * ============================================================================
        */
       function preparePlaintextForEncode(rawText, baseGrid, options = {}) {
-        // 1. Normalize input (keep alphanumeric and spaces; future YY hook captures case/punctuation first)
         const futureYYBuffer = options.enableYY ? buildYYFormattingBuffer(rawText) : "";
         const cleaned = rawText.toUpperCase().replace(/[^A-Z0-9\s]/g, "").trim();
         if (!cleaned) {
@@ -787,21 +784,20 @@
 
         const rawWords = cleaned.split(/\s+/);
 
-        // 2. Wrap standalone numbers or digit groups in Z...Z
+        // Wrap standalone numbers or digit groups in Z...Z
         const zzWords = rawWords.map(word => {
           if (/^\d+$/.test(word)) {
             return `Z${word}Z`;
           }
-          // If mixed alphanumeric, wrap contiguous digit runs in Z...Z
           return word.replace(/(\d+)/g, "Z$1Z");
         });
 
-        // 3. Future YY Buffer Hook (inserted after plaintext words, before XX padding)
+        // Future YY Buffer Hook (inserted after plaintext words, before XX padding)
         if (futureYYBuffer) {
           zzWords.push(futureYYBuffer);
         }
 
-        // 4. Sequential Delimiter Generator from Base Grid (Cell 1..36 TAI mod 10)
+        // Sequential Delimiter Generator from Base Grid (Cell 1..36 TAI mod 10)
         let delimiterCursor = 0;
         const nextDelimiter = () => {
           const gridChar = baseGrid[delimiterCursor % 36];
@@ -821,12 +817,11 @@
           }
         }
 
-        // 5. Append trailing delimiter + X-buffer word so (stream.length + 1 hint) is a multiple of 36
+        // Append trailing delimiter + X-buffer word so (stream.length + 1 hint) is a multiple of 36
         const trailingDelim = nextDelimiter();
         delimitersUsed.push(trailingDelim);
         stream += trailingDelim;
 
-        // Calculate remaining slots to reach (36 * N) - 1
         const rem = (stream.length + 1) % 36;
         const padNeeded = rem === 0 ? 0 : 36 - rem;
 
@@ -854,7 +849,6 @@
         };
       }
 
-      // Placeholder hook for future YY case/punctuation map
       function buildYYFormattingBuffer(rawText) {
         return "";
       }
@@ -869,12 +863,10 @@
         const prep = preparePlaintextForEncode(rawText, baseGrid);
         const stream = prep.fullPreparedStream;
 
-        // Origin modulo derived from first character of prepared stream
         const firstTAI = getTAI(stream[0]);
         const originModulo = mod4(firstTAI);
         const hintChar = getCharFromTAI(originModulo);
 
-        // Precompute all 4 grid orientations
         const grids = {
           1: getGridAtOrientation(baseGrid, 1),
           2: getGridAtOrientation(baseGrid, 2),
@@ -897,7 +889,6 @@
           cipherPayload += encodedChar;
           orientationTrace.push(currentOrientation);
 
-          // Track ZZ protection state so protected digits don't trigger word shifts
           if (ch === "Z") {
             if (!insideZZ && i + 1 < stream.length && /\d/.test(stream[i + 1])) {
               insideZZ = true;
@@ -909,11 +900,9 @@
           const isDelimiter = /\d/.test(ch) && !insideZZ;
 
           if (isDelimiter) {
-            // Delimiter ends the word; next word starts at previous wordStartOrientation - 1
             wordStartOrientation = ((wordStartOrientation - 2 + 4) % 4) + 1;
             currentOrientation = wordStartOrientation;
           } else {
-            // Advance 1 step clockwise within the word (and onto its trailing delimiter)
             currentOrientation = (currentOrientation % 4) + 1;
           }
         }
@@ -994,10 +983,8 @@
           }
         }
 
-        // 3. Strip X-buffer padding (final delimiter + trailing X...X word)
-        // Because the X-buffer contains keyed alphabet characters (which can include digits like 1936),
-        // we locate the last non-ZZ-protected delimiter that precedes the trailing X-wrapped buffer word.
-        const withoutXBuffer = stripTrailingXBuffer(decodedStream);
+        // 3. Strip X-buffer padding FIRST (before replacing any delimiter digits with spaces)
+        const withoutXBuffer = stripTrailingXBuffer(decodedStream, baseGrid);
 
         // 4. Replace remaining non-protected delimiter digits with spaces
         let withSpaces = "";
@@ -1038,28 +1025,40 @@
         };
       }
 
-      function stripTrailingXBuffer(decodedStream) {
-        // Walk through the stream tracking ZZ protection so we find the exact index of the final delimiter
-        let inZ = false;
-        let lastDelimiterIdx = -1;
-
-        for (let i = 0; i < decodedStream.length; i++) {
-          const ch = decodedStream[i];
-          if (ch === "Z") {
-            if (!inZ && i + 1 < decodedStream.length && /\d/.test(decodedStream[i + 1])) {
-              inZ = true;
-            } else if (inZ) {
-              inZ = false;
-            }
-          } else if (/\d/.test(ch) && !inZ) {
-            lastDelimiterIdx = i;
-          }
+      /**
+       * Strips the trailing X-buffer word AND the single delimiter digit right before it.
+       * Handles:
+       *   - Single-character X pad:  ...<delim>X
+       *   - Multi-character X pad:   ...<delim>X<baseGrid[0..k]>X
+       * Even if the keyword itself contains 'X' (e.g., XAVIER), we verify the inner characters
+       * match the prefix of baseGrid so an 'X' inside the keyword never causes an early split.
+       */
+      function stripTrailingXBuffer(decodedStream, baseGrid) {
+        if (!decodedStream.endsWith("X")) {
+          return decodedStream;
         }
 
-        if (lastDelimiterIdx !== -1 && decodedStream[decodedStream.length - 1] === "X") {
-          const candidateBuffer = decodedStream.slice(lastDelimiterIdx + 1);
-          if (candidateBuffer.startsWith("X") && candidateBuffer.endsWith("X")) {
-            return decodedStream.slice(0, lastDelimiterIdx);
+        // Case A: Single trailing 'X' preceded directly by a delimiter digit (...<digit>X)
+        if (decodedStream.length >= 2 && /\d/.test(decodedStream[decodedStream.length - 2])) {
+          return decodedStream.slice(0, -2);
+        }
+
+        // Case B: Multi-character X...X buffer (...<digit>X<inner>X)
+        // Scan backward for the opening 'X' that follows a delimiter digit and whose inner text matches baseGrid
+        for (let openX = decodedStream.length - 2; openX >= 1; openX--) {
+          if (decodedStream[openX] === "X" && /\d/.test(decodedStream[openX - 1])) {
+            const inner = decodedStream.slice(openX + 1, decodedStream.length - 1);
+            let matchesKeyedPrefix = true;
+            for (let j = 0; j < inner.length; j++) {
+              if (inner[j] !== baseGrid[j % 36]) {
+                matchesKeyedPrefix = false;
+                break;
+              }
+            }
+            if (matchesKeyedPrefix) {
+              // Slice off both the delimiter at (openX - 1) and the entire X...X buffer
+              return decodedStream.slice(0, openX - 1);
+            }
           }
         }
 
