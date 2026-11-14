@@ -34,52 +34,80 @@
       line-height: 1.5;
     }
 
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: 1.15fr 0.85fr;
-      gap: 24px;
-    }
-
-    @media (max-width: 960px) {
-      .container {
-        grid-template-columns: 1fr;
-      }
-    }
-
     header {
-      max-width: 1200px;
+      max-width: 960px;
       margin: 0 auto 20px auto;
       padding-bottom: 14px;
       border-bottom: 1px solid var(--border);
       display: flex;
       justify-content: space-between;
-      align-items: baseline;
+      align-items: center;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 14px;
     }
 
-    header h1 {
+    .brand h1 {
       margin: 0;
-      font-size: 1.5rem;
+      font-size: 1.45rem;
       font-weight: 600;
       letter-spacing: 0.04em;
     }
 
-    header span {
+    .brand span {
+      display: block;
       color: var(--muted);
-      font-size: 0.9rem;
+      font-size: 0.85rem;
+    }
+
+    .nav-menu {
+      display: flex;
+      gap: 8px;
+      background: var(--surface);
+      padding: 4px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .nav-btn {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .nav-btn:hover {
+      color: var(--text);
+      background: var(--surface-alt);
+    }
+
+    .nav-btn.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .view-section {
+      max-width: 960px;
+      margin: 0 auto;
+      display: none;
+    }
+
+    .view-section.active {
+      display: block;
     }
 
     .panel {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 20px;
+      padding: 24px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 18px;
     }
 
     .panel h2 {
@@ -88,12 +116,12 @@
       font-weight: 600;
       color: var(--text);
       border-bottom: 1px solid var(--border);
-      padding-bottom: 8px;
+      padding-bottom: 10px;
     }
 
     label {
       display: block;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       font-weight: 600;
       color: var(--muted);
       margin-bottom: 6px;
@@ -108,7 +136,7 @@
       color: var(--text);
       border: 1px solid var(--border);
       border-radius: 6px;
-      padding: 10px 12px;
+      padding: 11px 13px;
       font-family: var(--font-mono);
       font-size: 0.95rem;
       outline: none;
@@ -121,7 +149,7 @@
     }
 
     textarea {
-      min-height: 120px;
+      min-height: 135px;
       resize: vertical;
     }
 
@@ -137,7 +165,7 @@
       color: var(--text);
       border: 1px solid var(--border);
       border-radius: 6px;
-      padding: 8px 14px;
+      padding: 9px 16px;
       font-family: var(--font-sans);
       font-size: 0.88rem;
       font-weight: 600;
@@ -169,7 +197,7 @@
 
     .toggle-group {
       display: flex;
-      gap: 16px;
+      gap: 18px;
       flex-wrap: wrap;
       font-size: 0.88rem;
       color: var(--text);
@@ -178,7 +206,7 @@
     .toggle-group label {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 7px;
       text-transform: none;
       letter-spacing: normal;
       color: var(--text);
@@ -186,59 +214,11 @@
       margin: 0;
     }
 
-    .telemetry {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 10px;
-      font-family: var(--font-mono);
-      font-size: 0.82rem;
-      text-align: center;
-    }
-
-    .telemetry div span {
-      display: block;
-      color: var(--muted);
-      font-size: 0.7rem;
-      margin-bottom: 2px;
-    }
-
-    .telemetry div strong {
-      color: var(--warning);
-      font-size: 0.95rem;
-    }
-
-    .canvas-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-    }
-
-    canvas {
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      cursor: pointer;
-      max-width: 100%;
-      height: auto;
-      display: block;
-      user-select: none;
-    }
-
-    .hint-text {
-      font-size: 0.8rem;
-      color: var(--muted);
-      text-align: center;
-    }
-
     .status-bar {
       font-family: var(--font-mono);
-      font-size: 0.82rem;
+      font-size: 0.84rem;
       color: var(--success);
-      min-height: 1.2em;
+      min-height: 1.3em;
     }
 
     .status-bar.error {
@@ -249,11 +229,11 @@
       background: var(--bg);
       border: 1px solid var(--border);
       border-radius: 6px;
-      padding: 10px 12px;
+      padding: 12px 14px;
       font-family: var(--font-mono);
       font-size: 0.78rem;
       color: var(--muted);
-      max-height: 220px;
+      max-height: 240px;
       overflow-y: auto;
       white-space: pre-wrap;
       display: none;
@@ -262,16 +242,93 @@
     .debug-box.visible {
       display: block;
     }
+
+    /* Full-Page Reference Grid View */
+    .ref-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .ref-key-box {
+      flex: 1;
+      min-width: 240px;
+    }
+
+    .telemetry {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      text-align: center;
+    }
+
+    @media (max-width: 640px) {
+      .telemetry {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .telemetry div span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.72rem;
+      margin-bottom: 3px;
+    }
+
+    .telemetry div strong {
+      color: var(--warning);
+      font-size: 1.05rem;
+    }
+
+    .canvas-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      padding: 8px 0;
+    }
+
+    canvas {
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      max-width: 100%;
+      height: auto;
+      display: block;
+      user-select: none;
+      touch-action: manipulation;
+    }
+
+    .hint-text {
+      font-size: 0.82rem;
+      color: var(--muted);
+      text-align: center;
+    }
   </style>
 </head>
 <body>
   <header>
-    <h1>RGC36 — Rotating Grid Cypher - 36</h1>
-    <span>5-Rotor Polyalphabetic Mechanical Grid Engine</span>
+    <div class="brand">
+      <h1>RGC36 — Rotating Grid Cypher - 36</h1>
+      <span>5-Rotor Polyalphabetic Mechanical Grid Engine</span>
+    </div>
+
+    <nav class="nav-menu" aria-label="Primary Navigation">
+      <button type="button" class="nav-btn active" data-view="cipherView">Encode / Decode</button>
+      <button type="button" class="nav-btn" data-view="gridView">Reference Grid</button>
+    </nav>
   </header>
 
-  <div class="container">
-    <!-- Left Column: Cipher Engine -->
+  <!-- Primary View: Encode & Decode Utility -->
+  <main id="cipherView" class="view-section active">
     <div class="panel">
       <h2>Cipher Operations</h2>
 
@@ -316,12 +373,19 @@
       <div class="status-bar" id="statusBar"></div>
       <div class="debug-box" id="debugBox"></div>
     </div>
+  </main>
 
-    <!-- Right Column: Interactive Reference Sheet -->
+  <!-- Secondary Full-Page View: Interactive Reference Grid -->
+  <section id="gridView" class="view-section">
     <div class="panel">
-      <h2>Interactive Reference Grid</h2>
+      <h2>Interactive Mechanical Reference Grid</h2>
 
-      <div class="row" style="justify-content: space-between;">
+      <div class="ref-toolbar">
+        <div class="ref-key-box">
+          <label for="refKeywordMirror">Active Keyword (Synced)</label>
+          <input type="text" id="refKeywordMirror" autocomplete="off" spellcheck="false" />
+        </div>
+
         <div>
           <label>Starting Master Grid (Hint A=1, B=2, C=3, D=4)</label>
           <div class="row" id="startGridSelector">
@@ -352,10 +416,10 @@
         </div>
       </div>
 
-      <div class="canvas-wrap">
-        <canvas id="gridCanvas" width="460" height="460"></canvas>
+      <div class="canvas-stage">
+        <canvas id="gridCanvas" width="540" height="540"></canvas>
         <div class="hint-text">
-          Tap dark outer border to rotate Master Grid (+1 CW) • Tap any Q1–Q4 corner to rotate that sub-grid (+1 CW)
+          Tap the dark outer border to spin the Master Grid (+90° CW) • Tap any Q1–Q4 quadrant to spin that sub-grid (+90° CW)
         </div>
       </div>
 
@@ -365,7 +429,7 @@
         <button type="button" id="resetRefBtn">Reset to Start</button>
       </div>
     </div>
-  </div>
+  </section>
 
   <script>
     "use strict";
@@ -376,7 +440,6 @@
     const TAI_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     const HINT_LETTERS = ["A", "B", "C", "D"];
 
-    // 1-based True Alphabet Index (1..36)
     function charToTAI(ch) {
       const idx = TAI_ALPHABET.indexOf(ch.toUpperCase());
       return idx === -1 ? -1 : idx + 1;
@@ -386,13 +449,11 @@
       return TAI_ALPHABET[(tai - 1) % 36];
     }
 
-    // Modulo 4 mapped onto 1..4
     function mod4OneBased(n) {
       const r = ((n % 4) + 4) % 4;
       return r === 0 ? 4 : r;
     }
 
-    // Build 36-character keyed alphabet (blank keyword -> standard TAI)
     function buildKeyedAlphabet(keyword) {
       const seen = new Set();
       const grid = [];
@@ -413,7 +474,6 @@
       return grid;
     }
 
-    // Initial MAP [q1, q2, q3, q4] seeded from TAI mod 4 of first 4 cells
     function getInitialMap(baseGrid) {
       return [
         mod4OneBased(charToTAI(baseGrid[0])),
@@ -438,13 +498,11 @@
       return next;
     }
 
-    // Spatially locked quadrant top-left offsets:
-    // Q1 (1): (0,0), Q2 (2): (0,3), Q3 (3): (3,0), Q4 (4): (3,3)
     const QUADRANT_OFFSETS = [
-      { r0: 0, c0: 0 },
-      { r0: 0, c0: 3 },
-      { r0: 3, c0: 0 },
-      { r0: 3, c0: 3 }
+      { r0: 0, c0: 0 }, // Q1 Top-Left
+      { r0: 0, c0: 3 }, // Q2 Top-Right
+      { r0: 3, c0: 0 }, // Q3 Bottom-Left
+      { r0: 3, c0: 3 }  // Q4 Bottom-Right
     ];
 
     function rotateQuadrantInPlace(grid, quadrantIndex, turnsCW) {
@@ -469,9 +527,6 @@
       }
     }
 
-    // Build active 36-cell state:
-    // 1. Rotate Master 6x6 Grid to orientation (1..4)
-    // 2. Rotate each spatially locked 3x3 quadrant according to MAP [q1, q2, q3, q4] (1..4)
     function getActiveGrid(baseGrid, masterOrientation, mapState) {
       let current = baseGrid.slice();
       const masterTurns = (masterOrientation - 1 + 4) % 4;
@@ -488,7 +543,6 @@
     // =========================================================================
     // 3. FORMATTING LOG (Y...Y) & NUMBER WRAPPER (Z...Z)
     // =========================================================================
-    // Punctuation table mapped to Base-36 formatting codes
     const PUNCT_TO_CODE = {
       ".": "P",
       ",": "C",
@@ -516,12 +570,10 @@
       return parseInt(str, 36);
     }
 
-    // Extract uppercase/punctuation tokens using relative distances from previous token
     function extractFormattingLog(rawText) {
-      // Normalize whitespace runs to single spaces
       const normalized = rawText.trim().replace(/\s+/g, " ");
       const events = [];
-      let cleanChars = [];
+      const cleanChars = [];
 
       for (let i = 0; i < normalized.length; i++) {
         const ch = normalized[i];
@@ -541,8 +593,6 @@
         return { strippedText: cleanChars.join(""), yBlock: "" };
       }
 
-      // Encode each event as <Base36Delta><TypeCode>, separated by 0-padded or length-prefixed tokens
-      // Using fixed format: <Base36Delta length 1..Z><Base36Delta><TypeCode> so any distance is unambiguous
       let prevIdx = 0;
       let payload = "";
       for (const ev of events) {
@@ -578,7 +628,6 @@
         pos += 2 + len;
       }
 
-      // Apply in reverse order so punctuation insertions don't shift earlier indices
       for (let i = events.length - 1; i >= 0; i--) {
         const ev = events[i];
         if (ev.type === "U") {
@@ -593,7 +642,6 @@
       return chars.join("");
     }
 
-    // Wrap contiguous digit sequences in Z...Z
     function wrapNumbers(text) {
       return text.replace(/[0-9]+/g, (match) => "Z" + match + "Z");
     }
@@ -614,7 +662,6 @@
       const initialMap = getInitialMap(baseGrid);
       const debugLines = [];
 
-      // Step 1: Formatting extraction (optional Y...Y)
       let workingText = "";
       let yBlock = "";
       if (useYWrapper) {
@@ -633,29 +680,21 @@
         throw new Error("Input contains no encodable alphanumeric characters.");
       }
 
-      // Step 2: Wrap digit runs in Z...Z
       workingText = wrapNumbers(workingText);
 
-      // Step 3: Split into words and insert deterministic single-digit delimiters
       const words = workingText.split(" ").filter(Boolean);
       if (yBlock) {
         words.push(yBlock);
       }
 
-      // Calculate total stream length before X...X padding
-      // Each word is followed by 1 delimiter digit before the X...X buffer
       let coreLength = 0;
       for (const w of words) coreLength += w.length;
-      coreLength += words.length; // delimiter after each word (separating words and before X...X)
+      coreLength += words.length;
 
-      // Total ciphertext length must be 36 * N, with final slot reserved for single A-D origin hint
-      // So prepared stream length = (36 * N) - 1
-      // Minimum X...X wrapper is "XX" (length 2)
-      let blockCount = Math.ceil((coreLength + 3) / 36);
-      let targetStreamLen = blockCount * 36 - 1;
-      let padTotalLen = targetStreamLen - coreLength;
+      const blockCount = Math.ceil((coreLength + 3) / 36);
+      const targetStreamLen = blockCount * 36 - 1;
+      const padTotalLen = targetStreamLen - coreLength;
 
-      // Build Reverse Cell-36 X...X padding buffer (Cell 36 -> 35 -> 34 -> ...)
       const innerPadLen = padTotalLen - 2;
       let innerPad = "";
       for (let i = 0; i < innerPadLen; i++) {
@@ -664,7 +703,6 @@
       }
       const xBlock = "X" + innerPad + "X";
 
-      // Assemble full plaintext stream with deterministic delimiters (TAI mod 10 of baseGrid walk)
       const streamTokens = [];
       for (let wIdx = 0; wIdx < words.length; wIdx++) {
         for (const ch of words[wIdx]) {
@@ -678,21 +716,20 @@
         streamTokens.push({ ch, isDelimiter: false });
       }
 
-      // Step 4: Seed Master Grid from first stream character's TAI mod 4
       const originModulo = mod4OneBased(charToTAI(streamTokens[0].ch));
       const originHintChar = HINT_LETTERS[originModulo - 1];
 
       let masterGrid = originModulo;
       let wordStartMaster = originModulo;
-      let mapState = initialMap.slice();
-      let wordIndex = 1; // 1-based word counter
+      const mapState = initialMap.slice();
+      let wordIndex = 1;
 
       debugLines.push(`KEYWORD GRID : ${baseGrid.join("")}`);
       debugLines.push(`SEED MAP     : ${initialMap.join(" ")} | START GRID: ${originModulo} (Hint: ${originHintChar})`);
       debugLines.push(`X-PAD (REV)  : ${xBlock} (${xBlock.length} chars)`);
       debugLines.push("------------------------------------------------------------");
 
-      let cipherChars = [];
+      const cipherChars = [];
 
       for (let i = 0; i < streamTokens.length; i++) {
         const token = streamTokens[i];
@@ -708,26 +745,20 @@
         }
 
         if (token.isDelimiter) {
-          // New Word Boundary Reset:
-          // Master Grid cascades -1 from previous word's starting orientation
           masterGrid = ((wordStartMaster - 2 + 4) % 4) + 1;
           wordStartMaster = masterGrid;
 
-          // Walking Click: advance one sub-grid +1 CW in sequence Q1 -> Q2 -> Q3 -> Q4
           const qToRotate = (wordIndex - 1) % 4;
           mapState[qToRotate] = (mapState[qToRotate] % 4) + 1;
           wordIndex++;
         } else {
-          // Regular character inside word: Master Grid advances +1 CW
           masterGrid = (masterGrid % 4) + 1;
         }
       }
 
       cipherChars.push(originHintChar);
-      const rawCipher = cipherChars.join("");
-
       return {
-        ciphertext: rawCipher,
+        ciphertext: cipherChars.join(""),
         debug: debugLines.join("\n")
       };
     }
@@ -751,10 +782,9 @@
 
       let masterGrid = originModulo;
       let wordStartMaster = originModulo;
-      let mapState = initialMap.slice();
+      const mapState = initialMap.slice();
       let wordIndex = 1;
 
-      // Track protected Z...Z state so digits inside Z...Z are not mistaken for word delimiters
       let inZBlock = false;
       let atWordStart = true;
 
@@ -775,7 +805,6 @@
         const pChar = taiToChar(cellIndex + 1);
         decodedChars.push(pChar);
 
-        // Determine if this decoded character is a word-boundary delimiter
         const expectedDelimDigit = String(charToTAI(baseGrid[(wordIndex - 1) % 36]) % 10);
         const isDelimiter =
           !inZBlock &&
@@ -806,10 +835,8 @@
         }
       }
 
-      // Order-Driven Peel: 1. Trailing X...X -> 2. Delimiter -> 3. Y...Y -> 4. Delimiters -> 5. Z...Z
       let stream = decodedChars.join("");
 
-      // 1. Peel trailing X...X reverse Cell-36 padding buffer
       const xStart = stream.lastIndexOf("X", stream.length - 2);
       if (xStart === -1 || stream[stream.length - 1] !== "X") {
         throw new Error("Could not verify trailing X...X padding buffer. Check keyword or ciphertext.");
@@ -823,26 +850,22 @@
       }
       stream = stream.slice(0, xStart);
 
-      // 2. Peel trailing delimiter digit before X...X
       if (/[0-9]/.test(stream[stream.length - 1])) {
         stream = stream.slice(0, -1);
       }
 
-      // 3. Peel trailing Y...Y formatting log if present
       let yPayload = "";
       if (useYWrapper && stream.endsWith("Y")) {
         const yStart = stream.lastIndexOf("Y", stream.length - 2);
         if (yStart !== -1) {
           yPayload = stream.slice(yStart + 1, -1);
           stream = stream.slice(0, yStart);
-          // Peel delimiter digit preceding Y...Y
           if (/[0-9]/.test(stream[stream.length - 1])) {
             stream = stream.slice(0, -1);
           }
         }
       }
 
-      // 4. Reconstruct words by stepping through expected delimiter digits while respecting Z...Z
       const words = [];
       let currentWord = "";
       let wIdx = 0;
@@ -863,7 +886,6 @@
       }
       if (currentWord) words.push(currentWord);
 
-      // 5. Unwrap Z...Z numbers and restore case/punctuation
       let reconstructed = words.map(unwrapNumbers).join(" ");
       if (useYWrapper) {
         reconstructed = restoreFormatting(reconstructed, yPayload);
@@ -878,7 +900,7 @@
     }
 
     // =========================================================================
-    // 5. INTERACTIVE REFERENCE SHEET CANVAS & STATE
+    // 5. ANIMATED INTERACTIVE REFERENCE SHEET CANVAS & STATE
     // =========================================================================
     const canvas = document.getElementById("gridCanvas");
     const ctx = canvas.getContext("2d");
@@ -889,7 +911,8 @@
       masterGrid: 1,
       mapState: [1, 2, 3, 4],
       wordNumber: 1,
-      history: []
+      history: [],
+      anim: null // { type: 'master' | 'quadrant' | 'word', qIdx?: number, deltaAngle: number, fromCells: string[], toCells: string[], startTime: number, duration: number }
     };
 
     function snapshotRefState() {
@@ -902,6 +925,14 @@
       if (refState.history.length > 200) refState.history.shift();
     }
 
+    function updateTelemetryDisplay() {
+      document.getElementById("telWord").textContent = String(refState.wordNumber);
+      document.getElementById("telGrid").textContent = String(refState.masterGrid);
+      document.getElementById("telMap").textContent = refState.mapState.join(" ");
+      const nextQ = ((refState.wordNumber - 1) % 4) + 1;
+      document.getElementById("telNextQ").textContent = `Q${nextQ}`;
+    }
+
     function syncReferenceToKeyword(resetAll = true) {
       const baseGrid = buildKeyedAlphabet(document.getElementById("keywordInput").value);
       const initMap = getInitialMap(baseGrid);
@@ -912,32 +943,75 @@
         refState.wordStartMaster = refState.startMaster;
         refState.mapState = initMap;
         refState.history = [];
+        refState.anim = null;
       }
-      renderReferenceSheet();
+      updateTelemetryDisplay();
+      renderReferenceFrame(1);
     }
 
-    function renderReferenceSheet() {
-      const baseGrid = buildKeyedAlphabet(document.getElementById("keywordInput").value);
-      const activeGrid = getActiveGrid(baseGrid, refState.masterGrid, refState.mapState);
+    function easeOutCubic(t) {
+      return 1 - Math.pow(1 - t, 3);
+    }
 
-      // Update Telemetry Readouts
-      document.getElementById("telWord").textContent = String(refState.wordNumber);
-      document.getElementById("telGrid").textContent = String(refState.masterGrid);
-      document.getElementById("telMap").textContent = refState.mapState.join(" ");
-      const nextQ = ((refState.wordNumber - 1) % 4) + 1;
-      document.getElementById("telNextQ").textContent = `Q${nextQ}`;
+    function triggerRotationAnimation(animConfig) {
+      refState.anim = {
+        ...animConfig,
+        startTime: performance.now(),
+        duration: 280
+      };
+      updateTelemetryDisplay();
+
+      function tick(now) {
+        if (!refState.anim) return;
+        const elapsed = now - refState.anim.startTime;
+        const rawT = Math.min(1, elapsed / refState.anim.duration);
+        const eased = easeOutCubic(rawT);
+
+        renderReferenceFrame(eased);
+
+        if (rawT < 1) {
+          requestAnimationFrame(tick);
+        } else {
+          refState.anim = null;
+          renderReferenceFrame(1);
+        }
+      }
+
+      requestAnimationFrame(tick);
+    }
+
+    function drawSingleCell(x, y, cellSize, taiNumber, charText) {
+      ctx.strokeStyle = "#2e3440";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, cellSize, cellSize);
+
+      ctx.fillStyle = "#6c7a89";
+      ctx.font = "600 11px Consolas, monospace";
+      ctx.textAlign = "left";
+      ctx.fillText(String(taiNumber), x + 6, y + 14);
+
+      ctx.fillStyle = "#eceff4";
+      ctx.font = "700 24px Consolas, monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(charText, x + cellSize / 2, y + cellSize / 2 + 8);
+    }
+
+    function renderReferenceFrame(progress = 1) {
+      const baseGrid = buildKeyedAlphabet(document.getElementById("keywordInput").value);
+      const currentCells = getActiveGrid(baseGrid, refState.masterGrid, refState.mapState);
 
       const W = canvas.width;
       const H = canvas.height;
-      const margin = 42;
+      const margin = 48;
       const gridSize = W - margin * 2;
       const cellSize = gridSize / 6;
+      const centerX = W / 2;
+      const centerY = H / 2;
 
       // Outer dark background (tappable for Master Grid +1 CW)
       ctx.fillStyle = "#0b0d11";
       ctx.fillRect(0, 0, W, H);
 
-      // Subtle outer border indicator
       ctx.strokeStyle = "#3b4252";
       ctx.lineWidth = 2;
       ctx.strokeRect(8, 8, W - 16, H - 16);
@@ -945,47 +1019,96 @@
       ctx.fillStyle = "#7b889c";
       ctx.font = "600 11px Segoe UI, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("OUTER RING: TAP FOR MASTER GRID +1 CW", W / 2, 26);
+      ctx.fillText("OUTER BORDER: TAP FOR MASTER GRID +90° CW", W / 2, 29);
 
-      // Quadrant background tints
+      const anim = refState.anim;
+      const isAnimating = anim && progress < 1;
+
+      if (isAnimating && anim.type === "master") {
+        // Physically spin the entire 6x6 board from its previous state by deltaAngle
+        const angle = anim.deltaAngle * progress;
+
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate(angle);
+        ctx.translate(-centerX, -centerY);
+
+        drawBoardContents(margin, gridSize, cellSize, anim.fromCells);
+        ctx.restore();
+      } else if (isAnimating && anim.type === "quadrant") {
+        // Draw static quadrants normally, and physically spin the target 3x3 quadrant in place
+        const angle = anim.deltaAngle * progress;
+        const targetQ = anim.qIdx;
+
+        // 1. Draw static quadrant backgrounds and cells
+        for (let q = 0; q < 4; q++) {
+          if (q === targetQ) continue;
+          drawQuadrantBlock(margin, cellSize, q, anim.toCells, 0);
+        }
+
+        // 2. Draw rotating quadrant on top with subtle highlight
+        drawQuadrantBlock(margin, cellSize, targetQ, anim.fromCells, angle, true);
+        drawBoardFrame(margin, gridSize);
+      } else {
+        // Resting frame
+        drawBoardContents(margin, gridSize, cellSize, currentCells);
+      }
+
+      // Quadrant footer status badges
+      const qLabels = [
+        { label: `Q1:${refState.mapState[0]}`, x: margin + 6, y: H - 18 },
+        { label: `Q2:${refState.mapState[1]}`, x: margin + 96, y: H - 18 },
+        { label: `Q3:${refState.mapState[2]}`, x: W - margin - 146, y: H - 18 },
+        { label: `Q4:${refState.mapState[3]}`, x: W - margin - 56, y: H - 18 }
+      ];
+      ctx.fillStyle = "#ebcb8b";
+      ctx.font = "600 12px Consolas, monospace";
+      ctx.textAlign = "left";
+      for (const item of qLabels) {
+        ctx.fillText(item.label, item.x, item.y);
+      }
+    }
+
+    function drawQuadrantBlock(margin, cellSize, qIdx, cells, rotationRad = 0, highlight = false) {
       const qColors = ["#181d26", "#1c212b", "#1c212b", "#181d26"];
-      QUADRANT_OFFSETS.forEach((qOff, idx) => {
-        ctx.fillStyle = qColors[idx];
-        ctx.fillRect(
-          margin + qOff.c0 * cellSize,
-          margin + qOff.r0 * cellSize,
-          cellSize * 3,
-          cellSize * 3
-        );
-      });
+      const { r0, c0 } = QUADRANT_OFFSETS[qIdx];
+      const qX = margin + c0 * cellSize;
+      const qY = margin + r0 * cellSize;
+      const qSize = cellSize * 3;
+      const qCenterX = qX + qSize / 2;
+      const qCenterY = qY + qSize / 2;
 
-      // Draw 36 cells
-      for (let r = 0; r < 6; r++) {
-        for (let c = 0; c < 6; c++) {
-          const idx = r * 6 + c;
-          const x = margin + c * cellSize;
-          const y = margin + r * cellSize;
+      ctx.save();
+      if (rotationRad !== 0) {
+        ctx.translate(qCenterX, qCenterY);
+        ctx.rotate(rotationRad);
+        ctx.translate(-qCenterX, -qCenterY);
+      }
 
-          // Cell border
-          ctx.strokeStyle = "#2e3440";
-          ctx.lineWidth = 1;
-          ctx.strokeRect(x, y, cellSize, cellSize);
+      ctx.fillStyle = highlight ? "#232a38" : qColors[qIdx];
+      ctx.fillRect(qX, qY, qSize, qSize);
 
-          // Fixed TAI coordinate in top-left corner
-          ctx.fillStyle = "#6c7a89";
-          ctx.font = "600 10px Consolas, monospace";
-          ctx.textAlign = "left";
-          ctx.fillText(String(idx + 1), x + 5, y + 13);
-
-          // Active cipher character centered
-          ctx.fillStyle = "#eceff4";
-          ctx.font = "700 22px Consolas, monospace";
-          ctx.textAlign = "center";
-          ctx.fillText(activeGrid[idx], x + cellSize / 2, y + cellSize / 2 + 8);
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 3; c++) {
+          const globalR = r0 + r;
+          const globalC = c0 + c;
+          const idx = globalR * 6 + globalC;
+          const x = margin + globalC * cellSize;
+          const y = margin + globalR * cellSize;
+          drawSingleCell(x, y, cellSize, idx + 1, cells[idx]);
         }
       }
 
-      // Heavy quadrant dividers (3x3 boundaries)
+      if (highlight) {
+        ctx.strokeStyle = "#ebcb8b";
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(qX, qY, qSize, qSize);
+      }
+
+      ctx.restore();
+    }
+
+    function drawBoardFrame(margin, gridSize) {
       ctx.strokeStyle = "#81a1c1";
       ctx.lineWidth = 2.5;
       ctx.strokeRect(margin, margin, gridSize, gridSize);
@@ -996,55 +1119,83 @@
       ctx.moveTo(margin, margin + gridSize / 2);
       ctx.lineTo(margin + gridSize, margin + gridSize / 2);
       ctx.stroke();
-
-      // Quadrant corner labels
-      const qLabels = [
-        { label: `Q1:${refState.mapState[0]}`, x: margin + 6, y: H - 16 },
-        { label: `Q2:${refState.mapState[1]}`, x: margin + 76, y: H - 16 },
-        { label: `Q3:${refState.mapState[2]}`, x: W - margin - 122, y: H - 16 },
-        { label: `Q4:${refState.mapState[3]}`, x: W - margin - 52, y: H - 16 }
-      ];
-      ctx.fillStyle = "#ebcb8b";
-      ctx.font = "600 12px Consolas, monospace";
-      ctx.textAlign = "left";
-      for (const item of qLabels) {
-        ctx.fillText(item.label, item.x, item.y);
-      }
     }
 
-    // Canvas Tap Handling:
-    // Outside 6x6 grid -> Master Grid +1 CW
-    // Inside Q1..Q4 -> That specific quadrant +1 CW
+    function drawBoardContents(margin, gridSize, cellSize, cells) {
+      for (let q = 0; q < 4; q++) {
+        drawQuadrantBlock(margin, cellSize, q, cells, 0, false);
+      }
+      drawBoardFrame(margin, gridSize);
+    }
+
+    // Canvas Tap Handling with Physical Rotation Animation
     canvas.addEventListener("click", (e) => {
+      if (refState.anim) return; // Ignore taps mid-spin
+
       const rect = canvas.getBoundingClientRect();
       const scaleX = canvas.width / rect.width;
       const scaleY = canvas.height / rect.height;
       const x = (e.clientX - rect.left) * scaleX;
       const y = (e.clientY - rect.top) * scaleY;
 
-      const margin = 42;
+      const margin = 48;
       const gridSize = canvas.width - margin * 2;
       const half = gridSize / 2;
+
+      const baseGrid = buildKeyedAlphabet(document.getElementById("keywordInput").value);
+      const fromCells = getActiveGrid(baseGrid, refState.masterGrid, refState.mapState);
 
       snapshotRefState();
 
       if (x < margin || x > margin + gridSize || y < margin || y > margin + gridSize) {
-        // Outer dark border tapped -> rotate Master Grid +1 CW
+        // Outer dark border tapped -> spin Master Grid +90° CW
         refState.masterGrid = (refState.masterGrid % 4) + 1;
+        const toCells = getActiveGrid(baseGrid, refState.masterGrid, refState.mapState);
+
+        triggerRotationAnimation({
+          type: "master",
+          deltaAngle: Math.PI / 2,
+          fromCells,
+          toCells
+        });
       } else {
-        // Inside 6x6 grid -> determine spatially locked quadrant (1 2 / 3 4)
+        // Inside 6x6 grid -> spin spatially locked quadrant +90° CW
         const colRight = x >= margin + half ? 1 : 0;
         const rowBottom = y >= margin + half ? 2 : 0;
         const qIdx = rowBottom + colRight;
-        refState.mapState[qIdx] = (refState.mapState[qIdx] % 4) + 1;
-      }
 
-      renderReferenceSheet();
+        refState.mapState[qIdx] = (refState.mapState[qIdx] % 4) + 1;
+        const toCells = getActiveGrid(baseGrid, refState.masterGrid, refState.mapState);
+
+        triggerRotationAnimation({
+          type: "quadrant",
+          qIdx,
+          deltaAngle: Math.PI / 2,
+          fromCells,
+          toCells
+        });
+      }
     });
 
     // =========================================================================
-    // 6. UI EVENT WIRING
+    // 6. MENU NAVIGATION & UI WIRING
     // =========================================================================
+    document.querySelectorAll(".nav-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".nav-btn").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+
+        const targetId = btn.dataset.view;
+        document.querySelectorAll(".view-section").forEach((sec) => {
+          sec.classList.toggle("active", sec.id === targetId);
+        });
+
+        if (targetId === "gridView") {
+          renderReferenceFrame(1);
+        }
+      });
+    });
+
     function formatOutputBlocks(str, useBlocks) {
       if (!useBlocks) return str;
       const chunks = [];
@@ -1117,7 +1268,17 @@
       document.getElementById("debugBox").classList.toggle("visible", e.target.checked);
     });
 
-    document.getElementById("keywordInput").addEventListener("input", () => {
+    // Keep main keyword input and reference-view keyword input in sync
+    const mainKwInput = document.getElementById("keywordInput");
+    const refKwMirror = document.getElementById("refKeywordMirror");
+
+    mainKwInput.addEventListener("input", () => {
+      refKwMirror.value = mainKwInput.value;
+      syncReferenceToKeyword(true);
+    });
+
+    refKwMirror.addEventListener("input", () => {
+      mainKwInput.value = refKwMirror.value;
       syncReferenceToKeyword(true);
     });
 
@@ -1131,8 +1292,15 @@
     });
 
     document.getElementById("nextWordBtn").addEventListener("click", () => {
+      if (refState.anim) return;
+
+      const baseGrid = buildKeyedAlphabet(mainKwInput.value);
+      const fromCells = getActiveGrid(baseGrid, refState.masterGrid, refState.mapState);
+
       snapshotRefState();
+
       // Master Grid cascades -1 from previous word's starting orientation
+      const prevMaster = refState.masterGrid;
       refState.masterGrid = ((refState.wordStartMaster - 2 + 4) % 4) + 1;
       refState.wordStartMaster = refState.masterGrid;
 
@@ -1141,17 +1309,28 @@
       refState.mapState[qIdx] = (refState.mapState[qIdx] % 4) + 1;
       refState.wordNumber++;
 
-      renderReferenceSheet();
+      const toCells = getActiveGrid(baseGrid, refState.masterGrid, refState.mapState);
+
+      // Animate the quadrant click on word transition
+      triggerRotationAnimation({
+        type: "quadrant",
+        qIdx,
+        deltaAngle: Math.PI / 2,
+        fromCells,
+        toCells
+      });
     });
 
     document.getElementById("stepBackBtn").addEventListener("click", () => {
       const prev = refState.history.pop();
       if (!prev) return;
+      refState.anim = null;
       refState.wordStartMaster = prev.wordStartMaster;
       refState.masterGrid = prev.masterGrid;
       refState.mapState = prev.mapState;
       refState.wordNumber = prev.wordNumber;
-      renderReferenceSheet();
+      updateTelemetryDisplay();
+      renderReferenceFrame(1);
     });
 
     document.getElementById("resetRefBtn").addEventListener("click", () => {
@@ -1163,4 +1342,3 @@
   </script>
 </body>
 </html>
-0
