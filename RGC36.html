@@ -508,7 +508,7 @@
           <button class="menu-tile" onclick="App.navigate('page-decode')">
             <span class="tile-tag">Mode 02</span>
             <span class="tile-name">Decode</span>
-            <span class="tile-desc">Extract origin hint, reverse-rotate grid states, strip X-padding, and restore exact case & punctuation.</span>
+            <span class="tile-desc">Extract origin hint, reverse-rotate grid states, peel X-padding & Y-log in order, and restore exact text.</span>
           </button>
 
           <button class="menu-tile" onclick="App.openGridSheet()">
@@ -682,7 +682,6 @@
       const TRUE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
       // 36-Slot Formatting Type Map (TAI 1..36 -> A..Z, 0..9)
-      // Slot A (1) = Capitalize Letter; Slots B..9 (2..36) = Symbols, Coordinates, Brackets & Whitespace
       const SYMBOL_TO_CODE = {
         ".": "B",
         ",": "C",
@@ -725,7 +724,6 @@
         Object.entries(SYMBOL_TO_CODE).map(([sym, code]) => [code, sym])
       );
 
-      // 1-based True Alphabet Index (A=1..Z=26, 0=27..9=36)
       function getTAI(char) {
         const idx = TRUE_ALPHABET.indexOf(char.toUpperCase());
         return idx === -1 ? -1 : idx + 1;
@@ -736,17 +734,14 @@
         return TRUE_ALPHABET[tai - 1];
       }
 
-      // Mod 4: 1..4 (e.g., H=8 -> 4)
       function mod4(tai) {
         return ((tai - 1) % 4) + 1;
       }
 
-      // Mod 10: 0..9 (e.g., A=1 -> 0, E=5 -> 4, K=11 -> 0)
       function mod10(tai) {
         return (tai - 1) % 10;
       }
 
-      // Build 36-char deduplicated keyed alphabet
       function buildKeyedAlphabet(keyword) {
         const cleanKey = (keyword || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
         const seen = new Set();
@@ -764,10 +759,9 @@
             result.push(ch);
           }
         }
-        return result; // Length 36, represents GRID 1
+        return result;
       }
 
-      // Rotate a 6x6 flat array (length 36) 90 degrees clockwise once
       function rotate6x6ClockwiseOnce(grid) {
         const next = new Array(36);
         for (let r = 0; r < 6; r++) {
@@ -782,7 +776,6 @@
         return next;
       }
 
-      // Generate Grid Orientation 1..4 (1 = base, 2 = 90 CW, 3 = 180, 4 = 270 CW)
       function getGridAtOrientation(baseGrid, orientation, subgridMap = [1, 1, 1, 1]) {
         let grid = [...baseGrid];
         const turns = ((orientation - 1) % 4 + 4) % 4;
@@ -790,7 +783,6 @@
           grid = rotate6x6ClockwiseOnce(grid);
         }
 
-        // Future Hook: Independent 3x3 Quadrant Rotations (MAP: q1 q2 q3 q4)
         const offsets = [
           [0, 0], [0, 3],
           [3, 0], [3, 3]
@@ -821,21 +813,20 @@
 
       /**
        * ============================================================================
-       * MODULE 2: Y-WRAPPER BASE-36 DELTA FORMATTING LOGGER & TEXT-PREP PIPELINE
+       * MODULE 2: ORDER-DRIVEN TEXT PREPARATION & Y-WRAPPER LOGGING
        * ============================================================================
        */
       function normalizeSmartPunctuation(str) {
         return str
-          .replace(/[\u2018\u2019]/g, "'")   // Smart single quotes ‘ ’ -> '
-          .replace(/[\u201C\u201D]/g, '"')   // Smart double quotes “ ” -> "
-          .replace(/[\u2013\u2014]/g, "-");  // En/Em dashes – — -> -
+          .replace(/[\u2018\u2019]/g, "'")
+          .replace(/[\u201C\u201D]/g, '"')
+          .replace(/[\u2013\u2014]/g, "-");
       }
 
       function extractBaseAndYBuffer(rawText, enableY) {
         const baseChars = [];
         const events = [];
 
-        // Normalize smart punctuation & collapse consecutive spaces
         const normalizedRaw = normalizeSmartPunctuation(rawText)
           .replace(/ {2,}/g, " ")
           .trim();
@@ -880,7 +871,7 @@
           let token = "";
 
           while (remDelta >= 35) {
-            token += "9"; // TAI 36 = +35 step jump
+            token += "9";
             remDelta -= 35;
           }
           token += getCharFromTAI(remDelta + 1);
@@ -902,7 +893,6 @@
       function applyYFormattingBuffer(baseUpperText, yPayload) {
         if (!yPayload) return baseUpperText;
 
-        // Start from lowercase baseline so Type 'A' selectively restores uppercase letters
         const chars = baseUpperText.toLowerCase().split("");
         let cursor = 0;
         let i = 0;
@@ -940,20 +930,17 @@
         const { baseUpperText, yBuffer, yPayload, yBreakdown } = extractBaseAndYBuffer(rawText, options.enableY);
         const rawWords = baseUpperText ? baseUpperText.split(" ") : [];
 
-        // Wrap strictly contiguous digits in Z...Z (never letters inside Z...Z)
-        const zzWords = rawWords.map(word => {
-          if (/^\d+$/.test(word)) {
-            return `Z${word}Z`;
-          }
-          return word.replace(/(\d+)/g, "Z$1Z");
-        });
+        // Step 1: Wrap contiguous digits in Z...Z
+        const words = rawWords.map(word =>
+          /^\d+$/.test(word) ? `Z${word}Z` : word.replace(/(\d+)/g, "Z$1Z")
+        );
 
-        // Insert Y...Y formatting word after plaintext words and strictly before X...X buffer
+        // Step 2: Append Y...Y formatting word after plaintext words
         if (yBuffer) {
-          zzWords.push(yBuffer);
+          words.push(yBuffer);
         }
 
-        // Sequential Delimiter Generator from Base Grid (Cell 1..36 TAI mod 10)
+        // Step 3: Join words with sequential Base-Grid Mod-10 delimiters
         let delimiterCursor = 0;
         const nextDelimiter = () => {
           const gridChar = baseGrid[delimiterCursor % 36];
@@ -963,16 +950,32 @@
 
         const delimitersUsed = [];
         let stream = "";
-        for (let i = 0; i < zzWords.length; i++) {
-          stream += zzWords[i];
-          if (i < zzWords.length - 1) {
+        const protectedRanges = []; // Tracks [start, end) of Z...Z, Y...Y, and X...X words
+
+        for (let i = 0; i < words.length; i++) {
+          const w = words[i];
+          const wStart = stream.length;
+          stream += w;
+
+          // Mark Z...Z sub-ranges inside word or full Y...Y word as protected
+          if (w.startsWith("Y") && w.endsWith("Y") && w === yBuffer) {
+            protectedRanges.push([wStart, stream.length]);
+          } else {
+            const zRe = /Z\d+Z/g;
+            let m;
+            while ((m = zRe.exec(w)) !== null) {
+              protectedRanges.push([wStart + m.index, wStart + m.index + m[0].length]);
+            }
+          }
+
+          if (i < words.length - 1) {
             const d = nextDelimiter();
             delimitersUsed.push(d);
             stream += d;
           }
         }
 
-        // Append trailing delimiter + X-buffer word so (stream.length + 1 hint) is a multiple of 36
+        // Step 4: Append trailing delimiter + X...X buffer padding to align to (36N - 1)
         const trailingDelim = nextDelimiter();
         delimitersUsed.push(trailingDelim);
         stream += trailingDelim;
@@ -992,23 +995,27 @@
           xBuffer = "X" + innerFill + "X";
         }
 
-        const fullPreparedStream = stream + xBuffer;
+        if (xBuffer) {
+          protectedRanges.push([stream.length, stream.length + xBuffer.length]);
+          stream += xBuffer;
+        }
 
         return {
           cleanedInput: baseUpperText || "(Symbol-Only Input)",
-          zzWords,
+          zzWords: words,
           yBuffer,
           yPayload,
           yBreakdown,
           delimitersUsed,
           xBuffer,
-          fullPreparedStream
+          fullPreparedStream: stream,
+          protectedRanges
         };
       }
 
       /**
        * ============================================================================
-       * MODULE 3: ENCODE & DECODE CORE
+       * MODULE 3: MECHANICAL ENCODE & STRICTLY ORDERED DECODE CORE
        * ============================================================================
        */
       function encode(rawText, keyword, options = { enableY: true }) {
@@ -1027,30 +1034,28 @@
           4: getGridAtOrientation(baseGrid, 4)
         };
 
+        // Build fast lookup from the known protected word ranges
+        const isProtectedIdx = new Array(stream.length).fill(false);
+        for (const [start, end] of prep.protectedRanges) {
+          for (let k = start; k < end; k++) {
+            isProtectedIdx[k] = true;
+          }
+        }
+
         let wordStartOrientation = originModulo;
         let currentOrientation = wordStartOrientation;
-        let insideZZ = false;
         let cipherPayload = "";
         const orientationTrace = [];
 
         for (let i = 0; i < stream.length; i++) {
           const ch = stream[i];
           const tai = getTAI(ch);
-          const activeGrid = grids[currentOrientation];
-          const encodedChar = activeGrid[tai - 1];
+          const encodedChar = grids[currentOrientation][tai - 1];
 
           cipherPayload += encodedChar;
           orientationTrace.push(currentOrientation);
 
-          if (ch === "Z") {
-            if (!insideZZ && /^Z\d+Z/.test(stream.slice(i))) {
-              insideZZ = true;
-            } else if (insideZZ) {
-              insideZZ = false;
-            }
-          }
-
-          const isDelimiter = /\d/.test(ch) && !insideZZ;
+          const isDelimiter = /\d/.test(ch) && !isProtectedIdx[i];
 
           if (isDelimiter) {
             wordStartOrientation = ((wordStartOrientation - 2 + 4) % 4) + 1;
@@ -1090,7 +1095,7 @@
           4: getGridAtOrientation(baseGrid, 4)
         };
 
-        // 1. Extract & strip the final hint character
+        // Step 1: Extract & strip the final hint character
         const hintChar = cleanCipher[cleanCipher.length - 1];
         const originModulo = getTAI(hintChar);
         if (originModulo < 1 || originModulo > 4) {
@@ -1099,10 +1104,10 @@
 
         const payload = cleanCipher.slice(0, -1);
 
-        // 2. Reverse-map character by character using rotating grid states
+        // Step 2: Reverse-map grid states (any Z...Z, Y...Y, or X...X wrapper is a protected word)
         let wordStartOrientation = originModulo;
         let currentOrientation = wordStartOrientation;
-        let insideZZ = false;
+        let activeWrapper = null; // null | "Z" | "Y" | "X"
         let decodedStream = "";
         const orientationTrace = [];
 
@@ -1118,17 +1123,23 @@
           decodedStream += plainChar;
           orientationTrace.push(currentOrientation);
 
-          if (plainChar === "Z") {
-            if (!insideZZ) {
-              if (isOpeningZWrapper(payload, i, currentOrientation, grids)) {
-                insideZZ = true;
-              }
-            } else {
-              insideZZ = false;
+          // Single mechanical wrapper check: opens on Z/Y/X (at word start or Z-number) and closes on matching Z/Y/X
+          if (!activeWrapper) {
+            const prevChar = i > 0 ? decodedStream[i - 1] : null;
+            const atWordBoundary = i === 0 || /\d/.test(prevChar);
+
+            if (plainChar === "Z" && isClosingWrapperAhead(payload, i, currentOrientation, grids, "Z", true)) {
+              activeWrapper = "Z";
+            } else if (plainChar === "Y" && atWordBoundary && isClosingWrapperAhead(payload, i, currentOrientation, grids, "Y", false)) {
+              activeWrapper = "Y";
+            } else if (plainChar === "X" && atWordBoundary && isTrailingXBuffer(payload, i, currentOrientation, grids, baseGrid)) {
+              activeWrapper = "X";
             }
+          } else if (plainChar === activeWrapper) {
+            activeWrapper = null;
           }
 
-          const isDelimiter = /\d/.test(plainChar) && !insideZZ;
+          const isDelimiter = /\d/.test(plainChar) && activeWrapper === null;
 
           if (isDelimiter) {
             wordStartOrientation = ((wordStartOrientation - 2 + 4) % 4) + 1;
@@ -1138,13 +1149,14 @@
           }
         }
 
-        // 3. Strip X-buffer padding FIRST
-        const withoutXBuffer = stripTrailingXBuffer(decodedStream, baseGrid);
+        // Step 3: Strictly ordered outside-in unwrapping (X -> Y -> Delimiters -> Z -> Formatting)
+        // 3a. Peel X...X buffer padding first
+        const withoutXBuffer = peelTrailingXBuffer(decodedStream, baseGrid);
 
-        // 4. Extract & strip trailing Y...Y formatting buffer (and its preceding delimiter) if present
-        const { coreStream, yPayload } = extractTrailingYBuffer(withoutXBuffer);
+        // 3b. Peel Y...Y formatting block second
+        const { coreStream, yPayload } = peelTrailingYBuffer(withoutXBuffer);
 
-        // 5. Replace remaining non-protected delimiter digits with spaces
+        // 3c. Convert remaining non-Z delimiter digits into spaces third
         let withSpaces = "";
         let inZ = false;
         for (let i = 0; i < coreStream.length; i++) {
@@ -1166,10 +1178,10 @@
           }
         }
 
-        // 6. Unwrap protected ZZ numbers
+        // 3d. Unwrap Z...Z numbers fourth
         const unwrappedUpper = withSpaces.replace(/Z(\d+)Z/g, "$1");
 
-        // 7. Apply Y-wrapper formatting restoration if Y buffer was present
+        // 3e. Apply Y-wrapper formatting fifth
         const finalPlaintext = yPayload
           ? applyYFormattingBuffer(unwrappedUpper, yPayload)
           : unwrappedUpper;
@@ -1189,30 +1201,38 @@
         };
       }
 
-      function isOpeningZWrapper(payload, zIndex, zOrientation, grids) {
-        let testOri = (zOrientation % 4) + 1;
-        let digitCount = 0;
+      // Single unified helper for Z...Z (digitsOnly=true) and Y...Y (digitsOnly=false)
+      function isClosingWrapperAhead(payload, openIdx, openOri, grids, wrapChar, digitsOnly) {
+        let testOri = (openOri % 4) + 1;
+        let inner = "";
 
-        for (let j = zIndex + 1; j < payload.length; j++) {
-          const grid = grids[testOri];
-          const ch = getCharFromTAI(grid.indexOf(payload[j]) + 1);
-
-          if (/\d/.test(ch)) {
-            digitCount++;
-            testOri = (testOri % 4) + 1;
-          } else if (ch === "Z" && digitCount > 0) {
-            return true;
-          } else {
-            return false;
+        for (let j = openIdx + 1; j < payload.length; j++) {
+          const ch = getCharFromTAI(grids[testOri].indexOf(payload[j]) + 1);
+          if (ch === wrapChar) {
+            if (inner.length === 0) return false;
+            return digitsOnly ? /^\d+$/.test(inner) : isValidYPayload(inner);
           }
+          if (digitsOnly && !/\d/.test(ch)) return false;
+          inner += ch;
+          testOri = (testOri % 4) + 1;
         }
         return false;
       }
 
-      function stripTrailingXBuffer(decodedStream, baseGrid) {
-        if (!decodedStream.endsWith("X")) {
-          return decodedStream;
+      function isTrailingXBuffer(payload, xIdx, xOri, grids, baseGrid) {
+        const remLen = payload.length - xIdx;
+        if (remLen === 1) return true;
+        let testOri = (xOri % 4) + 1;
+        for (let k = 0; k < remLen - 2; k++) {
+          const ch = getCharFromTAI(grids[testOri].indexOf(payload[xIdx + 1 + k]) + 1);
+          if (ch !== baseGrid[k % 36]) return false;
+          testOri = (testOri % 4) + 1;
         }
+        return getCharFromTAI(grids[testOri].indexOf(payload[payload.length - 1]) + 1) === "X";
+      }
+
+      function peelTrailingXBuffer(decodedStream, baseGrid) {
+        if (!decodedStream.endsWith("X")) return decodedStream;
 
         if (decodedStream.length >= 2 && /\d/.test(decodedStream[decodedStream.length - 2])) {
           return decodedStream.slice(0, -2);
@@ -1221,19 +1241,18 @@
         for (let openX = decodedStream.length - 2; openX >= 1; openX--) {
           if (decodedStream[openX] === "X" && /\d/.test(decodedStream[openX - 1])) {
             const inner = decodedStream.slice(openX + 1, decodedStream.length - 1);
-            let matchesKeyedPrefix = true;
+            let matches = true;
             for (let j = 0; j < inner.length; j++) {
               if (inner[j] !== baseGrid[j % 36]) {
-                matchesKeyedPrefix = false;
+                matches = false;
                 break;
               }
             }
-            if (matchesKeyedPrefix) {
+            if (matches) {
               return decodedStream.slice(0, openX - 1);
             }
           }
         }
-
         return decodedStream;
       }
 
@@ -1254,27 +1273,18 @@
         return true;
       }
 
-      function extractTrailingYBuffer(streamWithoutX) {
+      function peelTrailingYBuffer(streamWithoutX) {
         const soloMatch = streamWithoutX.match(/^Y([A-Z0-9]+)Y$/);
         if (soloMatch && isValidYPayload(soloMatch[1])) {
-          return {
-            coreStream: "",
-            yPayload: soloMatch[1]
-          };
+          return { coreStream: "", yPayload: soloMatch[1] };
         }
 
         const match = streamWithoutX.match(/^(.*)\dY([A-Z0-9]+)Y$/);
         if (match && isValidYPayload(match[2])) {
-          return {
-            coreStream: match[1],
-            yPayload: match[2]
-          };
+          return { coreStream: match[1], yPayload: match[2] };
         }
 
-        return {
-          coreStream: streamWithoutX,
-          yPayload: ""
-        };
+        return { coreStream: streamWithoutX, yPayload: "" };
       }
 
       function chunkBy36(str) {
@@ -1552,12 +1562,12 @@
               { label: "Output Length", val: `${res.finalPlaintext.length} chars` }
             ],
             debugSteps: [
-              { title: "1. Raw Decoded Grid Stream (Before Stripping)", val: res.decodedStream },
-              { title: "2. X-Buffer Padding Stripped", val: res.withoutXBuffer },
-              { title: "3. Extracted Y-Wrapper Payload", val: res.yPayload ? `Y${res.yPayload}Y` : "(None present)" },
-              { title: "4. Core Unwrapped Uppercase Text", val: res.unwrappedUpper },
+              { title: "1. Raw Decoded Grid Stream (Before Peeling)", val: res.decodedStream },
+              { title: "2. Step 1 — X-Buffer Padding Peeled", val: res.withoutXBuffer },
+              { title: "3. Step 2 — Y-Wrapper Payload Peeled", val: res.yPayload ? `Y${res.yPayload}Y` : "(None present)" },
+              { title: "4. Step 3 & 4 — Delimiters Spaced & Z-Numbers Unwrapped", val: res.unwrappedUpper },
               { title: "5. Master Grid Rotation Trace", val: res.orientationTrace.join("") },
-              { title: "6. Final Restored Plaintext", val: res.finalPlaintext }
+              { title: "6. Step 5 — Final Restored Plaintext", val: res.finalPlaintext }
             ],
             grids: res.grids
           });
@@ -1571,7 +1581,7 @@
         document.getElementById("results-subtitle").textContent =
           mode === "ENCODE"
             ? "Ciphertext formatted in 36-character rows with trailing origin hint."
-            : "Plaintext recovered with case, coordinates, and symbols restored.";
+            : "Plaintext recovered in strict outside-in peel order (X → Y → Delimiters → Z → Formatting).";
         document.getElementById("results-back-btn").onclick = () => navigate(backPage);
 
         const metaContainer = document.getElementById("results-meta");
