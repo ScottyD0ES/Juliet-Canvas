@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RGC36 — Rotating Grid Cypher - 36</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --surface: #171a21;
+      --surface-alt: #1f242e;
+      --border: #2e3440;
+      --text: #eceff4;
+      --muted: #9aa5b4;
+      --accent: #5e81ac;
+      --accent-hover: #81a1c1;
+      --success: #a3be8c;
+      --warning: #ebcb8b;
+      --danger: #bf616a;
+      --font-sans: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      --font-mono: "Consolas", "SFMono-Regular", Menlo, Monaco, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 960px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    header {
+      max-width: 1200px;
+      margin: 0 auto 20px auto;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+
+    header span {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel h2 {
+      margin: 0;
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--text);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    input[type="text"],
+    textarea {
+      width: 100%;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-family: var(--font-mono);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input[type="text"]:focus,
+    textarea:focus {
+      border-color: var(--accent-hover);
+    }
+
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    button {
+      background: var(--surface-alt);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-family: var(--font-sans);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    button:hover {
+      border-color: var(--accent-hover);
+      background: #272d3a;
+    }
+
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    button.primary:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    button.active {
+      background: var(--accent);
+      border-color: var(--accent-hover);
+      color: #fff;
+    }
+
+    .toggle-group {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      font-size: 0.88rem;
+      color: var(--text);
+    }
+
+    .toggle-group label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-transform: none;
+      letter-spacing: normal;
+      color: var(--text);
+      cursor: pointer;
+      margin: 0;
+    }
+
+    .telemetry {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      text-align: center;
+    }
+
+    .telemetry div span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.7rem;
+      margin-bottom: 2px;
+    }
+
+    .telemetry div strong {
+      color: var(--warning);
+      font-size: 0.95rem;
+    }
+
+    .canvas-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    canvas {
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      max-width: 100%;
+      height: auto;
+      display: block;
+      user-select: none;
+    }
+
+    .hint-text {
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .status-bar {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: var(--success);
+      min-height: 1.2em;
+    }
+
+    .status-bar.error {
+      color: var(--danger);
+    }
+
+    .debug-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--muted);
+      max-height: 220px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      display: none;
+    }
+
+    .debug-box.visible {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>RGC36 — Rotating Grid Cypher - 36</h1>
+    <span>5-Rotor Polyalphabetic Mechanical Grid Engine</span>
+  </header>
+
+  <div class="container">
+    <!-- Left Column: Cipher Engine -->
+    <div class="panel">
+      <h2>Cipher Operations</h2>
+
+      <div>
+        <label for="keywordInput">Keyword (Blank = Standard TAI A–Z, 0–9)</label>
+        <input type="text" id="keywordInput" autocomplete="off" spellcheck="false" />
+      </div>
+
+      <div class="toggle-group">
+        <label>
+          <input type="checkbox" id="yWrapperToggle" checked />
+          Y-Wrapper Formatting (Case &amp; Punctuation)
+        </label>
+        <label>
+          <input type="checkbox" id="groupBlockToggle" checked />
+          Format Output in 36-Char Blocks
+        </label>
+        <label>
+          <input type="checkbox" id="debugToggle" />
+          Step-by-Step Debug Trace
+        </label>
+      </div>
+
+      <div>
+        <label for="inputText">Plaintext / Ciphertext Input</label>
+        <textarea id="inputText" spellcheck="false"></textarea>
+      </div>
+
+      <div class="row">
+        <button type="button" class="primary" id="encodeBtn">Encode</button>
+        <button type="button" class="primary" id="decodeBtn">Decode</button>
+        <button type="button" id="swapBtn">Swap Output to Input</button>
+        <button type="button" id="copyBtn">Copy Output</button>
+        <button type="button" id="clearBtn">Clear</button>
+      </div>
+
+      <div>
+        <label for="outputText">Result</label>
+        <textarea id="outputText" readonly spellcheck="false"></textarea>
+      </div>
+
+      <div class="status-bar" id="statusBar"></div>
+      <div class="debug-box" id="debugBox"></div>
+    </div>
+
+    <!-- Right Column: Interactive Reference Sheet -->
+    <div class="panel">
+      <h2>Interactive Reference Grid</h2>
+
+      <div class="row" style="justify-content: space-between;">
+        <div>
+          <label>Starting Master Grid (Hint A=1, B=2, C=3, D=4)</label>
+          <div class="row" id="startGridSelector">
+            <button type="button" class="start-btn active" data-start="1">1 (A)</button>
+            <button type="button" class="start-btn" data-start="2">2 (B)</button>
+            <button type="button" class="start-btn" data-start="3">3 (C)</button>
+            <button type="button" class="start-btn" data-start="4">4 (D)</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="telemetry">
+        <div>
+          <span>WORD #</span>
+          <strong id="telWord">1</strong>
+        </div>
+        <div>
+          <span>MASTER GRID</span>
+          <strong id="telGrid">1</strong>
+        </div>
+        <div>
+          <span>MAP (Q1 Q2 Q3 Q4)</span>
+          <strong id="telMap">1 2 3 4</strong>
+        </div>
+        <div>
+          <span>NEXT WORD CLICK</span>
+          <strong id="telNextQ">Q1</strong>
+        </div>
+      </div>
+
+      <div class="canvas-wrap">
+        <canvas id="gridCanvas" width="460" height="460"></canvas>
+        <div class="hint-text">
+          Tap dark outer border to rotate Master Grid (+1 CW) • Tap any Q1–Q4 corner to rotate that sub-grid (+1 CW)
+        </div>
+      </div>
+
+      <div class="row" style="justify-content: center;">
+        <button type="button" class="primary" id="nextWordBtn">Next Word</button>
+        <button type="button" id="stepBackBtn">Step Back</button>
+        <button type="button" id="resetRefBtn">Reset to Start</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    "use strict";
+
+    // =========================================================================
+    // 1. CORE ALPHABET & TAI UTILITIES
+    // =========================================================================
+    const TAI_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    const HINT_LETTERS = ["A", "B", "C", "D"];
+
+    // 1-based True Alphabet Index (1..36)
+    function charToTAI(ch) {
+      const idx = TAI_ALPHABET.indexOf(ch.toUpperCase());
+      return idx === -1 ? -1 : idx + 1;
+    }
+
+    function taiToChar(tai) {
+      return TAI_ALPHABET[(tai - 1) % 36];
+    }
+
+    // Modulo 4 mapped onto 1..4
+    function mod4OneBased(n) {
+      const r = ((n % 4) + 4) % 4;
+      return r === 0 ? 4 : r;
+    }
+
+    // Build 36-character keyed alphabet (blank keyword -> standard TAI)
+    function buildKeyedAlphabet(keyword) {
+      const seen = new Set();
+      const grid = [];
+      const cleanKey = (keyword || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+      for (const ch of cleanKey) {
+        if (!seen.has(ch)) {
+          seen.add(ch);
+          grid.push(ch);
+        }
+      }
+      for (const ch of TAI_ALPHABET) {
+        if (!seen.has(ch)) {
+          seen.add(ch);
+          grid.push(ch);
+        }
+      }
+      return grid;
+    }
+
+    // Initial MAP [q1, q2, q3, q4] seeded from TAI mod 4 of first 4 cells
+    function getInitialMap(baseGrid) {
+      return [
+        mod4OneBased(charToTAI(baseGrid[0])),
+        mod4OneBased(charToTAI(baseGrid[1])),
+        mod4OneBased(charToTAI(baseGrid[2])),
+        mod4OneBased(charToTAI(baseGrid[3]))
+      ];
+    }
+
+    // =========================================================================
+    // 2. GRID ROTATION ENGINE (6x6 MASTER + SPATIALLY LOCKED 3x3 QUADRANTS)
+    // =========================================================================
+    function rotate6x6CW(grid) {
+      const next = new Array(36);
+      for (let r = 0; r < 6; r++) {
+        for (let c = 0; c < 6; c++) {
+          const newR = c;
+          const newC = 5 - r;
+          next[newR * 6 + newC] = grid[r * 6 + c];
+        }
+      }
+      return next;
+    }
+
+    // Spatially locked quadrant top-left offsets:
+    // Q1 (1): (0,0), Q2 (2): (0,3), Q3 (3): (3,0), Q4 (4): (3,3)
+    const QUADRANT_OFFSETS = [
+      { r0: 0, c0: 0 },
+      { r0: 0, c0: 3 },
+      { r0: 3, c0: 0 },
+      { r0: 3, c0: 3 }
+    ];
+
+    function rotateQuadrantInPlace(grid, quadrantIndex, turnsCW) {
+      const turns = ((turnsCW % 4) + 4) % 4;
+      if (turns === 0) return;
+
+      const { r0, c0 } = QUADRANT_OFFSETS[quadrantIndex];
+      for (let t = 0; t < turns; t++) {
+        const sub = new Array(9);
+        for (let r = 0; r < 3; r++) {
+          for (let c = 0; c < 3; c++) {
+            sub[r * 3 + c] = grid[(r0 + r) * 6 + (c0 + c)];
+          }
+        }
+        for (let r = 0; r < 3; r++) {
+          for (let c = 0; c < 3; c++) {
+            const newR = c;
+            const newC = 2 - r;
+            grid[(r0 + newR) * 6 + (c0 + newC)] = sub[r * 3 + c];
+          }
+        }
+      }
+    }
+
+    // Build active 36-cell state:
+    // 1. Rotate Master 6x6 Grid to orientation (1..4)
+    // 2. Rotate each spatially locked 3x3 quadrant according to MAP [q1, q2, q3, q4] (1..4)
+    function getActiveGrid(baseGrid, masterOrientation, mapState) {
+      let current = baseGrid.slice();
+      const masterTurns = (masterOrientation - 1 + 4) % 4;
+      for (let t = 0; t < masterTurns; t++) {
+        current = rotate6x6CW(current);
+      }
+      for (let q = 0; q < 4; q++) {
+        const qTurns = (mapState[q] - 1 + 4) % 4;
+        rotateQuadrantInPlace(current, q, qTurns);
+      }
+      return current;
+    }
+
+    // =========================================================================
+    // 3. FORMATTING LOG (Y...Y) & NUMBER WRAPPER (Z...Z)
+    // =========================================================================
+    // Punctuation table mapped to Base-36 formatting codes
+    const PUNCT_TO_CODE = {
+      ".": "P",
+      ",": "C",
+      "!": "E",
+      "?": "Q",
+      "'": "S",
+      "\"": "D",
+      "-": "H",
+      ":": "N",
+      ";": "M",
+      "/": "L",
+      "(": "O",
+      ")": "R"
+    };
+
+    const CODE_TO_PUNCT = Object.fromEntries(
+      Object.entries(PUNCT_TO_CODE).map(([k, v]) => [v, k])
+    );
+
+    function toBase36(num) {
+      return num.toString(36).toUpperCase();
+    }
+
+    function fromBase36(str) {
+      return parseInt(str, 36);
+    }
+
+    // Extract uppercase/punctuation tokens using relative distances from previous token
+    function extractFormattingLog(rawText) {
+      // Normalize whitespace runs to single spaces
+      const normalized = rawText.trim().replace(/\s+/g, " ");
+      const events = [];
+      let cleanChars = [];
+
+      for (let i = 0; i < normalized.length; i++) {
+        const ch = normalized[i];
+        if (/[A-Z]/.test(ch)) {
+          events.push({ index: cleanChars.length, type: "U" });
+          cleanChars.push(ch);
+        } else if (/[a-z]/.test(ch)) {
+          cleanChars.push(ch.toUpperCase());
+        } else if (/[0-9 ]/.test(ch)) {
+          cleanChars.push(ch);
+        } else if (PUNCT_TO_CODE[ch]) {
+          events.push({ index: cleanChars.length, type: PUNCT_TO_CODE[ch] });
+        }
+      }
+
+      if (events.length === 0) {
+        return { strippedText: cleanChars.join(""), yBlock: "" };
+      }
+
+      // Encode each event as <Base36Delta><TypeCode>, separated by 0-padded or length-prefixed tokens
+      // Using fixed format: <Base36Delta length 1..Z><Base36Delta><TypeCode> so any distance is unambiguous
+      let prevIdx = 0;
+      let payload = "";
+      for (const ev of events) {
+        const delta = ev.index - prevIdx;
+        prevIdx = ev.index;
+        const delta36 = toBase36(delta);
+        const len36 = toBase36(delta36.length);
+        payload += len36 + delta36 + ev.type;
+      }
+
+      return {
+        strippedText: cleanChars.join(""),
+        yBlock: "Y" + payload + "Y"
+      };
+    }
+
+    function restoreFormatting(strippedText, yPayload) {
+      if (!yPayload) return strippedText.toLowerCase();
+
+      const chars = strippedText.toLowerCase().split("");
+      const events = [];
+      let pos = 0;
+      let runningIndex = 0;
+
+      while (pos < yPayload.length) {
+        const len = fromBase36(yPayload[pos]);
+        if (!len || pos + len + 1 >= yPayload.length) break;
+        const deltaStr = yPayload.slice(pos + 1, pos + 1 + len);
+        const typeCode = yPayload[pos + 1 + len];
+        const delta = fromBase36(deltaStr);
+        runningIndex += delta;
+        events.push({ index: runningIndex, type: typeCode });
+        pos += 2 + len;
+      }
+
+      // Apply in reverse order so punctuation insertions don't shift earlier indices
+      for (let i = events.length - 1; i >= 0; i--) {
+        const ev = events[i];
+        if (ev.type === "U") {
+          if (ev.index >= 0 && ev.index < chars.length) {
+            chars[ev.index] = chars[ev.index].toUpperCase();
+          }
+        } else if (CODE_TO_PUNCT[ev.type]) {
+          chars.splice(ev.index, 0, CODE_TO_PUNCT[ev.type]);
+        }
+      }
+
+      return chars.join("");
+    }
+
+    // Wrap contiguous digit sequences in Z...Z
+    function wrapNumbers(text) {
+      return text.replace(/[0-9]+/g, (match) => "Z" + match + "Z");
+    }
+
+    function unwrapNumbers(text) {
+      return text.replace(/Z([0-9]+)Z/g, "$1");
+    }
+
+    // =========================================================================
+    // 4. RGC36 ENCODE & DECODE PIPELINE
+    // =========================================================================
+    function encodeRGC36(rawText, keyword, useYWrapper) {
+      if (!rawText || !rawText.trim()) {
+        throw new Error("Enter text to encode.");
+      }
+
+      const baseGrid = buildKeyedAlphabet(keyword);
+      const initialMap = getInitialMap(baseGrid);
+      const debugLines = [];
+
+      // Step 1: Formatting extraction (optional Y...Y)
+      let workingText = "";
+      let yBlock = "";
+      if (useYWrapper) {
+        const extracted = extractFormattingLog(rawText);
+        workingText = extracted.strippedText;
+        yBlock = extracted.yBlock;
+      } else {
+        workingText = rawText
+          .toUpperCase()
+          .replace(/[^A-Z0-9\s]/g, "")
+          .trim()
+          .replace(/\s+/g, " ");
+      }
+
+      if (!workingText) {
+        throw new Error("Input contains no encodable alphanumeric characters.");
+      }
+
+      // Step 2: Wrap digit runs in Z...Z
+      workingText = wrapNumbers(workingText);
+
+      // Step 3: Split into words and insert deterministic single-digit delimiters
+      const words = workingText.split(" ").filter(Boolean);
+      if (yBlock) {
+        words.push(yBlock);
+      }
+
+      // Calculate total stream length before X...X padding
+      // Each word is followed by 1 delimiter digit before the X...X buffer
+      let coreLength = 0;
+      for (const w of words) coreLength += w.length;
+      coreLength += words.length; // delimiter after each word (separating words and before X...X)
+
+      // Total ciphertext length must be 36 * N, with final slot reserved for single A-D origin hint
+      // So prepared stream length = (36 * N) - 1
+      // Minimum X...X wrapper is "XX" (length 2)
+      let blockCount = Math.ceil((coreLength + 3) / 36);
+      let targetStreamLen = blockCount * 36 - 1;
+      let padTotalLen = targetStreamLen - coreLength;
+
+      // Build Reverse Cell-36 X...X padding buffer (Cell 36 -> 35 -> 34 -> ...)
+      const innerPadLen = padTotalLen - 2;
+      let innerPad = "";
+      for (let i = 0; i < innerPadLen; i++) {
+        const revIdx = 35 - (i % 36);
+        innerPad += baseGrid[revIdx];
+      }
+      const xBlock = "X" + innerPad + "X";
+
+      // Assemble full plaintext stream with deterministic delimiters (TAI mod 10 of baseGrid walk)
+      const streamTokens = [];
+      for (let wIdx = 0; wIdx < words.length; wIdx++) {
+        for (const ch of words[wIdx]) {
+          streamTokens.push({ ch, isDelimiter: false });
+        }
+        const delimChar = baseGrid[wIdx % 36];
+        const delimDigit = String(charToTAI(delimChar) % 10);
+        streamTokens.push({ ch: delimDigit, isDelimiter: true });
+      }
+      for (const ch of xBlock) {
+        streamTokens.push({ ch, isDelimiter: false });
+      }
+
+      // Step 4: Seed Master Grid from first stream character's TAI mod 4
+      const originModulo = mod4OneBased(charToTAI(streamTokens[0].ch));
+      const originHintChar = HINT_LETTERS[originModulo - 1];
+
+      let masterGrid = originModulo;
+      let wordStartMaster = originModulo;
+      let mapState = initialMap.slice();
+      let wordIndex = 1; // 1-based word counter
+
+      debugLines.push(`KEYWORD GRID : ${baseGrid.join("")}`);
+      debugLines.push(`SEED MAP     : ${initialMap.join(" ")} | START GRID: ${originModulo} (Hint: ${originHintChar})`);
+      debugLines.push(`X-PAD (REV)  : ${xBlock} (${xBlock.length} chars)`);
+      debugLines.push("------------------------------------------------------------");
+
+      let cipherChars = [];
+
+      for (let i = 0; i < streamTokens.length; i++) {
+        const token = streamTokens[i];
+        const activeGrid = getActiveGrid(baseGrid, masterGrid, mapState);
+        const tai = charToTAI(token.ch);
+        const outChar = activeGrid[tai - 1];
+        cipherChars.push(outChar);
+
+        if (i < 48) {
+          debugLines.push(
+            `[${String(i + 1).padStart(2, "0")}] W${wordIndex} | GRID:${masterGrid} MAP:${mapState.join("")} | '${token.ch}'(TAI ${String(tai).padStart(2, "0")}) -> '${outChar}'${token.isDelimiter ? " [DELIM]" : ""}`
+          );
+        }
+
+        if (token.isDelimiter) {
+          // New Word Boundary Reset:
+          // Master Grid cascades -1 from previous word's starting orientation
+          masterGrid = ((wordStartMaster - 2 + 4) % 4) + 1;
+          wordStartMaster = masterGrid;
+
+          // Walking Click: advance one sub-grid +1 CW in sequence Q1 -> Q2 -> Q3 -> Q4
+          const qToRotate = (wordIndex - 1) % 4;
+          mapState[qToRotate] = (mapState[qToRotate] % 4) + 1;
+          wordIndex++;
+        } else {
+          // Regular character inside word: Master Grid advances +1 CW
+          masterGrid = (masterGrid % 4) + 1;
+        }
+      }
+
+      cipherChars.push(originHintChar);
+      const rawCipher = cipherChars.join("");
+
+      return {
+        ciphertext: rawCipher,
+        debug: debugLines.join("\n")
+      };
+    }
+
+    function decodeRGC36(rawCipher, keyword, useYWrapper) {
+      const cleaned = (rawCipher || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+      if (cleaned.length < 36 || cleaned.length % 36 !== 0) {
+        throw new Error(`Ciphertext must be a multiple of 36 characters (got ${cleaned.length}).`);
+      }
+
+      const originHintChar = cleaned[cleaned.length - 1];
+      const originModulo = HINT_LETTERS.indexOf(originHintChar) + 1;
+      if (originModulo < 1 || originModulo > 4) {
+        throw new Error(`Invalid trailing origin hint '${originHintChar}' (expected A, B, C, or D).`);
+      }
+
+      const payloadStream = cleaned.slice(0, -1);
+      const baseGrid = buildKeyedAlphabet(keyword);
+      const initialMap = getInitialMap(baseGrid);
+      const debugLines = [];
+
+      let masterGrid = originModulo;
+      let wordStartMaster = originModulo;
+      let mapState = initialMap.slice();
+      let wordIndex = 1;
+
+      // Track protected Z...Z state so digits inside Z...Z are not mistaken for word delimiters
+      let inZBlock = false;
+      let atWordStart = true;
+
+      debugLines.push(`KEYWORD GRID : ${baseGrid.join("")}`);
+      debugLines.push(`SEED MAP     : ${initialMap.join(" ")} | START GRID: ${originModulo} (Hint: ${originHintChar})`);
+      debugLines.push("------------------------------------------------------------");
+
+      const decodedChars = [];
+
+      for (let i = 0; i < payloadStream.length; i++) {
+        const cChar = payloadStream[i];
+        const activeGrid = getActiveGrid(baseGrid, masterGrid, mapState);
+        const cellIndex = activeGrid.indexOf(cChar);
+        if (cellIndex === -1) {
+          throw new Error(`Invalid ciphertext character '${cChar}' at position ${i + 1}.`);
+        }
+
+        const pChar = taiToChar(cellIndex + 1);
+        decodedChars.push(pChar);
+
+        // Determine if this decoded character is a word-boundary delimiter
+        const expectedDelimDigit = String(charToTAI(baseGrid[(wordIndex - 1) % 36]) % 10);
+        const isDelimiter =
+          !inZBlock &&
+          !atWordStart &&
+          /[0-9]/.test(pChar) &&
+          pChar === expectedDelimDigit;
+
+        if (i < 48) {
+          debugLines.push(
+            `[${String(i + 1).padStart(2, "0")}] W${wordIndex} | GRID:${masterGrid} MAP:${mapState.join("")} | '${cChar}' -> '${pChar}'${isDelimiter ? " [DELIM]" : ""}`
+          );
+        }
+
+        if (isDelimiter) {
+          masterGrid = ((wordStartMaster - 2 + 4) % 4) + 1;
+          wordStartMaster = masterGrid;
+
+          const qToRotate = (wordIndex - 1) % 4;
+          mapState[qToRotate] = (mapState[qToRotate] % 4) + 1;
+          wordIndex++;
+          atWordStart = true;
+        } else {
+          if (pChar === "Z") {
+            inZBlock = !inZBlock;
+          }
+          atWordStart = false;
+          masterGrid = (masterGrid % 4) + 1;
+        }
+      }
+
+      // Order-Driven Peel: 1. Trailing X...X -> 2. Delimiter -> 3. Y...Y -> 4. Delimiters -> 5. Z...Z
+      let stream = decodedChars.join("");
+
+      // 1. Peel trailing X...X reverse Cell-36 padding buffer
+      const xStart = stream.lastIndexOf("X", stream.length - 2);
+      if (xStart === -1 || stream[stream.length - 1] !== "X") {
+        throw new Error("Could not verify trailing X...X padding buffer. Check keyword or ciphertext.");
+      }
+      const innerPad = stream.slice(xStart + 1, -1);
+      for (let i = 0; i < innerPad.length; i++) {
+        const expectedChar = baseGrid[35 - (i % 36)];
+        if (innerPad[i] !== expectedChar) {
+          throw new Error("Padding verification failed (reverse Cell-36 mismatch). Check keyword.");
+        }
+      }
+      stream = stream.slice(0, xStart);
+
+      // 2. Peel trailing delimiter digit before X...X
+      if (/[0-9]/.test(stream[stream.length - 1])) {
+        stream = stream.slice(0, -1);
+      }
+
+      // 3. Peel trailing Y...Y formatting log if present
+      let yPayload = "";
+      if (useYWrapper && stream.endsWith("Y")) {
+        const yStart = stream.lastIndexOf("Y", stream.length - 2);
+        if (yStart !== -1) {
+          yPayload = stream.slice(yStart + 1, -1);
+          stream = stream.slice(0, yStart);
+          // Peel delimiter digit preceding Y...Y
+          if (/[0-9]/.test(stream[stream.length - 1])) {
+            stream = stream.slice(0, -1);
+          }
+        }
+      }
+
+      // 4. Reconstruct words by stepping through expected delimiter digits while respecting Z...Z
+      const words = [];
+      let currentWord = "";
+      let wIdx = 0;
+      let zOpen = false;
+
+      for (let i = 0; i < stream.length; i++) {
+        const ch = stream[i];
+        const expectedDelim = String(charToTAI(baseGrid[wIdx % 36]) % 10);
+
+        if (!zOpen && currentWord.length > 0 && ch === expectedDelim) {
+          words.push(currentWord);
+          currentWord = "";
+          wIdx++;
+        } else {
+          if (ch === "Z") zOpen = !zOpen;
+          currentWord += ch;
+        }
+      }
+      if (currentWord) words.push(currentWord);
+
+      // 5. Unwrap Z...Z numbers and restore case/punctuation
+      let reconstructed = words.map(unwrapNumbers).join(" ");
+      if (useYWrapper) {
+        reconstructed = restoreFormatting(reconstructed, yPayload);
+      } else {
+        reconstructed = reconstructed.toLowerCase();
+      }
+
+      return {
+        plaintext: reconstructed,
+        debug: debugLines.join("\n")
+      };
+    }
+
+    // =========================================================================
+    // 5. INTERACTIVE REFERENCE SHEET CANVAS & STATE
+    // =========================================================================
+    const canvas = document.getElementById("gridCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const refState = {
+      startMaster: 1,
+      wordStartMaster: 1,
+      masterGrid: 1,
+      mapState: [1, 2, 3, 4],
+      wordNumber: 1,
+      history: []
+    };
+
+    function snapshotRefState() {
+      refState.history.push({
+        wordStartMaster: refState.wordStartMaster,
+        masterGrid: refState.masterGrid,
+        mapState: refState.mapState.slice(),
+        wordNumber: refState.wordNumber
+      });
+      if (refState.history.length > 200) refState.history.shift();
+    }
+
+    function syncReferenceToKeyword(resetAll = true) {
+      const baseGrid = buildKeyedAlphabet(document.getElementById("keywordInput").value);
+      const initMap = getInitialMap(baseGrid);
+
+      if (resetAll) {
+        refState.wordNumber = 1;
+        refState.masterGrid = refState.startMaster;
+        refState.wordStartMaster = refState.startMaster;
+        refState.mapState = initMap;
+        refState.history = [];
+      }
+      renderReferenceSheet();
+    }
+
+    function renderReferenceSheet() {
+      const baseGrid = buildKeyedAlphabet(document.getElementById("keywordInput").value);
+      const activeGrid = getActiveGrid(baseGrid, refState.masterGrid, refState.mapState);
+
+      // Update Telemetry Readouts
+      document.getElementById("telWord").textContent = String(refState.wordNumber);
+      document.getElementById("telGrid").textContent = String(refState.masterGrid);
+      document.getElementById("telMap").textContent = refState.mapState.join(" ");
+      const nextQ = ((refState.wordNumber - 1) % 4) + 1;
+      document.getElementById("telNextQ").textContent = `Q${nextQ}`;
+
+      const W = canvas.width;
+      const H = canvas.height;
+      const margin = 42;
+      const gridSize = W - margin * 2;
+      const cellSize = gridSize / 6;
+
+      // Outer dark background (tappable for Master Grid +1 CW)
+      ctx.fillStyle = "#0b0d11";
+      ctx.fillRect(0, 0, W, H);
+
+      // Subtle outer border indicator
+      ctx.strokeStyle = "#3b4252";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(8, 8, W - 16, H - 16);
+
+      ctx.fillStyle = "#7b889c";
+      ctx.font = "600 11px Segoe UI, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("OUTER RING: TAP FOR MASTER GRID +1 CW", W / 2, 26);
+
+      // Quadrant background tints
+      const qColors = ["#181d26", "#1c212b", "#1c212b", "#181d26"];
+      QUADRANT_OFFSETS.forEach((qOff, idx) => {
+        ctx.fillStyle = qColors[idx];
+        ctx.fillRect(
+          margin + qOff.c0 * cellSize,
+          margin + qOff.r0 * cellSize,
+          cellSize * 3,
+          cellSize * 3
+        );
+      });
+
+      // Draw 36 cells
+      for (let r = 0; r < 6; r++) {
+        for (let c = 0; c < 6; c++) {
+          const idx = r * 6 + c;
+          const x = margin + c * cellSize;
+          const y = margin + r * cellSize;
+
+          // Cell border
+          ctx.strokeStyle = "#2e3440";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x, y, cellSize, cellSize);
+
+          // Fixed TAI coordinate in top-left corner
+          ctx.fillStyle = "#6c7a89";
+          ctx.font = "600 10px Consolas, monospace";
+          ctx.textAlign = "left";
+          ctx.fillText(String(idx + 1), x + 5, y + 13);
+
+          // Active cipher character centered
+          ctx.fillStyle = "#eceff4";
+          ctx.font = "700 22px Consolas, monospace";
+          ctx.textAlign = "center";
+          ctx.fillText(activeGrid[idx], x + cellSize / 2, y + cellSize / 2 + 8);
+        }
+      }
+
+      // Heavy quadrant dividers (3x3 boundaries)
+      ctx.strokeStyle = "#81a1c1";
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(margin, margin, gridSize, gridSize);
+
+      ctx.beginPath();
+      ctx.moveTo(margin + gridSize / 2, margin);
+      ctx.lineTo(margin + gridSize / 2, margin + gridSize);
+      ctx.moveTo(margin, margin + gridSize / 2);
+      ctx.lineTo(margin + gridSize, margin + gridSize / 2);
+      ctx.stroke();
+
+      // Quadrant corner labels
+      const qLabels = [
+        { label: `Q1:${refState.mapState[0]}`, x: margin + 6, y: H - 16 },
+        { label: `Q2:${refState.mapState[1]}`, x: margin + 76, y: H - 16 },
+        { label: `Q3:${refState.mapState[2]}`, x: W - margin - 122, y: H - 16 },
+        { label: `Q4:${refState.mapState[3]}`, x: W - margin - 52, y: H - 16 }
+      ];
+      ctx.fillStyle = "#ebcb8b";
+      ctx.font = "600 12px Consolas, monospace";
+      ctx.textAlign = "left";
+      for (const item of qLabels) {
+        ctx.fillText(item.label, item.x, item.y);
+      }
+    }
+
+    // Canvas Tap Handling:
+    // Outside 6x6 grid -> Master Grid +1 CW
+    // Inside Q1..Q4 -> That specific quadrant +1 CW
+    canvas.addEventListener("click", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
+
+      const margin = 42;
+      const gridSize = canvas.width - margin * 2;
+      const half = gridSize / 2;
+
+      snapshotRefState();
+
+      if (x < margin || x > margin + gridSize || y < margin || y > margin + gridSize) {
+        // Outer dark border tapped -> rotate Master Grid +1 CW
+        refState.masterGrid = (refState.masterGrid % 4) + 1;
+      } else {
+        // Inside 6x6 grid -> determine spatially locked quadrant (1 2 / 3 4)
+        const colRight = x >= margin + half ? 1 : 0;
+        const rowBottom = y >= margin + half ? 2 : 0;
+        const qIdx = rowBottom + colRight;
+        refState.mapState[qIdx] = (refState.mapState[qIdx] % 4) + 1;
+      }
+
+      renderReferenceSheet();
+    });
+
+    // =========================================================================
+    // 6. UI EVENT WIRING
+    // =========================================================================
+    function formatOutputBlocks(str, useBlocks) {
+      if (!useBlocks) return str;
+      const chunks = [];
+      for (let i = 0; i < str.length; i += 36) {
+        chunks.push(str.slice(i, i + 36));
+      }
+      return chunks.join("\n");
+    }
+
+    function setStatus(msg, isError = false) {
+      const el = document.getElementById("statusBar");
+      el.textContent = msg;
+      el.classList.toggle("error", isError);
+    }
+
+    document.getElementById("encodeBtn").addEventListener("click", () => {
+      try {
+        const text = document.getElementById("inputText").value;
+        const kw = document.getElementById("keywordInput").value;
+        const useY = document.getElementById("yWrapperToggle").checked;
+        const useBlocks = document.getElementById("groupBlockToggle").checked;
+
+        const res = encodeRGC36(text, kw, useY);
+        document.getElementById("outputText").value = formatOutputBlocks(res.ciphertext, useBlocks);
+        document.getElementById("debugBox").textContent = res.debug;
+        setStatus(`Encoded successfully (${res.ciphertext.length} chars, ${res.ciphertext.length / 36} block${res.ciphertext.length === 36 ? "" : "s"}).`);
+      } catch (err) {
+        setStatus(err.message, true);
+      }
+    });
+
+    document.getElementById("decodeBtn").addEventListener("click", () => {
+      try {
+        const cipher = document.getElementById("inputText").value;
+        const kw = document.getElementById("keywordInput").value;
+        const useY = document.getElementById("yWrapperToggle").checked;
+
+        const res = decodeRGC36(cipher, kw, useY);
+        document.getElementById("outputText").value = res.plaintext;
+        document.getElementById("debugBox").textContent = res.debug;
+        setStatus("Decoded successfully.");
+      } catch (err) {
+        setStatus(err.message, true);
+      }
+    });
+
+    document.getElementById("swapBtn").addEventListener("click", () => {
+      const out = document.getElementById("outputText").value;
+      if (!out) return;
+      document.getElementById("inputText").value = out;
+      document.getElementById("outputText").value = "";
+      setStatus("Moved output to input.");
+    });
+
+    document.getElementById("copyBtn").addEventListener("click", async () => {
+      const out = document.getElementById("outputText").value;
+      if (!out) return;
+      await navigator.clipboard.writeText(out);
+      setStatus("Copied output to clipboard.");
+    });
+
+    document.getElementById("clearBtn").addEventListener("click", () => {
+      document.getElementById("inputText").value = "";
+      document.getElementById("outputText").value = "";
+      document.getElementById("debugBox").textContent = "";
+      setStatus("");
+    });
+
+    document.getElementById("debugToggle").addEventListener("change", (e) => {
+      document.getElementById("debugBox").classList.toggle("visible", e.target.checked);
+    });
+
+    document.getElementById("keywordInput").addEventListener("input", () => {
+      syncReferenceToKeyword(true);
+    });
+
+    document.querySelectorAll(".start-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".start-btn").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        refState.startMaster = Number(btn.dataset.start);
+        syncReferenceToKeyword(true);
+      });
+    });
+
+    document.getElementById("nextWordBtn").addEventListener("click", () => {
+      snapshotRefState();
+      // Master Grid cascades -1 from previous word's starting orientation
+      refState.masterGrid = ((refState.wordStartMaster - 2 + 4) % 4) + 1;
+      refState.wordStartMaster = refState.masterGrid;
+
+      // Walking Click: advance one sub-grid +1 CW in sequence Q1 -> Q2 -> Q3 -> Q4
+      const qIdx = (refState.wordNumber - 1) % 4;
+      refState.mapState[qIdx] = (refState.mapState[qIdx] % 4) + 1;
+      refState.wordNumber++;
+
+      renderReferenceSheet();
+    });
+
+    document.getElementById("stepBackBtn").addEventListener("click", () => {
+      const prev = refState.history.pop();
+      if (!prev) return;
+      refState.wordStartMaster = prev.wordStartMaster;
+      refState.masterGrid = prev.masterGrid;
+      refState.mapState = prev.mapState;
+      refState.wordNumber = prev.wordNumber;
+      renderReferenceSheet();
+    });
+
+    document.getElementById("resetRefBtn").addEventListener("click", () => {
+      syncReferenceToKeyword(true);
+    });
+
+    // Initialize blank-keyword TAI grid on load
+    syncReferenceToKeyword(true);
+  </script>
+</body>
+</html>
+0
