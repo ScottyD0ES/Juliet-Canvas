@@ -35,7 +35,7 @@
     }
 
     header {
-      max-width: 960px;
+      max-width: 980px;
       margin: 0 auto 20px auto;
       padding-bottom: 14px;
       border-bottom: 1px solid var(--border);
@@ -61,7 +61,7 @@
 
     .nav-menu {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       background: var(--surface);
       padding: 4px;
       border-radius: 8px;
@@ -72,9 +72,9 @@
       background: transparent;
       border: none;
       color: var(--muted);
-      padding: 8px 16px;
+      padding: 8px 18px;
       border-radius: 6px;
-      font-size: 0.88rem;
+      font-size: 0.9rem;
       font-weight: 600;
       cursor: pointer;
       transition: background 0.15s, color 0.15s;
@@ -90,8 +90,20 @@
       color: #fff;
     }
 
+    .shared-controls {
+      max-width: 980px;
+      margin: 0 auto 18px auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
     .view-section {
-      max-width: 960px;
+      max-width: 980px;
       margin: 0 auto;
       display: none;
     }
@@ -104,10 +116,10 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 24px;
+      padding: 22px;
       display: flex;
       flex-direction: column;
-      gap: 18px;
+      gap: 16px;
     }
 
     .panel h2 {
@@ -121,7 +133,7 @@
 
     label {
       display: block;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 600;
       color: var(--muted);
       margin-bottom: 6px;
@@ -149,7 +161,7 @@
     }
 
     textarea {
-      min-height: 135px;
+      min-height: 130px;
       resize: vertical;
     }
 
@@ -197,7 +209,7 @@
 
     .toggle-group {
       display: flex;
-      gap: 18px;
+      gap: 20px;
       flex-wrap: wrap;
       font-size: 0.88rem;
       color: var(--text);
@@ -225,22 +237,49 @@
       color: var(--danger);
     }
 
-    .debug-box {
+    .debug-container {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+    }
+
+    .debug-container.visible {
+      display: flex;
+    }
+
+    .debug-section {
       background: var(--bg);
       border: 1px solid var(--border);
       border-radius: 6px;
       padding: 12px 14px;
-      font-family: var(--font-mono);
-      font-size: 0.78rem;
-      color: var(--muted);
-      max-height: 240px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      display: none;
     }
 
-    .debug-box.visible {
-      display: block;
+    .debug-section-title {
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: var(--warning);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .debug-pre {
+      margin: 0;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-all;
+      line-height: 1.45;
+    }
+
+    .debug-scroll {
+      max-height: 300px;
+      overflow-y: auto;
+      padding-right: 6px;
     }
 
     .ref-toolbar {
@@ -249,11 +288,6 @@
       align-items: flex-end;
       flex-wrap: wrap;
       gap: 16px;
-    }
-
-    .ref-key-box {
-      flex: 1;
-      min-width: 240px;
     }
 
     .telemetry {
@@ -321,68 +355,126 @@
     </div>
 
     <nav class="nav-menu" aria-label="Primary Navigation">
-      <button type="button" class="nav-btn active" data-view="cipherView">Encode / Decode</button>
+      <button type="button" class="nav-btn active" data-view="encodeView">Encode</button>
+      <button type="button" class="nav-btn" data-view="decodeView">Decode</button>
       <button type="button" class="nav-btn" data-view="gridView">Reference Grid</button>
     </nav>
   </header>
 
-  <main id="cipherView" class="view-section active">
+  <section class="shared-controls">
+    <div>
+      <label for="keywordInput">Keyword (Blank = Standard TAI A–Z, 0–9)</label>
+      <input type="text" id="keywordInput" autocomplete="off" spellcheck="false" />
+    </div>
+
+    <div class="toggle-group">
+      <label>
+        <input type="checkbox" id="yWrapperToggle" checked />
+        Y-Wrapper Formatting (Case &amp; Punctuation)
+      </label>
+      <label>
+        <input type="checkbox" id="groupBlockToggle" checked />
+        Format Ciphertext in 36-Char Blocks
+      </label>
+      <label>
+        <input type="checkbox" id="debugToggle" />
+        Full Pipeline &amp; Rotor Debug Inspector
+      </label>
+    </div>
+  </section>
+
+  <!-- Encode View -->
+  <main id="encodeView" class="view-section active">
     <div class="panel">
-      <h2>Cipher Operations</h2>
+      <h2>Encode Plaintext</h2>
 
       <div>
-        <label for="keywordInput">Keyword (Blank = Standard TAI A–Z, 0–9)</label>
-        <input type="text" id="keywordInput" autocomplete="off" spellcheck="false" />
-      </div>
-
-      <div class="toggle-group">
-        <label>
-          <input type="checkbox" id="yWrapperToggle" checked />
-          Y-Wrapper Formatting (Case &amp; Punctuation)
-        </label>
-        <label>
-          <input type="checkbox" id="groupBlockToggle" checked />
-          Format Output in 36-Char Blocks
-        </label>
-        <label>
-          <input type="checkbox" id="debugToggle" />
-          Step-by-Step Debug Trace
-        </label>
-      </div>
-
-      <div>
-        <label for="inputText">Plaintext / Ciphertext Input</label>
-        <textarea id="inputText" spellcheck="false"></textarea>
+        <label for="encodeInput">Plaintext Input</label>
+        <textarea id="encodeInput" spellcheck="false"></textarea>
       </div>
 
       <div class="row">
-        <button type="button" class="primary" id="encodeBtn">Encode</button>
-        <button type="button" class="primary" id="decodeBtn">Decode</button>
-        <button type="button" id="swapBtn">Swap Output to Input</button>
-        <button type="button" id="copyBtn">Copy Output</button>
-        <button type="button" id="clearBtn">Clear</button>
+        <button type="button" class="primary" id="encodeBtn">Encode Message</button>
+        <button type="button" id="sendToDecodeBtn">Send Output to Decode Tab</button>
+        <button type="button" id="copyEncodeBtn">Copy Ciphertext</button>
+        <button type="button" id="clearEncodeBtn">Clear Encode</button>
       </div>
 
       <div>
-        <label for="outputText">Result</label>
-        <textarea id="outputText" readonly spellcheck="false"></textarea>
+        <label for="encodeOutput">Ciphertext Output</label>
+        <textarea id="encodeOutput" readonly spellcheck="false"></textarea>
       </div>
 
-      <div class="status-bar" id="statusBar"></div>
-      <div class="debug-box" id="debugBox"></div>
+      <div class="status-bar" id="encodeStatus"></div>
+
+      <div class="debug-container" id="encodeDebugPanel">
+        <div class="debug-section">
+          <div class="debug-section-title">1. Keyed Grid &amp; Rotor Initialization</div>
+          <pre class="debug-pre" id="encDbgSeed"></pre>
+        </div>
+        <div class="debug-section">
+          <div class="debug-section-title">2. Pre-Rotation Stream Assembly (Y-Log, Z-Numbers, Delimiters &amp; Reverse Cell-36 X-Pad)</div>
+          <pre class="debug-pre" id="encDbgStages"></pre>
+        </div>
+        <div class="debug-section">
+          <div class="debug-section-title">3. Full Character-by-Character Rotor Execution Trace</div>
+          <div class="debug-scroll">
+            <pre class="debug-pre" id="encDbgTrace"></pre>
+          </div>
+        </div>
+      </div>
     </div>
   </main>
 
+  <!-- Decode View -->
+  <section id="decodeView" class="view-section">
+    <div class="panel">
+      <h2>Decode Ciphertext</h2>
+
+      <div>
+        <label for="decodeInput">Ciphertext Input</label>
+        <textarea id="decodeInput" spellcheck="false"></textarea>
+      </div>
+
+      <div class="row">
+        <button type="button" class="primary" id="decodeBtn">Decode Message</button>
+        <button type="button" id="sendToEncodeBtn">Send Output to Encode Tab</button>
+        <button type="button" id="copyDecodeBtn">Copy Plaintext</button>
+        <button type="button" id="clearDecodeBtn">Clear Decode</button>
+      </div>
+
+      <div>
+        <label for="decodeOutput">Decoded Plaintext</label>
+        <textarea id="decodeOutput" readonly spellcheck="false"></textarea>
+      </div>
+
+      <div class="status-bar" id="decodeStatus"></div>
+
+      <div class="debug-container" id="decodeDebugPanel">
+        <div class="debug-section">
+          <div class="debug-section-title">1. Origin Hint &amp; Rotor Initialization</div>
+          <pre class="debug-pre" id="decDbgSeed"></pre>
+        </div>
+        <div class="debug-section">
+          <div class="debug-section-title">2. Outside-In Peel Pipeline (Raw &rarr; X-Pad &rarr; Y-Log &rarr; Delimiters &rarr; Z-Numbers)</div>
+          <pre class="debug-pre" id="decDbgPeel"></pre>
+        </div>
+        <div class="debug-section">
+          <div class="debug-section-title">3. Full Character-by-Character Rotor Reversal Trace</div>
+          <div class="debug-scroll">
+            <pre class="debug-pre" id="decDbgTrace"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Reference Grid View -->
   <section id="gridView" class="view-section">
     <div class="panel">
       <h2>Interactive Mechanical Reference Grid</h2>
 
       <div class="ref-toolbar">
-        <div class="ref-key-box">
-          <label for="refKeywordMirror">Active Keyword (Synced)</label>
-          <input type="text" id="refKeywordMirror" autocomplete="off" spellcheck="false" />
-        </div>
-
         <div>
           <label>Starting Master Grid (Hint A=1, B=2, C=3, D=4)</label>
           <div class="row" id="startGridSelector">
@@ -391,6 +483,12 @@
             <button type="button" class="start-btn" data-start="3">3 (C)</button>
             <button type="button" class="start-btn" data-start="4">4 (D)</button>
           </div>
+        </div>
+
+        <div class="row">
+          <button type="button" class="primary" id="nextWordBtn">Next Word</button>
+          <button type="button" id="stepBackBtn">Step Back</button>
+          <button type="button" id="resetRefBtn">Reset to Start</button>
         </div>
       </div>
 
@@ -418,12 +516,6 @@
         <div class="hint-text">
           Tap the dark outer border to spin the Master Grid (+90° CW) • Tap any Q1–Q4 quadrant to spin that sub-grid (+90° CW)
         </div>
-      </div>
-
-      <div class="row" style="justify-content: center;">
-        <button type="button" class="primary" id="nextWordBtn">Next Word</button>
-        <button type="button" id="stepBackBtn">Step Back</button>
-        <button type="button" id="resetRefBtn">Reset to Start</button>
       </div>
     </div>
   </section>
@@ -587,7 +679,7 @@
       }
 
       if (events.length === 0) {
-        return { strippedText: cleanChars.join(""), yBlock: "" };
+        return { strippedText: cleanChars.join(""), yBlock: "", eventCount: 0 };
       }
 
       let prevIdx = 0;
@@ -602,7 +694,8 @@
 
       return {
         strippedText: cleanChars.join(""),
-        yBlock: "Y" + payload + "Y"
+        yBlock: "Y" + payload + "Y",
+        eventCount: events.length
       };
     }
 
@@ -648,24 +741,25 @@
     }
 
     // =========================================================================
-    // 4. RGC36 ENCODE & DECODE PIPELINE (STRICT OUTSIDE-IN PEEL ORDER)
+    // 4. RGC36 ENCODE & DECODE PIPELINE (EXACT ORDER OF OPERATIONS)
     // =========================================================================
     function encodeRGC36(rawText, keyword, useYWrapper) {
       if (!rawText || !rawText.trim()) {
-        throw new Error("Enter text to encode.");
+        throw new Error("Enter plaintext to encode.");
       }
 
       const baseGrid = buildKeyedAlphabet(keyword);
       const initialMap = getInitialMap(baseGrid);
-      const debugLines = [];
 
-      // 1. Extract formatting log (Y...Y)
+      // Step 1: Extract formatting & punctuation log (Y...Y)
       let workingText = "";
       let yBlock = "";
+      let yEventCount = 0;
       if (useYWrapper) {
         const extracted = extractFormattingLog(rawText);
         workingText = extracted.strippedText;
         yBlock = extracted.yBlock;
+        yEventCount = extracted.eventCount;
       } else {
         workingText = rawText
           .toUpperCase()
@@ -678,24 +772,45 @@
         throw new Error("Input contains no encodable alphanumeric characters.");
       }
 
-      // 2. Wrap numbers in Z...Z
-      workingText = wrapNumbers(workingText);
+      // Step 2: Wrap digits in Z...Z
+      const zWrappedText = wrapNumbers(workingText);
 
-      // 3. Assemble words + optional Y...Y formatting word
-      const words = workingText.split(" ").filter(Boolean);
-      if (yBlock) {
-        words.push(yBlock);
+      // Step 3: Build word list + single-digit delimiters between words
+      const messageWords = zWrappedText.split(" ").filter(Boolean);
+      const streamTokens = [];
+      const delimiterList = [];
+
+      for (let wIdx = 0; wIdx < messageWords.length; wIdx++) {
+        for (const ch of messageWords[wIdx]) {
+          streamTokens.push({ ch, tag: "CHAR" });
+        }
+        // Add single-digit delimiter after every word (or between words when no Y-block follows)
+        if (wIdx < messageWords.length - 1 || yBlock) {
+          const delimChar = baseGrid[wIdx % 36];
+          const delimDigit = String(charToTAI(delimChar) % 10);
+          delimiterList.push(delimDigit);
+          streamTokens.push({ ch: delimDigit, tag: "DELIM" });
+        }
       }
 
-      let coreLength = 0;
-      for (const w of words) coreLength += w.length;
-      coreLength += words.length; // 1 delimiter digit after each word
+      // Step 4: Append self-delimited Y...Y formatting log (counts as 1 protected word)
+      if (yBlock) {
+        for (const ch of yBlock) {
+          streamTokens.push({ ch, tag: "Y-LOG" });
+        }
+        // Step word rotors once after Y...Y block before entering X...X padding
+        streamTokens.push({ ch: null, tag: "Y-BOUNDARY" });
+      }
 
-      const blockCount = Math.ceil((coreLength + 3) / 36);
+      // Count actual encodable characters so far
+      const coreCharCount = streamTokens.filter((t) => t.ch !== null).length;
+
+      // Step 5: Compute X...X padding length to reach (36 * N) - 1
+      // Minimum X...X wrapper is "XX" (length 2)
+      const blockCount = Math.ceil((coreCharCount + 3) / 36);
       const targetStreamLen = blockCount * 36 - 1;
-      const padTotalLen = targetStreamLen - coreLength;
+      const padTotalLen = targetStreamLen - coreCharCount;
 
-      // 4. Reverse Cell-36 X...X padding buffer (Cell 36 -> 35 -> 34 -> ...)
       const innerPadLen = padTotalLen - 2;
       let innerPad = "";
       for (let i = 0; i < innerPadLen; i++) {
@@ -703,21 +818,11 @@
       }
       const xBlock = "X" + innerPad + "X";
 
-      // 5. Build full token stream with single-digit delimiters
-      const streamTokens = [];
-      for (let wIdx = 0; wIdx < words.length; wIdx++) {
-        for (const ch of words[wIdx]) {
-          streamTokens.push({ ch, isDelimiter: false });
-        }
-        const delimChar = baseGrid[wIdx % 36];
-        const delimDigit = String(charToTAI(delimChar) % 10);
-        streamTokens.push({ ch: delimDigit, isDelimiter: true });
-      }
       for (const ch of xBlock) {
-        streamTokens.push({ ch, isDelimiter: false });
+        streamTokens.push({ ch, tag: "X-PAD" });
       }
 
-      // 6. Seed Master Grid from first stream character's TAI mod 4
+      // Step 6: Encrypt stream using 5-rotor mechanics
       const originModulo = mod4OneBased(charToTAI(streamTokens[0].ch));
       const originHintChar = HINT_LETTERS[originModulo - 1];
 
@@ -726,27 +831,31 @@
       const mapState = initialMap.slice();
       let wordIndex = 1;
 
-      debugLines.push(`KEYWORD GRID : ${baseGrid.join("")}`);
-      debugLines.push(`SEED MAP     : ${initialMap.join(" ")} | START GRID: ${originModulo} (Hint: ${originHintChar})`);
-      debugLines.push(`X-PAD (REV)  : ${xBlock} (${xBlock.length} chars)`);
-      debugLines.push("------------------------------------------------------------");
-
       const cipherChars = [];
+      const traceLines = [];
 
       for (let i = 0; i < streamTokens.length; i++) {
         const token = streamTokens[i];
+
+        if (token.tag === "Y-BOUNDARY") {
+          masterGrid = ((wordStartMaster - 2 + 4) % 4) + 1;
+          wordStartMaster = masterGrid;
+          const qToRotate = (wordIndex - 1) % 4;
+          mapState[qToRotate] = (mapState[qToRotate] % 4) + 1;
+          wordIndex++;
+          continue;
+        }
+
         const activeGrid = getActiveGrid(baseGrid, masterGrid, mapState);
         const tai = charToTAI(token.ch);
         const outChar = activeGrid[tai - 1];
         cipherChars.push(outChar);
 
-        if (i < 48) {
-          debugLines.push(
-            `[${String(i + 1).padStart(2, "0")}] W${wordIndex} | GRID:${masterGrid} MAP:${mapState.join("")} | '${token.ch}'(TAI ${String(tai).padStart(2, "0")}) -> '${outChar}'${token.isDelimiter ? " [DELIM]" : ""}`
-          );
-        }
+        traceLines.push(
+          `[${String(cipherChars.length).padStart(3, "0")}] W${String(wordIndex).padStart(2, "0")} | GRID:${masterGrid} MAP:[${mapState.join(" ")}] | '${token.ch}' (TAI ${String(tai).padStart(2, "0")}) -> '${outChar}'  [${token.tag}]`
+        );
 
-        if (token.isDelimiter) {
+        if (token.tag === "DELIM") {
           masterGrid = ((wordStartMaster - 2 + 4) % 4) + 1;
           wordStartMaster = masterGrid;
 
@@ -759,32 +868,53 @@
       }
 
       cipherChars.push(originHintChar);
+      const fullPreparedStream = streamTokens.filter((t) => t.ch !== null).map((t) => t.ch).join("");
+
       return {
         ciphertext: cipherChars.join(""),
-        debug: debugLines.join("\n")
+        debugData: {
+          seed:
+            `Keyword Applied  : ${keyword.trim() ? keyword.trim().toUpperCase() : "(None — Standard TAI)"}\n` +
+            `Keyed Alphabet   : ${baseGrid.join("")}\n` +
+            `Initial Sub-Grid : MAP [${initialMap.join(" ")}] (from Cells 1–4: ${baseGrid.slice(0, 4).join(", ")})\n` +
+            `Starting Master  : GRID ${originModulo} (from '${streamTokens[0].ch}' TAI ${charToTAI(streamTokens[0].ch)} mod 4)\n` +
+            `Trailing Hint    : '${originHintChar}' (appended at index ${cipherChars.length})`,
+          stages:
+            `[1] Stripped Upper   : ${workingText}\n` +
+            `[2] Z-Wrapped Numbers: ${zWrappedText}\n` +
+            `[3] Word Delimiters  : ${delimiterList.length ? delimiterList.join(", ") : "(Single word)"}\n` +
+            `[4] Y-Formatting Log : ${yBlock || "(Disabled / No formatting events)"} (${yEventCount} events)\n` +
+            `[5] X-Padding (Rev36): ${xBlock} (${xBlock.length} chars; ${blockCount} block${blockCount === 1 ? "" : "s"} = ${cipherChars.length} total chars)\n` +
+            `[6] Full Input Stream: ${fullPreparedStream}`,
+          trace: traceLines.join("\n")
+        }
       };
     }
 
-    // Peel trailing X...X reverse Cell-36 buffer from decoded stream
+    // Peel X...X reverse Cell-36 buffer strictly from the end of the decoded stream
     function peelTrailingXBuffer(stream, baseGrid) {
       if (stream.length < 2 || stream[stream.length - 1] !== "X") {
         throw new Error("Could not verify trailing X...X padding buffer. Check keyword or ciphertext.");
       }
 
-      // Walk backward from stream[stream.length - 2] checking reverse Cell-36 sequence
-      // until hitting the opening 'X' preceded by a delimiter digit
+      // Max possible X...X block length in a 36-char block system is 36 chars (X + up to 34 inner + X)
+      const maxXLen = Math.min(stream.length, 36);
       let innerIdx = 0;
-      for (let pos = stream.length - 2; pos >= 1; pos--) {
+
+      for (let pos = stream.length - 2; pos >= stream.length - maxXLen; pos--) {
         const ch = stream[pos];
-        const prevCh = stream[pos - 1];
         const expectedPadChar = baseGrid[35 - (innerIdx % 36)];
 
-        if (ch === "X" && /[0-9]/.test(prevCh)) {
-          // Verify whether this 'X' is the opening wrapper or part of a >=24-char inner pad
-          // If prevCh is a digit and pos-1 is the delimiter before X...X, check if continuing
-          // could still match reverse Cell-36; if not (or if prevCh is the delimiter), we found xStart
-          if (ch !== expectedPadChar || pos < 2 || stream[pos - 2] !== baseGrid[35 - ((innerIdx + 1) % 36)]) {
-            return stream.slice(0, pos);
+        if (ch === "X") {
+          // If 'X' also happens to be the expected reverse Cell-36 char (e.g. innerIdx === 12 on standard TAI),
+          // check if the character immediately before it continues the reverse Cell-36 sequence
+          const prevCh = pos > 0 ? stream[pos - 1] : "";
+          const nextExpected = baseGrid[35 - ((innerIdx + 1) % 36)];
+          if (ch !== expectedPadChar || prevCh !== nextExpected) {
+            return {
+              trimmedStream: stream.slice(0, pos),
+              xBlock: stream.slice(pos)
+            };
           }
         }
 
@@ -812,25 +942,20 @@
       const payloadStream = cleaned.slice(0, -1);
       const baseGrid = buildKeyedAlphabet(keyword);
       const initialMap = getInitialMap(baseGrid);
-      const debugLines = [];
 
       let masterGrid = originModulo;
       let wordStartMaster = originModulo;
       const mapState = initialMap.slice();
       let wordIndex = 1;
 
-      // Track protected Z<digits>Z and Y<payload>Y blocks during rotor stepping
       let inZDigits = false;
       let pendingZOpen = false;
       let inYBlock = false;
       let ySawPayload = false;
       let atWordStart = true;
 
-      debugLines.push(`KEYWORD GRID : ${baseGrid.join("")}`);
-      debugLines.push(`SEED MAP     : ${initialMap.join(" ")} | START GRID: ${originModulo} (Hint: ${originHintChar})`);
-      debugLines.push("------------------------------------------------------------");
-
       const decodedChars = [];
+      const traceLines = [];
 
       for (let i = 0; i < payloadStream.length; i++) {
         const cChar = payloadStream[i];
@@ -851,11 +976,9 @@
           /[0-9]/.test(pChar) &&
           pChar === expectedDelimDigit;
 
-        if (i < 48) {
-          debugLines.push(
-            `[${String(i + 1).padStart(2, "0")}] W${wordIndex} | GRID:${masterGrid} MAP:${mapState.join("")} | '${cChar}' -> '${pChar}'${isDelimiter ? " [DELIM]" : ""}`
-          );
-        }
+        traceLines.push(
+          `[${String(i + 1).padStart(3, "0")}] W${String(wordIndex).padStart(2, "0")} | GRID:${masterGrid} MAP:[${mapState.join(" ")}] | '${cChar}' -> '${pChar}' (TAI ${String(cellIndex + 1).padStart(2, "0")})${isDelimiter ? "  [DELIM]" : ""}`
+        );
 
         if (isDelimiter) {
           masterGrid = ((wordStartMaster - 2 + 4) % 4) + 1;
@@ -883,6 +1006,14 @@
           } else if (inYBlock) {
             if (pChar === "Y" && ySawPayload) {
               inYBlock = false;
+              // Closing 'Y' finishes the protected Y...Y formatting word
+              masterGrid = ((wordStartMaster - 2 + 4) % 4) + 1;
+              wordStartMaster = masterGrid;
+              const qToRotate = (wordIndex - 1) % 4;
+              mapState[qToRotate] = (mapState[qToRotate] % 4) + 1;
+              wordIndex++;
+              atWordStart = true;
+              continue;
             } else {
               ySawPayload = true;
             }
@@ -893,44 +1024,45 @@
         }
       }
 
+      const rawDecodedStream = decodedChars.join("");
+
       // =======================================================================
-      // ORDER OF OPERATIONS PEEL:
-      // 1. Remove X...X padding buffer (+ its preceding delimiter digit)
-      // 2. Extract Y...Y formatting log (+ its preceding delimiter digit)
-      // 3. Split remaining message body on word delimiters (excluding Z...Z)
-      // 4. Remove Z...Z number wrappers
+      // STRICT OUTSIDE-IN PEEL ORDER:
+      // 1. Remove X...X padding buffer first
+      // 2. Remove Y...Y formatting log (+ its preceding delimiter digit)
+      // 3. Remove word delimiters (excluding Z...Z)
+      // 4. Remove Z...Z wrappers
       // 5. Add back punctuation and formatting data
       // =======================================================================
-      let stream = decodedChars.join("");
+      const peelRes = peelTrailingXBuffer(rawDecodedStream, baseGrid);
+      let streamAfterX = peelRes.trimmedStream;
 
-      // Step 1: Remove X...X buffer and trailing delimiter digit
-      stream = peelTrailingXBuffer(stream, baseGrid);
-      if (/[0-9]/.test(stream[stream.length - 1])) {
-        stream = stream.slice(0, -1);
-      }
-
-      // Step 2: Extract Y...Y formatting log before delimiter parsing
       let yPayload = "";
-      if (useYWrapper && stream.endsWith("Y")) {
-        const yStart = stream.lastIndexOf("Y", stream.length - 2);
+      let yFullBlock = "(None)";
+      let streamAfterY = streamAfterX;
+
+      if (useYWrapper && streamAfterY.endsWith("Y")) {
+        const yStart = streamAfterY.lastIndexOf("Y", streamAfterY.length - 2);
         if (yStart !== -1) {
-          yPayload = stream.slice(yStart + 1, -1);
-          stream = stream.slice(0, yStart);
-          if (/[0-9]/.test(stream[stream.length - 1])) {
-            stream = stream.slice(0, -1);
+          yFullBlock = streamAfterY.slice(yStart);
+          yPayload = streamAfterY.slice(yStart + 1, -1);
+          streamAfterY = streamAfterY.slice(0, yStart);
+          // Strip the single delimiter digit separating the last message word from Y...Y
+          if (/[0-9]/.test(streamAfterY[streamAfterY.length - 1])) {
+            streamAfterY = streamAfterY.slice(0, -1);
           }
         }
       }
 
-      // Step 3: Split message words at expected delimiter digits (skipping Z<digits>Z)
+      // Split message words on expected delimiter digits (ignoring digits inside Z<digits>Z)
       const words = [];
       let currentWord = "";
       let wIdx = 0;
       let zDigitsOpen = false;
       let zCandidate = false;
 
-      for (let i = 0; i < stream.length; i++) {
-        const ch = stream[i];
+      for (let i = 0; i < streamAfterY.length; i++) {
+        const ch = streamAfterY[i];
         const expectedDelim = String(charToTAI(baseGrid[wIdx % 36]) % 10);
 
         if (!zDigitsOpen && currentWord.length > 0 && ch === expectedDelim) {
@@ -952,19 +1084,31 @@
       }
       if (currentWord) words.push(currentWord);
 
-      // Step 4: Remove Z...Z wrappers
-      let reconstructed = words.map(unwrapNumbers).join(" ");
+      // Remove Z...Z wrappers
+      const zUnwrappedText = words.map(unwrapNumbers).join(" ");
 
-      // Step 5: Restore punctuation & case formatting
-      if (useYWrapper) {
-        reconstructed = restoreFormatting(reconstructed, yPayload);
-      } else {
-        reconstructed = reconstructed.toLowerCase();
-      }
+      // Add back punctuation and formatting data
+      const reconstructed = useYWrapper
+        ? restoreFormatting(zUnwrappedText, yPayload)
+        : zUnwrappedText.toLowerCase();
 
       return {
         plaintext: reconstructed,
-        debug: debugLines.join("\n")
+        debugData: {
+          seed:
+            `Keyword Applied  : ${keyword.trim() ? keyword.trim().toUpperCase() : "(None — Standard TAI)"}\n` +
+            `Keyed Alphabet   : ${baseGrid.join("")}\n` +
+            `Initial Sub-Grid : MAP [${initialMap.join(" ")}]\n` +
+            `Trailing Hint    : '${originHintChar}' -> Starting Master GRID ${originModulo}`,
+          peel:
+            `[1] Raw Decoded Stream  : ${rawDecodedStream}\n` +
+            `[2] Peeled X-Pad Block  : ${peelRes.xBlock} (${peelRes.xBlock.length} chars verified)\n` +
+            `[3] Peeled Y-Log Block  : ${yFullBlock}\n` +
+            `[4] Delimiter-Split Body: ${words.join(" | ")}\n` +
+            `[5] Z-Unwrapped Text    : ${zUnwrappedText}\n` +
+            `[6] Final Restored Text : ${reconstructed}`,
+          trace: traceLines.join("\n")
+        }
       };
     }
 
@@ -1065,6 +1209,65 @@
       ctx.fillText(charText, x + cellSize / 2, y + cellSize / 2 + 8);
     }
 
+    function drawQuadrantBlock(margin, cellSize, qIdx, cells, rotationRad = 0, highlight = false) {
+      const qColors = ["#181d26", "#1c212b", "#1c212b", "#181d26"];
+      const { r0, c0 } = QUADRANT_OFFSETS[qIdx];
+      const qX = margin + c0 * cellSize;
+      const qY = margin + r0 * cellSize;
+      const qSize = cellSize * 3;
+      const qCenterX = qX + qSize / 2;
+      const qCenterY = qY + qSize / 2;
+
+      ctx.save();
+      if (rotationRad !== 0) {
+        ctx.translate(qCenterX, qCenterY);
+        ctx.rotate(rotationRad);
+        ctx.translate(-qCenterX, -qCenterY);
+      }
+
+      ctx.fillStyle = highlight ? "#232a38" : qColors[qIdx];
+      ctx.fillRect(qX, qY, qSize, qSize);
+
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 3; c++) {
+          const globalR = r0 + r;
+          const globalC = c0 + c;
+          const idx = globalR * 6 + globalC;
+          const x = margin + globalC * cellSize;
+          const y = margin + globalR * cellSize;
+          drawSingleCell(x, y, cellSize, idx + 1, cells[idx]);
+        }
+      }
+
+      if (highlight) {
+        ctx.strokeStyle = "#ebcb8b";
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(qX, qY, qSize, qSize);
+      }
+
+      ctx.restore();
+    }
+
+    function drawBoardFrame(margin, gridSize) {
+      ctx.strokeStyle = "#81a1c1";
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(margin, margin, gridSize, gridSize);
+
+      ctx.beginPath();
+      ctx.moveTo(margin + gridSize / 2, margin);
+      ctx.lineTo(margin + gridSize / 2, margin + gridSize);
+      ctx.moveTo(margin, margin + gridSize / 2);
+      ctx.lineTo(margin + gridSize, margin + gridSize / 2);
+      ctx.stroke();
+    }
+
+    function drawBoardContents(margin, gridSize, cellSize, cells) {
+      for (let q = 0; q < 4; q++) {
+        drawQuadrantBlock(margin, cellSize, q, cells, 0, false);
+      }
+      drawBoardFrame(margin, gridSize);
+    }
+
     function renderReferenceFrame(progress = 1) {
       const baseGrid = buildKeyedAlphabet(document.getElementById("keywordInput").value);
       const currentCells = getActiveGrid(baseGrid, refState.masterGrid, refState.mapState);
@@ -1131,65 +1334,6 @@
       }
     }
 
-    function drawQuadrantBlock(margin, cellSize, qIdx, cells, rotationRad = 0, highlight = false) {
-      const qColors = ["#181d26", "#1c212b", "#1c212b", "#181d26"];
-      const { r0, c0 } = QUADRANT_OFFSETS[qIdx];
-      const qX = margin + c0 * cellSize;
-      const qY = margin + r0 * cellSize;
-      const qSize = cellSize * 3;
-      const qCenterX = qX + qSize / 2;
-      const qCenterY = qY + qSize / 2;
-
-      ctx.save();
-      if (rotationRad !== 0) {
-        ctx.translate(qCenterX, qCenterY);
-        ctx.rotate(rotationRad);
-        ctx.translate(-qCenterX, -qCenterY);
-      }
-
-      ctx.fillStyle = highlight ? "#232a38" : qColors[qIdx];
-      ctx.fillRect(qX, qY, qSize, qSize);
-
-      for (let r = 0; r < 3; r++) {
-        for (let c = 0; c < 3; c++) {
-          const globalR = r0 + r;
-          const globalC = c0 + c;
-          const idx = globalR * 6 + globalC;
-          const x = margin + globalC * cellSize;
-          const y = margin + globalR * cellSize;
-          drawSingleCell(x, y, cellSize, idx + 1, cells[idx]);
-        }
-      }
-
-      if (highlight) {
-        ctx.strokeStyle = "#ebcb8b";
-        ctx.lineWidth = 2.5;
-        ctx.strokeRect(qX, qY, qSize, qSize);
-      }
-
-      ctx.restore();
-    }
-
-    function drawBoardFrame(margin, gridSize) {
-      ctx.strokeStyle = "#81a1c1";
-      ctx.lineWidth = 2.5;
-      ctx.strokeRect(margin, margin, gridSize, gridSize);
-
-      ctx.beginPath();
-      ctx.moveTo(margin + gridSize / 2, margin);
-      ctx.lineTo(margin + gridSize / 2, margin + gridSize);
-      ctx.moveTo(margin, margin + gridSize / 2);
-      ctx.lineTo(margin + gridSize, margin + gridSize / 2);
-      ctx.stroke();
-    }
-
-    function drawBoardContents(margin, gridSize, cellSize, cells) {
-      for (let q = 0; q < 4; q++) {
-        drawQuadrantBlock(margin, cellSize, q, cells, 0, false);
-      }
-      drawBoardFrame(margin, gridSize);
-    }
-
     canvas.addEventListener("click", (e) => {
       if (refState.anim) return;
 
@@ -1237,22 +1381,22 @@
     });
 
     // =========================================================================
-    // 6. MENU NAVIGATION & UI WIRING
+    // 6. MENU NAVIGATION & SEPARATE ENCODE / DECODE WIRING
     // =========================================================================
-    document.querySelectorAll(".nav-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll(".nav-btn").forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
-
-        const targetId = btn.dataset.view;
-        document.querySelectorAll(".view-section").forEach((sec) => {
-          sec.classList.toggle("active", sec.id === targetId);
-        });
-
-        if (targetId === "gridView") {
-          renderReferenceFrame(1);
-        }
+    function switchView(viewId) {
+      document.querySelectorAll(".nav-btn").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.view === viewId);
       });
+      document.querySelectorAll(".view-section").forEach((sec) => {
+        sec.classList.toggle("active", sec.id === viewId);
+      });
+      if (viewId === "gridView") {
+        renderReferenceFrame(1);
+      }
+    }
+
+    document.querySelectorAll(".nav-btn").forEach((btn) => {
+      btn.addEventListener("click", () => switchView(btn.dataset.view));
     });
 
     function formatOutputBlocks(str, useBlocks) {
@@ -1264,79 +1408,109 @@
       return chunks.join("\n");
     }
 
-    function setStatus(msg, isError = false) {
-      const el = document.getElementById("statusBar");
+    function setStatus(elementId, msg, isError = false) {
+      const el = document.getElementById(elementId);
       el.textContent = msg;
       el.classList.toggle("error", isError);
     }
 
     document.getElementById("encodeBtn").addEventListener("click", () => {
       try {
-        const text = document.getElementById("inputText").value;
+        const text = document.getElementById("encodeInput").value;
         const kw = document.getElementById("keywordInput").value;
         const useY = document.getElementById("yWrapperToggle").checked;
         const useBlocks = document.getElementById("groupBlockToggle").checked;
 
         const res = encodeRGC36(text, kw, useY);
-        document.getElementById("outputText").value = formatOutputBlocks(res.ciphertext, useBlocks);
-        document.getElementById("debugBox").textContent = res.debug;
-        setStatus(`Encoded successfully (${res.ciphertext.length} chars, ${res.ciphertext.length / 36} block${res.ciphertext.length === 36 ? "" : "s"}).`);
+        document.getElementById("encodeOutput").value = formatOutputBlocks(res.ciphertext, useBlocks);
+
+        document.getElementById("encDbgSeed").textContent = res.debugData.seed;
+        document.getElementById("encDbgStages").textContent = res.debugData.stages;
+        document.getElementById("encDbgTrace").textContent = res.debugData.trace;
+
+        setStatus(
+          "encodeStatus",
+          `Encoded successfully (${res.ciphertext.length} chars, ${res.ciphertext.length / 36} block${res.ciphertext.length === 36 ? "" : "s"}).`
+        );
       } catch (err) {
-        setStatus(err.message, true);
+        setStatus("encodeStatus", err.message, true);
       }
+    });
+
+    document.getElementById("sendToDecodeBtn").addEventListener("click", () => {
+      const cipher = document.getElementById("encodeOutput").value;
+      if (!cipher) return;
+      document.getElementById("decodeInput").value = cipher;
+      switchView("decodeView");
+      setStatus("decodeStatus", "Ciphertext loaded from Encode tab.");
+    });
+
+    document.getElementById("copyEncodeBtn").addEventListener("click", async () => {
+      const out = document.getElementById("encodeOutput").value;
+      if (!out) return;
+      await navigator.clipboard.writeText(out);
+      setStatus("encodeStatus", "Ciphertext copied to clipboard.");
+    });
+
+    document.getElementById("clearEncodeBtn").addEventListener("click", () => {
+      document.getElementById("encodeInput").value = "";
+      document.getElementById("encodeOutput").value = "";
+      document.getElementById("encDbgSeed").textContent = "";
+      document.getElementById("encDbgStages").textContent = "";
+      document.getElementById("encDbgTrace").textContent = "";
+      setStatus("encodeStatus", "");
     });
 
     document.getElementById("decodeBtn").addEventListener("click", () => {
       try {
-        const cipher = document.getElementById("inputText").value;
+        const cipher = document.getElementById("decodeInput").value;
         const kw = document.getElementById("keywordInput").value;
         const useY = document.getElementById("yWrapperToggle").checked;
 
         const res = decodeRGC36(cipher, kw, useY);
-        document.getElementById("outputText").value = res.plaintext;
-        document.getElementById("debugBox").textContent = res.debug;
-        setStatus("Decoded successfully.");
+        document.getElementById("decodeOutput").value = res.plaintext;
+
+        document.getElementById("decDbgSeed").textContent = res.debugData.seed;
+        document.getElementById("decDbgPeel").textContent = res.debugData.peel;
+        document.getElementById("decDbgTrace").textContent = res.debugData.trace;
+
+        setStatus("decodeStatus", "Decoded successfully.");
       } catch (err) {
-        setStatus(err.message, true);
+        setStatus("decodeStatus", err.message, true);
       }
     });
 
-    document.getElementById("swapBtn").addEventListener("click", () => {
-      const out = document.getElementById("outputText").value;
-      if (!out) return;
-      document.getElementById("inputText").value = out;
-      document.getElementById("outputText").value = "";
-      setStatus("Moved output to input.");
+    document.getElementById("sendToEncodeBtn").addEventListener("click", () => {
+      const plain = document.getElementById("decodeOutput").value;
+      if (!plain) return;
+      document.getElementById("encodeInput").value = plain;
+      switchView("encodeView");
+      setStatus("encodeStatus", "Plaintext loaded from Decode tab.");
     });
 
-    document.getElementById("copyBtn").addEventListener("click", async () => {
-      const out = document.getElementById("outputText").value;
+    document.getElementById("copyDecodeBtn").addEventListener("click", async () => {
+      const out = document.getElementById("decodeOutput").value;
       if (!out) return;
       await navigator.clipboard.writeText(out);
-      setStatus("Copied output to clipboard.");
+      setStatus("decodeStatus", "Plaintext copied to clipboard.");
     });
 
-    document.getElementById("clearBtn").addEventListener("click", () => {
-      document.getElementById("inputText").value = "";
-      document.getElementById("outputText").value = "";
-      document.getElementById("debugBox").textContent = "";
-      setStatus("");
+    document.getElementById("clearDecodeBtn").addEventListener("click", () => {
+      document.getElementById("decodeInput").value = "";
+      document.getElementById("decodeOutput").value = "";
+      document.getElementById("decDbgSeed").textContent = "";
+      document.getElementById("decDbgPeel").textContent = "";
+      document.getElementById("decDbgTrace").textContent = "";
+      setStatus("decodeStatus", "");
     });
 
     document.getElementById("debugToggle").addEventListener("change", (e) => {
-      document.getElementById("debugBox").classList.toggle("visible", e.target.checked);
+      const show = e.target.checked;
+      document.getElementById("encodeDebugPanel").classList.toggle("visible", show);
+      document.getElementById("decodeDebugPanel").classList.toggle("visible", show);
     });
 
-    const mainKwInput = document.getElementById("keywordInput");
-    const refKwMirror = document.getElementById("refKeywordMirror");
-
-    mainKwInput.addEventListener("input", () => {
-      refKwMirror.value = mainKwInput.value;
-      syncReferenceToKeyword(true);
-    });
-
-    refKwMirror.addEventListener("input", () => {
-      mainKwInput.value = refKwMirror.value;
+    document.getElementById("keywordInput").addEventListener("input", () => {
       syncReferenceToKeyword(true);
     });
 
@@ -1352,7 +1526,7 @@
     document.getElementById("nextWordBtn").addEventListener("click", () => {
       if (refState.anim) return;
 
-      const baseGrid = buildKeyedAlphabet(mainKwInput.value);
+      const baseGrid = buildKeyedAlphabet(document.getElementById("keywordInput").value);
       const fromCells = getActiveGrid(baseGrid, refState.masterGrid, refState.mapState);
 
       snapshotRefState();
