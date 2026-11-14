@@ -751,12 +751,12 @@
         </div>
     </div>
 
-    <!-- Main Application & ZXing-WASM Barcode Detector -->
+    <!-- Main Application & Off-Thread Web Worker Barcode Detector -->
     <script type="module">
         import { BarcodeDetector } from "https://fastly.jsdelivr.net/npm/barcode-detector@3/dist/es/ponyfill.min.js";
 
         // ==========================================
-        // 1. PS2 REACTIVE ORB ENGINE (DELTA-TIME SMOOTHED)
+        // 1. PS2 REACTIVE ORB ENGINE (60-120FPS LOCKED)
         // ==========================================
         const canvas = document.getElementById('ps2Canvas');
         const ctx = canvas.getContext('2d');
@@ -920,7 +920,6 @@
         }
 
         function draw(now) {
-            // Normalize delta-time against a 60fps baseline (16.67ms), capped to prevent jumps
             const dt = Math.min(2.5, (now - lastFrameTime) / 16.667);
             lastFrameTime = now;
 
@@ -1046,12 +1045,75 @@
         }, true);
 
         // ==========================================
-        // 2. QUIET-ZONE PRE-PROCESSOR (FOR EDGE-TO-EDGE 1D)
+        // 2. BACKGROUND WEB WORKER BARCODE ENGINE
         // ==========================================
-        const prepCanvas = document.createElement('canvas');
-        const prepCtx = prepCanvas.getContext('2d', { willReadFrequently: false });
+        const fallbackDetector = new BarcodeDetector();
+        let scanWorker = null;
+        let workerBusy = false;
 
-        function createPaddedFrame(source, pad = 44, cropRect = null) {
+        function initBarcodeWorker() {
+            const workerCode = `
+                import { BarcodeDetector } from "https://fastly.jsdelivr.net/npm/barcode-detector@3/dist/es/ponyfill.min.js";
+                const detector = new BarcodeDetector();
+                let canvas = null;
+                let ctx = null;
+
+                self.onmessage = async (e) => {
+                    const { bitmap, pad } = e.data;
+                    try {
+                        const w = bitmap.width + pad * 2;
+                        const h = bitmap.height + pad * 2;
+                        if (!canvas && typeof OffscreenCanvas !== 'undefined') {
+                            canvas = new OffscreenCanvas(w, h);
+                            ctx = canvas.getContext('2d');
+                        }
+                        let target = bitmap;
+                        if (canvas && ctx) {
+                            if (canvas.width !== w) canvas.width = w;
+                            if (canvas.height !== h) canvas.height = h;
+                            ctx.fillStyle = '#ffffff';
+                            ctx.fillRect(0, 0, w, h);
+                            ctx.drawImage(bitmap, pad, pad);
+                            target = canvas;
+                        }
+                        const hits = await detector.detect(target);
+                        bitmap.close();
+                        self.postMessage({
+                            hits: hits.map(b => ({ format: b.format, rawValue: b.rawValue }))
+                        });
+                    } catch (err) {
+                        if (bitmap && bitmap.close) bitmap.close();
+                        self.postMessage({ hits: [] });
+                    }
+                };
+            `;
+            try {
+                const blob = new Blob([workerCode], { type: 'application/javascript' });
+                const workerUrl = URL.createObjectURL(blob);
+                scanWorker = new Worker(workerUrl, { type: 'module' });
+                scanWorker.onmessage = (e) => {
+                    workerBusy = false;
+                    const hits = e.data.hits || [];
+                    if (hits.length > 0 && scanning) {
+                        handleDetectedHits(hits);
+                    }
+                };
+                scanWorker.onerror = () => {
+                    scanWorker = null;
+                    workerBusy = false;
+                };
+            } catch (err) {
+                scanWorker = null;
+            }
+        }
+
+        initBarcodeWorker();
+
+        // Main-thread fallback helper (used only for static image uploads or if Worker blocked)
+        const prepCanvas = document.createElement('canvas');
+        const prepCtx = prepCanvas.getContext('2d');
+
+        function createPaddedFrame(source, pad = 48, cropRect = null) {
             const sx = cropRect ? cropRect.x : 0;
             const sy = cropRect ? cropRect.y : 0;
             const sw = cropRect ? cropRect.w : (source.videoWidth || source.naturalWidth || source.width);
@@ -1445,9 +1507,8 @@
         }
 
         // ==========================================
-        // 6. THROTTLED SCANNER, BATCH CAPTURE & LIGHTBOX
+        // 6. FULL-FPS CAMERA & ZERO-STUTTER WORKER SCANNER
         // ==========================================
-        const detector = new BarcodeDetector();
         const video = document.getElementById('cameraFeed');
         const toggleCamBtn = document.getElementById('toggleCamBtn');
         const torchBtn = document.getElementById('torchBtn');
@@ -1470,7 +1531,6 @@
         let batchItems = [];
         let selectedItemId = null;
         let activeCloneMeta = null;
-        let scanTickCount = 0;
 
         document.querySelectorAll('#scanModeSwitch .seg-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -1483,17 +1543,18 @@
 
         async function startCamera() {
             try {
-                // 720p keeps CPU/GPU transfer light so the 60fps canvas stays silky smooth
+                // Full native camera FPS with crisp 1080p ideal resolution
                 stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+                    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
                     audio: false
                 });
                 video.srcObject = stream;
                 await video.play();
                 scanning = true;
+                workerBusy = false;
                 toggleCamBtn.textContent = 'Stop Camera';
                 checkTorchSupport();
-                scheduleNextScan();
+                scheduleNextWorkerFrame();
             } catch (err) {
                 resultCard.style.display = 'block';
                 formatBadge.textContent = 'CAMERA ERROR';
@@ -1504,6 +1565,7 @@
 
         function stopCamera() {
             scanning = false;
+            workerBusy = false;
             if (scanTimer) {
                 clearTimeout(scanTimer);
                 scanTimer = null;
@@ -1549,46 +1611,54 @@
             else startCamera();
         });
 
-        // Throttled ~9 Hz scanner loop so main-thread orb animation never stutters
-        function scheduleNextScan() {
-            if (!scanning) return;
-            scanTimer = setTimeout(runSingleScanPass, 110);
+        function handleDetectedHits(barcodes) {
+            if (scanMode === 'single') {
+                const hit = barcodes[0];
+                const key = `${hit.format}::${hit.rawValue}`;
+                if (selectedItemId !== key) {
+                    ingestScannedItems([hit], false);
+                }
+            } else {
+                ingestScannedItems(barcodes, true);
+            }
         }
 
-        async function runSingleScanPass() {
+        function scheduleNextWorkerFrame() {
             if (!scanning) return;
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                try {
-                    scanTickCount++;
-                    let barcodes = await detector.detect(video);
+            scanTimer = setTimeout(dispatchFrameToWorker, 90);
+        }
 
-                    // Every 3rd scan tick, run a padded center-band crop pass for edge-to-edge 1D case barcodes
-                    if (barcodes.length === 0 && scanTickCount % 3 === 0) {
-                        const vw = video.videoWidth;
-                        const vh = video.videoHeight;
-                        const paddedCrop = createPaddedFrame(video, 40, {
-                            x: 0,
-                            y: Math.floor(vh * 0.24),
-                            w: vw,
-                            h: Math.floor(vh * 0.52)
-                        });
-                        barcodes = await detector.detect(paddedCrop);
-                    }
+        async function dispatchFrameToWorker() {
+            if (!scanning) return;
 
-                    if (barcodes.length > 0) {
-                        if (scanMode === 'single') {
-                            const hit = barcodes[0];
-                            const key = `${hit.format}::${hit.rawValue}`;
-                            if (selectedItemId !== key) {
-                                ingestScannedItems([hit], false);
-                            }
-                        } else {
-                            ingestScannedItems(barcodes, true);
-                        }
+            if (video.readyState === video.HAVE_ENOUGH_DATA && !workerBusy) {
+                const vw = video.videoWidth;
+                const vh = video.videoHeight;
+
+                if (vw > 0 && vh > 0 && scanWorker && typeof createImageBitmap === 'function') {
+                    try {
+                        workerBusy = true;
+                        // Crop just the center reticle band (zero-copy GPU ImageBitmap transfer)
+                        const cropX = Math.floor(vw * 0.06);
+                        const cropY = Math.floor(vh * 0.22);
+                        const cropW = Math.floor(vw * 0.88);
+                        const cropH = Math.floor(vh * 0.56);
+
+                        const bitmap = await createImageBitmap(video, cropX, cropY, cropW, cropH);
+                        scanWorker.postMessage({ bitmap, pad: 44 }, [bitmap]);
+                    } catch (e) {
+                        workerBusy = false;
                     }
-                } catch (e) {}
+                } else if (!scanWorker) {
+                    // Fallback only if browser blocks module Workers
+                    try {
+                        const hits = await fallbackDetector.detect(video);
+                        if (hits.length > 0) handleDetectedHits(hits);
+                    } catch (e) {}
+                }
             }
-            scheduleNextScan();
+
+            scheduleNextWorkerFrame();
         }
 
         // Static Image Upload Scanner with Quiet-Zone Padding
@@ -1599,11 +1669,11 @@
             img.src = URL.createObjectURL(file);
             await img.decode();
 
-            let barcodes = await detector.detect(img);
+            let barcodes = await fallbackDetector.detect(img);
 
             if (barcodes.length === 0) {
                 const paddedImg = createPaddedFrame(img, 56);
-                barcodes = await detector.detect(paddedImg);
+                barcodes = await fallbackDetector.detect(paddedImg);
             }
 
             if (barcodes.length > 0) {
