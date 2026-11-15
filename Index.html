@@ -1,427 +1,275 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Juliet // System Utilities</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            -webkit-user-select: none;
-            user-select: none;
-            font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-        }
-        body, html {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background: #000000;
-            color: #f1f5f9;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JULIET CANVAS</title>
+  <style>
+    /* Dark, film-grain style background */
+    body {
+      background-color: #0d0d0d;
+      color: #ffb834; /* Industrial cyber amber */
+      font-family: "Impact", "Arial Narrow", Arial, sans-serif;
+      margin: 0;
+      padding: 2vw;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
 
-        canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-            pointer-events: none;
-        }
+    /* Screen container simulating CRT/LED framing */
+    .screen {
+      position: relative;
+      width: 100%;
+      max-width: 900px;
+      aspect-ratio: 4 / 3;
+      border: 1px solid #ffb834;
+      padding: 30px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: inset 0 0 20px rgba(255, 184, 52, 0.15), 0 0 20px rgba(255, 184, 52, 0.05);
+    }
 
-        .ui-layer {
-            position: relative;
-            z-index: 2;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: space-between;
-            padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
-            overflow-y: auto;
-        }
+    /* Outer framing L-shaped Crop Marks */
+    .screen::before, .screen::after {
+      content: "";
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border: 1px solid #ffb834;
+      pointer-events: none;
+    }
+    .screen::before { top: -5px; left: -5px; border-right: none; border-bottom: none; }
+    .screen::after { bottom: -5px; right: -5px; border-left: none; border-top: none; }
 
-        .sys-header {
-            width: 100%;
-            max-width: 520px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding-bottom: 12px;
-            border-bottom: 1px solid rgba(0, 162, 255, 0.25);
-        }
+    /* Fine Inner Border */
+    .inner-border {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      right: 8px;
+      bottom: 8px;
+      border: 1px solid rgba(255, 184, 52, 0.2);
+      pointer-events: none;
+    }
 
-        .sys-title {
-            font-size: 1.05rem;
-            font-weight: 600;
-            letter-spacing: 0.14em;
-            text-transform: uppercase;
-            color: #e0f2fe;
-            text-shadow: 0 0 12px rgba(0, 162, 255, 0.7);
-        }
+    /* Utility Framing Texts */
+    .metadata {
+      font-family: monospace;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      opacity: 0.8;
+      letter-spacing: 1px;
+    }
+    .meta-top { display: flex; justify-content: space-between; margin-bottom: 25px; }
+    .meta-bottom { display: flex; justify-content: space-between; margin-top: auto; padding-top: 25px; }
 
-        .sys-status {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.72rem;
-            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-            letter-spacing: 0.06em;
-            color: #7dd3fc;
-            background: rgba(0, 162, 255, 0.12);
-            border: 1px solid rgba(0, 162, 255, 0.3);
-            padding: 4px 10px;
-            border-radius: 99px;
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-        }
+    /* Header Section */
+    .header-area {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 1px solid #ffb834;
+      padding-bottom: 15px;
+      margin-bottom: 35px;
+    }
 
-        .status-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: #38bdf8;
-            box-shadow: 0 0 8px #38bdf8;
-        }
+    h1 {
+      margin: 0;
+      font-size: 3rem;
+      font-weight: 900;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      line-height: 1;
+    }
 
-        .status-dot.ready {
-            background: #10b981;
-            box-shadow: 0 0 8px #10b981;
-        }
+    /* Rotating Orb Loader Container */
+    .orb-canvas-container {
+      width: 50px;
+      height: 50px;
+    }
 
-        .menu-container {
-            width: 100%;
-            max-width: 520px;
-            margin: auto 0;
-            padding: 20px 0;
-        }
+    /* Menu Area */
+    .menu-container {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
 
-        .menu-label {
-            font-size: 0.72rem;
-            text-transform: uppercase;
-            letter-spacing: 0.16em;
-            color: rgba(125, 211, 252, 0.75);
-            margin-bottom: 12px;
-            padding-left: 4px;
-        }
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
 
-        .menu-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
+    li {
+      margin-bottom: 14px;
+    }
 
-        .menu-card {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            text-decoration: none;
-            color: #f8fafc;
-            background: rgba(6, 16, 30, 0.58);
-            border: 1px solid rgba(0, 162, 255, 0.28);
-            border-radius: 16px;
-            padding: 16px 18px;
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
-            transition: transform 0.15s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
-        }
+    /* Clickable interactive anchors */
+    a {
+      display: inline-block;
+      color: #ffb834;
+      text-decoration: none;
+      font-size: 2.2rem;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      padding: 2px 14px;
+      transition: background-color 0.1s, color 0.1s;
+    }
 
-        .menu-card:hover,
-        .menu-card:active {
-            transform: translateX(4px) scale(0.995);
-            background: rgba(0, 162, 255, 0.16);
-            border-color: rgba(56, 189, 248, 0.75);
-            box-shadow: 0 0 22px rgba(0, 162, 255, 0.35);
-        }
+    /* Active styling matches original dark highlight box */
+    a:hover {
+      background-color: #ffb834;
+      color: #0d0d0d;
+    }
 
-        .card-left {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-
-        .card-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 11px;
-            background: rgba(0, 162, 255, 0.15);
-            border: 1px solid rgba(0, 162, 255, 0.35);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.05rem;
-            font-weight: 700;
-            color: #38bdf8;
-            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-            flex-shrink: 0;
-        }
-
-        .card-info {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-        }
-
-        .card-title {
-            font-size: 1rem;
-            font-weight: 600;
-            letter-spacing: 0.01em;
-            color: #f1f5f9;
-        }
-
-        .card-desc {
-            font-size: 0.78rem;
-            color: #94a3b8;
-        }
-
-        .card-arrow {
-            font-size: 1.1rem;
-            color: #38bdf8;
-            opacity: 0.8;
-            padding-left: 10px;
-        }
-
-        .sys-footer {
-            width: 100%;
-            max-width: 520px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.72rem;
-            color: rgba(148, 163, 184, 0.7);
-            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-            padding-top: 10px;
-        }
-    </style>
+    #status {
+      font-size: 1.5rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+  </style>
 </head>
 <body>
 
-    <canvas id="ps2Canvas"></canvas>
-
-    <div class="ui-layer">
-        <header class="sys-header">
-            <div class="sys-title">JULIET // OS</div>
-            <div class="sys-status">
-                <span class="status-dot" id="swDot"></span>
-                <span id="swText">READY</span>
-            </div>
-        </header>
-
-        <main class="menu-container">
-            <div class="menu-label">Browser Utilities</div>
-            <div class="menu-grid">
-                <a class="menu-card" href="BarcodeGenerator.html">
-                    <div class="card-left">
-                        <div class="card-icon">BAR</div>
-                        <div class="card-info">
-                            <div class="card-title">Barcode Generator</div>
-                            <div class="card-desc">Code 128 &amp; Code 39 scannable barcode utility</div>
-                        </div>
-                    </div>
-                    <div class="card-arrow">&#8250;</div>
-                </a>
-
-                <a class="menu-card" href="encoder.html">
-                    <div class="card-left">
-                        <div class="card-icon">ENC</div>
-                        <div class="card-info">
-                            <div class="card-title">Vault Encoder</div>
-                            <div class="card-desc">AES-256-GCM local file encryption &amp; decryption</div>
-                        </div>
-                    </div>
-                    <div class="card-arrow">&#8250;</div>
-                </a>
-
-                <a class="menu-card" href="TallyCounter.html">
-                    <div class="card-left">
-                        <div class="card-icon">CNT</div>
-                        <div class="card-info">
-                            <div class="card-title">Tally Counter</div>
-                            <div class="card-desc">Multi-register counter &amp; quantity tracker</div>
-                        </div>
-                    </div>
-                    <div class="card-arrow">&#8250;</div>
-                </a>
-            </div>
-        </main>
-
-        <footer class="sys-footer">
-            <span id="clockDisplay">00:00:00</span>
-            <span>LOCAL CACHE ENABLED</span>
-        </footer>
+  <div class="screen">
+    <div class="inner-border"></div>
+    
+    <!-- Top Meta Details -->
+    <div class="meta-top metadata">
+      <span>REV. 0.42</span>
+      <span>SYS.RDY</span>
     </div>
 
-    <script>
-        window.addEventListener('DOMContentLoaded', () => {
-            // Live Clock
-            function updateClock() {
-                const now = new Date();
-                document.getElementById('clockDisplay').textContent = now.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                });
-            }
-            setInterval(updateClock, 1000);
-            updateClock();
+    <!-- Header & Flat Rotating Orbs Animation -->
+    <div class="header-area">
+      <h1>JULIET CANVAS</h1>
+      <div class="orb-canvas-container">
+        <canvas id="orbCanvas" width="100" height="100" style="width: 50px; height: 50px;"></canvas>
+      </div>
+    </div>
 
-            // PS2 OS Orb Ring Chronometer Canvas
-            const canvas = document.getElementById('ps2Canvas');
-            const ctx = canvas.getContext('2d');
+    <!-- Live Menu Loaded From GitHub -->
+    <div class="menu-container">
+      <div id="status">INITIALIZING REPOSITORY FETCH...</div>
+      <ul id="menu-list"></ul>
+    </div>
 
-            const config = {
-                ringSpeedFactor: 4.0,
-                orbPulseFactor: 1.0,
-                axisSpeedFactor: 5.0,
-                tiltAngle: 0.7,
-                color: '#00a2ff',
-                cloudOpacity: 0.3,
-                ringRadius: 200,
-                depthPerspective: 350
-            };
+    <!-- Bottom Meta Details -->
+    <div class="meta-bottom metadata">
+      <span>REV. 0.42</span>
+      <span>SYS.RDY</span>
+    </div>
+  </div>
 
-            const orbs = [];
-            const numOrbs = 7;
-            let cloudParticles = [];
-            const PS2_SPEEDS = [2.0, 1.9, 1.8, 1.7, 1.6, 1.5, 1.4];
+  <script>
+    // --- GITHUB CONFIGURATION ---
+    const GITHUB_USERNAME = "YOUR_USERNAME";
+    const REPO_NAME = "YOUR_REPO";
+    const FOLDER_PATH = ""; // Leave as "" for root, or "folder-name" if scripts are in a subfolder
+    // ----------------------------
 
-            function initCloud() {
-                cloudParticles = [];
-                for (let i = 0; i < 50; i++) {
-                    cloudParticles.push({
-                        x: Math.random() * canvas.width,
-                        y: Math.random() * canvas.height,
-                        vx: (Math.random() - 0.5) * 0.3,
-                        vy: (Math.random() - 0.5) * 0.3,
-                        radius: Math.random() * 2 + 0.5
-                    });
-                }
-            }
+    const apiUrl = `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${FOLDER_PATH}`;
+    const menuList = document.getElementById("menu-list");
+    const statusEl = document.getElementById("status");
 
-            function resizeCanvas() {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-                config.ringRadius = Math.min(canvas.width, canvas.height) * 0.28;
-                config.depthPerspective = config.ringRadius * 1.8;
-                initCloud();
-            }
+    // Transforms filename patterns like "03-grid-animation.html" to "GRID ANIMATION"
+    function formatScriptName(filename) {
+      return filename
+        .replace(/\.html$/i, "")
+        .replace(/^\d+[-_]/, "") // Strip prefix ordering numbers if any
+        .replace(/[-_]+/g, " ")
+        .toUpperCase();
+    }
 
-            for (let i = 0; i < numOrbs; i++) {
-                orbs.push({
-                    baseAngle: (i / numOrbs) * Math.PI * 2,
-                    currentAngleOffset: 0,
-                    speedMultiplier: PS2_SPEEDS[i],
-                    pulsePhase: Math.random() * Math.PI * 2
-                });
-            }
+    // Canvas rotation loop for the top-right loading indicator
+    function startOrbAnimation() {
+      const canvas = document.getElementById("orbCanvas");
+      const ctx = canvas.getContext("2d");
+      const numOrbs = 8;
+      const radius = 35; // Orbit ring size
+      const orbRadius = 6; // Orb size
+      let angleOffset = 0;
 
-            function project3D(x, y, z, centerX, centerY) {
-                const tiltCos = Math.cos(config.tiltAngle);
-                const tiltSin = Math.sin(config.tiltAngle);
-                const tiltedY = y * tiltCos - z * tiltSin;
-                const tiltedZ = y * tiltSin + z * tiltCos;
-                const scale = config.depthPerspective / (config.depthPerspective + tiltedZ);
-                return {
-                    screenX: x * scale + centerX,
-                    screenY: tiltedY * scale + centerY,
-                    scale: scale,
-                    zDepth: tiltedZ
-                };
-            }
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Find center of canvas
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
 
-            function draw() {
-                ctx.fillStyle = `rgba(0, 0, 0, ${1 - config.cloudOpacity})`;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+        for (let i = 0; i < numOrbs; i++) {
+          // Calculate even angular spacing + rotation animation offset
+          const angle = (i * (Math.PI * 2) / numOrbs) + angleOffset;
+          const x = cx + Math.cos(angle) * radius;
+          const y = cy + Math.sin(angle) * radius;
 
-                const centerX = canvas.width / 2;
-                const centerY = canvas.height / 2;
+          // Introduce a trail fade/pulse: older/preceding orbs are dimmer
+          // Create gradient-like alpha to make the clockwise motion clear
+          const alpha = 0.2 + (i / numOrbs) * 0.8;
 
-                ctx.fillStyle = 'rgba(0, 162, 255, 0.2)';
-                for (let i = 0; i < cloudParticles.length; i++) {
-                    const p = cloudParticles[i];
-                    p.x += p.vx;
-                    p.y += p.vy;
-                    if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
-                    if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                    ctx.fill();
-                }
+          ctx.beginPath();
+          ctx.arc(x, y, orbRadius, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, 184, 52, ${alpha})`;
+          ctx.fill();
+        }
 
-                const projectedOrbs = orbs.map(orb => {
-                    orb.currentAngleOffset += 0.005 * config.ringSpeedFactor * orb.speedMultiplier;
-                    const totalAngle = orb.baseAngle + orb.currentAngleOffset;
-                    const startX = config.ringRadius * Math.cos(totalAngle);
-                    const startY = config.ringRadius * Math.sin(totalAngle);
-                    const projection = project3D(startX, startY, 0, centerX, centerY);
-                    projection.orbConfig = orb;
-                    return projection;
-                });
+        // Control CW (clockwise) rotation speed here
+        angleOffset += 0.035;
+        requestAnimationFrame(draw);
+      }
+      draw();
+    }
 
-                config.tiltAngle += 0.002 * config.axisSpeedFactor;
-                projectedOrbs.sort((a, b) => b.zDepth - a.zDepth);
+    async function buildMenu() {
+      try {
+        const response = await fetch(apiUrl);
+        if (!response.ok) throw new Error(`Fetch error: ${response.status}`);
 
-                for (let i = 0; i < projectedOrbs.length; i++) {
-                    const proj = projectedOrbs[i];
-                    const orb = proj.orbConfig;
-                    orb.pulsePhase += 0.05 * config.orbPulseFactor;
-                    const pulse = (Math.sin(orb.pulsePhase) + 1) / 2;
+        const files = await response.json();
 
-                    const radius = 8 * proj.scale * (1 + pulse * 0.3);
-                    const depthAlpha = Math.max(0.1, Math.min(0.9, config.depthPerspective / (config.depthPerspective + proj.zDepth)));
+        // Target .html files, ignoring the menu directory file
+        const htmlScripts = files.filter(item => 
+          item.type === "file" &&
+          item.name.toLowerCase().endsWith(".html") &&
+          item.name.toLowerCase() !== "index.html"
+        );
 
-                    ctx.shadowBlur = 25 * proj.scale;
-                    ctx.shadowColor = `rgba(0, 162, 255, ${0.8 * depthAlpha})`;
+        if (htmlScripts.length === 0) {
+          statusEl.textContent = "NO UTILITIES FOUND IN REPOSITORY";
+          return;
+        }
 
-                    const gradient = ctx.createRadialGradient(
-                        proj.screenX, proj.screenY, 0,
-                        proj.screenX, proj.screenY, radius
-                    );
-                    gradient.addColorStop(0, `rgba(255, 255, 255, ${0.9 * depthAlpha})`);
-                    gradient.addColorStop(0.2, `rgba(255, 255, 255, ${0.7 * depthAlpha})`);
-                    gradient.addColorStop(0.6, `rgba(0, 162, 255, ${0.5 * depthAlpha})`);
-                    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        statusEl.style.display = "none";
 
-                    ctx.fillStyle = gradient;
-                    ctx.beginPath();
-                    ctx.arc(proj.screenX, proj.screenY, radius * 1.5, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.shadowBlur = 0;
-                    ctx.fillStyle = `rgba(255, 255, 255, ${0.3 * depthAlpha})`;
-                    ctx.beginPath();
-                    ctx.arc(proj.screenX, proj.screenY, radius * 0.4, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-
-                requestAnimationFrame(draw);
-            }
-
-            window.addEventListener('resize', resizeCanvas);
-            resizeCanvas();
-            requestAnimationFrame(draw);
-
-            // Offline Service Worker Registration & Pre-cache
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/Juliet-Canvas/sw.js')
-                    .then(() => {
-                        document.getElementById('swDot').classList.add('ready');
-                        document.getElementById('swText').textContent = 'OFFLINE READY';
-                        ['BarcodeGenerator.html', 'encoder.html', 'TallyCounter.html'].forEach(f => {
-                            fetch(f).catch(() => {});
-                        });
-                    })
-                    .catch(() => {
-                        document.getElementById('swText').textContent = 'ONLINE ONLY';
-                    });
-            }
+        htmlScripts.forEach(file => {
+          const li = document.createElement("li");
+          const link = document.createElement("a");
+          
+          link.href = FOLDER_PATH ? `${FOLDER_PATH}/${file.name}` : file.name;
+          link.textContent = formatScriptName(file.name);
+          
+          li.appendChild(link);
+          menuList.appendChild(li);
         });
-    </script>
+
+      } catch (error) {
+        statusEl.textContent = "SYSTEM FETCH FAILED - CHECK SOURCE";
+        console.error(error);
+      }
+    }
+
+    // Initialize animation & parse GitHub
+    startOrbAnimation();
+    buildMenu();
+  </script>
 </body>
 </html>
