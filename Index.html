@@ -5,47 +5,65 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JULIET CANVAS</title>
   <style>
-    /* Dark, film-grain style background */
+    /* Default: Light Mode (Paper & Ink aesthetic) */
+    :root {
+      --bg-color: #ebeae6;
+      --fg-color: #181818;
+      --fg-rgb: 24, 24, 24;
+      --border-faint: rgba(24, 24, 24, 0.25);
+      --screen-glow: inset 0 0 24px rgba(0, 0, 0, 0.04);
+    }
+
+    /* Automatic Dark Mode Override (Cyber Amber aesthetic) */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-color: #0d0d0d;
+        --fg-color: #ffb834;
+        --fg-rgb: 255, 184, 52;
+        --border-faint: rgba(255, 184, 52, 0.2);
+        --screen-glow: inset 0 0 20px rgba(255, 184, 52, 0.15), 0 0 20px rgba(255, 184, 52, 0.05);
+      }
+    }
+
     body {
-      background-color: #0d0d0d;
-      color: #ffb834; /* Industrial cyber amber */
+      background-color: var(--bg-color);
+      color: var(--fg-color);
       font-family: "Impact", "Arial Narrow", Arial, sans-serif;
       margin: 0;
-      padding: 2vw;
+      padding: 4vw;
       display: flex;
       justify-content: center;
       align-items: center;
       min-height: 100vh;
       box-sizing: border-box;
-      overflow: hidden;
+      transition: background-color 0.25s ease, color 0.25s ease;
     }
 
-    /* Screen container simulating CRT/LED framing */
     .screen {
       position: relative;
       width: 100%;
       max-width: 900px;
-      aspect-ratio: 4 / 3;
-      border: 1px solid #ffb834;
-      padding: 30px;
+      min-height: 75vh;
+      border: 1px solid var(--fg-color);
+      padding: 28px;
       box-sizing: border-box;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      box-shadow: inset 0 0 20px rgba(255, 184, 52, 0.15), 0 0 20px rgba(255, 184, 52, 0.05);
+      box-shadow: var(--screen-glow);
     }
 
     /* Outer framing L-shaped Crop Marks */
     .screen::before, .screen::after {
       content: "";
       position: absolute;
-      width: 10px;
-      height: 10px;
-      border: 1px solid #ffb834;
+      width: 12px;
+      height: 12px;
+      border: 1.5px solid var(--fg-color);
       pointer-events: none;
     }
-    .screen::before { top: -5px; left: -5px; border-right: none; border-bottom: none; }
-    .screen::after { bottom: -5px; right: -5px; border-left: none; border-top: none; }
+    .screen::before { top: -6px; left: -6px; border-right: none; border-bottom: none; }
+    .screen::after { bottom: -6px; right: -6px; border-left: none; border-top: none; }
 
     /* Fine Inner Border */
     .inner-border {
@@ -54,7 +72,7 @@
       left: 8px;
       right: 8px;
       bottom: 8px;
-      border: 1px solid rgba(255, 184, 52, 0.2);
+      border: 1px solid var(--border-faint);
       pointer-events: none;
     }
 
@@ -63,35 +81,37 @@
       font-family: monospace;
       font-size: 0.75rem;
       text-transform: uppercase;
-      opacity: 0.8;
+      opacity: 0.85;
       letter-spacing: 1px;
     }
-    .meta-top { display: flex; justify-content: space-between; margin-bottom: 25px; }
+    .meta-top { display: flex; justify-content: space-between; margin-bottom: 20px; }
     .meta-bottom { display: flex; justify-content: space-between; margin-top: auto; padding-top: 25px; }
 
     /* Header Section */
     .header-area {
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
-      border-bottom: 1px solid #ffb834;
-      padding-bottom: 15px;
-      margin-bottom: 35px;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 1px solid var(--fg-color);
+      padding-bottom: 18px;
+      margin-bottom: 30px;
     }
 
     h1 {
       margin: 0;
-      font-size: 3rem;
+      font-size: clamp(2.1rem, 6vw, 3.2rem);
       font-weight: 900;
-      letter-spacing: 3px;
+      letter-spacing: 2px;
       text-transform: uppercase;
       line-height: 1;
     }
 
     /* Rotating Orb Loader Container */
     .orb-canvas-container {
-      width: 50px;
-      height: 50px;
+      width: 54px;
+      height: 54px;
+      flex-shrink: 0;
     }
 
     /* Menu Area */
@@ -109,30 +129,30 @@
     }
 
     li {
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
 
     /* Clickable interactive anchors */
     a {
       display: inline-block;
-      color: #ffb834;
+      color: var(--fg-color);
       text-decoration: none;
-      font-size: 2.2rem;
+      font-size: clamp(1.5rem, 4.5vw, 2.2rem);
       font-weight: bold;
       text-transform: uppercase;
       letter-spacing: 1.5px;
-      padding: 2px 14px;
+      padding: 4px 14px;
       transition: background-color 0.1s, color 0.1s;
     }
 
-    /* Active styling matches original dark highlight box */
-    a:hover {
-      background-color: #ffb834;
-      color: #0d0d0d;
+    a:hover, a:focus-visible {
+      background-color: var(--fg-color);
+      color: var(--bg-color);
+      outline: none;
     }
 
     #status {
-      font-size: 1.5rem;
+      font-size: 1.35rem;
       letter-spacing: 1px;
       text-transform: uppercase;
     }
@@ -153,7 +173,7 @@
     <div class="header-area">
       <h1>JULIET CANVAS</h1>
       <div class="orb-canvas-container">
-        <canvas id="orbCanvas" width="100" height="100" style="width: 50px; height: 50px;"></canvas>
+        <canvas id="orbCanvas" width="108" height="108" style="width: 54px; height: 54px;"></canvas>
       </div>
     </div>
 
@@ -172,57 +192,59 @@
 
   <script>
     // --- GITHUB CONFIGURATION ---
-    const GITHUB_USERNAME = "YOUR_USERNAME";
-    const REPO_NAME = "YOUR_REPO";
-    const FOLDER_PATH = ""; // Leave as "" for root, or "folder-name" if scripts are in a subfolder
+    const GITHUB_USERNAME = "scottyd0es";
+    const REPO_NAME = "scottyd0es.github.io"; // Change if hosted in a project subfolder repo
+    const FOLDER_PATH = ""; // Leave "" for root, or set e.g. "scripts"
     // ----------------------------
 
     const apiUrl = `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${FOLDER_PATH}`;
     const menuList = document.getElementById("menu-list");
     const statusEl = document.getElementById("status");
 
-    // Transforms filename patterns like "03-grid-animation.html" to "GRID ANIMATION"
+    // Track device Light / Dark mode dynamically for the HTML5 Canvas
+    const darkModeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    let isDarkMode = darkModeQuery.matches;
+
+    darkModeQuery.addEventListener("change", (event) => {
+      isDarkMode = event.matches;
+    });
+
     function formatScriptName(filename) {
       return filename
         .replace(/\.html$/i, "")
-        .replace(/^\d+[-_]/, "") // Strip prefix ordering numbers if any
+        .replace(/^\d+[-_]/, "")
         .replace(/[-_]+/g, " ")
         .toUpperCase();
     }
 
-    // Canvas rotation loop for the top-right loading indicator
+    // Canvas rotation loop for the top-right indicator
     function startOrbAnimation() {
       const canvas = document.getElementById("orbCanvas");
       const ctx = canvas.getContext("2d");
       const numOrbs = 8;
-      const radius = 35; // Orbit ring size
-      const orbRadius = 6; // Orb size
+      const radius = 38;
+      const orbRadius = 6.5;
       let angleOffset = 0;
 
       function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Find center of canvas
         const cx = canvas.width / 2;
         const cy = canvas.height / 2;
+        const rgb = isDarkMode ? "255, 184, 52" : "24, 24, 24";
 
         for (let i = 0; i < numOrbs; i++) {
-          // Calculate even angular spacing + rotation animation offset
           const angle = (i * (Math.PI * 2) / numOrbs) + angleOffset;
           const x = cx + Math.cos(angle) * radius;
           const y = cy + Math.sin(angle) * radius;
-
-          // Introduce a trail fade/pulse: older/preceding orbs are dimmer
-          // Create gradient-like alpha to make the clockwise motion clear
           const alpha = 0.2 + (i / numOrbs) * 0.8;
 
           ctx.beginPath();
           ctx.arc(x, y, orbRadius, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(255, 184, 52, ${alpha})`;
+          ctx.fillStyle = `rgba(${rgb}, ${alpha})`;
           ctx.fill();
         }
 
-        // Control CW (clockwise) rotation speed here
         angleOffset += 0.035;
         requestAnimationFrame(draw);
       }
@@ -232,11 +254,10 @@
     async function buildMenu() {
       try {
         const response = await fetch(apiUrl);
-        if (!response.ok) throw new Error(`Fetch error: ${response.status}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         const files = await response.json();
 
-        // Target .html files, ignoring the menu directory file
         const htmlScripts = files.filter(item => 
           item.type === "file" &&
           item.name.toLowerCase().endsWith(".html") &&
@@ -262,12 +283,11 @@
         });
 
       } catch (error) {
-        statusEl.textContent = "SYSTEM FETCH FAILED - CHECK SOURCE";
+        statusEl.textContent = `SYSTEM FETCH FAILED (${error.message})`;
         console.error(error);
       }
     }
 
-    // Initialize animation & parse GitHub
     startOrbAnimation();
     buildMenu();
   </script>
