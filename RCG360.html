@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RGC36 v1.3 — Rotating Grid Cypher - 36</title>
+  <title>RGC36 v1.4 — Rotating Grid Cypher - 36</title>
   <style>
     :root {
       --bg: #0f1115;
@@ -342,19 +342,20 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 14px;
+      gap: 12px;
       padding: 8px 0;
     }
 
     canvas {
-      border-radius: 10px;
-      border: 1px solid var(--border);
+      border-radius: 16px;
+      border: 1px solid #1e222b;
       cursor: pointer;
       max-width: 100%;
       height: auto;
       display: block;
       user-select: none;
       touch-action: manipulation;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
     }
 
     .hint-text {
@@ -369,7 +370,7 @@
     <div class="brand">
       <div class="brand-title-row">
         <h1>RGC36 — Rotating Grid Cypher - 36</h1>
-        <span class="version-badge">v1.3</span>
+        <span class="version-badge">v1.4</span>
       </div>
       <span>5-Rotor Polyalphabetic Mechanical Grid Engine</span>
     </div>
@@ -390,7 +391,7 @@
     <div class="toggle-group">
       <label>
         <input type="checkbox" id="yWrapperToggle" checked />
-        Y-Wrapper Formatting (Case &amp; Punctuation)
+        Y-Wrapper Formatting (Case, Punctuation, Line &amp; Paragraph Breaks)
       </label>
       <label>
         <input type="checkbox" id="groupBlockToggle" checked />
@@ -540,9 +541,9 @@
       </div>
 
       <div class="canvas-stage">
-        <canvas id="gridCanvas" width="540" height="540"></canvas>
+        <canvas id="gridCanvas" width="660" height="716"></canvas>
         <div class="hint-text">
-          Tap the dark outer border to spin the Master Grid (+90° CW) • Tap any Q1–Q4 quadrant to spin that sub-grid (+90° CW)
+          Tap the outer border to spin the Master Grid (+90° CW) • Tap any Q1–Q4 quadrant to spin that sub-grid (+90° CW)
         </div>
       </div>
     </div>
@@ -551,7 +552,7 @@
   <script>
     "use strict";
 
-    const APP_VERSION = "v1.3";
+    const APP_VERSION = "v1.4";
 
     // =========================================================================
     // 1. CORE ALPHABET & TAI UTILITIES
@@ -660,7 +661,7 @@
     }
 
     // =========================================================================
-    // 3. FORMATTING LOG (Y...Y) & NUMBER WRAPPER (Z...Z)
+    // 3. FORMATTING LOG (Y...Y) WITH LINE BREAK (B), PARAGRAPH (G) & PAGE (F)
     // =========================================================================
     const PUNCT_TO_CODE = {
       ".": "P",
@@ -690,12 +691,59 @@
     }
 
     function extractFormattingLog(rawText) {
-      const normalized = rawText.trim().replace(/\s+/g, " ");
+      // Normalize line endings and collapse inline horizontal spaces while preserving newlines
+      const unified = rawText
+        .replace(/\r\n?/g, "\n")
+        .replace(/[^\S\n\f]+/g, " ")
+        .replace(/^ +| +$/gm, "")
+        .trim();
+
       const events = [];
       const cleanChars = [];
 
-      for (let i = 0; i < normalized.length; i++) {
-        const ch = normalized[i];
+      function pushSeparatorSpace() {
+        if (cleanChars.length > 0 && cleanChars[cleanChars.length - 1] !== " ") {
+          cleanChars.push(" ");
+        }
+      }
+
+      let i = 0;
+      while (i < unified.length) {
+        const ch = unified[i];
+
+        // Page / Section break: standalone "---" line or form-feed "\f"
+        if (ch === "\f") {
+          events.push({ index: cleanChars.length, type: "F" });
+          pushSeparatorSpace();
+          i++;
+          while (i < unified.length && (unified[i] === "\n" || unified[i] === " ")) i++;
+          continue;
+        }
+
+        if (
+          ch === "\n" &&
+          unified.slice(i + 1, i + 4) === "---" &&
+          (i + 4 >= unified.length || unified[i + 4] === "\n")
+        ) {
+          events.push({ index: cleanChars.length, type: "F" });
+          pushSeparatorSpace();
+          i += 4;
+          while (i < unified.length && (unified[i] === "\n" || unified[i] === " ")) i++;
+          continue;
+        }
+
+        // Paragraph break (\n\n+) vs Single Line break (\n)
+        if (ch === "\n") {
+          let nlCount = 0;
+          while (i < unified.length && unified[i] === "\n") {
+            nlCount++;
+            i++;
+          }
+          events.push({ index: cleanChars.length, type: nlCount >= 2 ? "G" : "B" });
+          pushSeparatorSpace();
+          continue;
+        }
+
         if (/[A-Z]/.test(ch)) {
           events.push({ index: cleanChars.length, type: "U" });
           cleanChars.push(ch);
@@ -706,6 +754,12 @@
         } else if (PUNCT_TO_CODE[ch]) {
           events.push({ index: cleanChars.length, type: PUNCT_TO_CODE[ch] });
         }
+        i++;
+      }
+
+      // Trim any trailing space
+      while (cleanChars.length > 0 && cleanChars[cleanChars.length - 1] === " ") {
+        cleanChars.pop();
       }
 
       if (events.length === 0) {
@@ -754,6 +808,25 @@
           if (ev.index >= 0 && ev.index < chars.length) {
             chars[ev.index] = chars[ev.index].toUpperCase();
           }
+        } else if (ev.type === "B") {
+          if (ev.index >= 0 && ev.index < chars.length && chars[ev.index] === " ") {
+            chars[ev.index] = "\n";
+          } else {
+            chars.splice(ev.index, 0, "\n");
+          }
+        } else if (ev.type === "G") {
+          if (ev.index >= 0 && ev.index < chars.length && chars[ev.index] === " ") {
+            chars.splice(ev.index, 1, "\n", "\n");
+          } else {
+            chars.splice(ev.index, 0, "\n", "\n");
+          }
+        } else if (ev.type === "F") {
+          const divider = ["\n", "-", "-", "-", "\n"];
+          if (ev.index >= 0 && ev.index < chars.length && chars[ev.index] === " ") {
+            chars.splice(ev.index, 1, ...divider);
+          } else {
+            chars.splice(ev.index, 0, ...divider);
+          }
         } else if (CODE_TO_PUNCT[ev.type]) {
           chars.splice(ev.index, 0, CODE_TO_PUNCT[ev.type]);
         }
@@ -781,7 +854,7 @@
       const baseGrid = buildKeyedAlphabet(keyword);
       const initialMap = getInitialMap(baseGrid);
 
-      // Step 1: Extract formatting & punctuation log (Y...Y)
+      // Step 1: Extract formatting, punctuation & line/paragraph break log (Y...Y)
       let workingText = "";
       let yBlock = "";
       let yEventCount = 0;
@@ -793,7 +866,7 @@
       } else {
         workingText = rawText
           .toUpperCase()
-          .replace(/[^A-Z0-9\s]/g, "")
+          .replace(/[^A-Z0-9\s]/g, " ")
           .trim()
           .replace(/\s+/g, " ");
       }
@@ -811,9 +884,7 @@
         sections.push(yBlock);
       }
 
-      // Length before X...X (each space between sections becomes a 1-char delimiter digit)
       const preXLength = sections.join(" ").length;
-      // Total length with " " + X...X must equal (36 * N) - 1, with minimum X...X length = 2 ("XX")
       const blockCount = Math.ceil((preXLength + 1 + 2 + 1) / 36);
       const targetStreamLen = blockCount * 36 - 1;
       const xBlockLen = targetStreamLen - (preXLength + 1);
@@ -913,7 +984,6 @@
       };
     }
 
-    // Verify that a token is a valid X<reverse-Cell-36>X buffer
     function verifyXBufferToken(token, baseGrid) {
       if (!token || token.length < 2 || token[0] !== "X" || token[token.length - 1] !== "X") {
         return false;
@@ -927,8 +997,6 @@
       return true;
     }
 
-    // Check if index `yStart` begins a Y<payload>Y token whose closing 'Y' is immediately
-    // followed by `expectedDelim` and then the final X...X token
     function isYLogTokenAt(payloadStream, yStart, baseGrid, masterGrid, mapState, wordIndex) {
       let mGrid = masterGrid;
       let wStart = masterGrid;
@@ -949,7 +1017,6 @@
         }
 
         if (ch === "Y" && sawPayload) {
-          // The character immediately after closing 'Y' must be expectedDelim
           if (j + 1 >= payloadStream.length) return false;
           const delimGrid = getActiveGrid(baseGrid, mGrid, mState);
           const delimIdx = delimGrid.indexOf(payloadStream[j + 1]);
@@ -957,7 +1024,6 @@
             return false;
           }
 
-          // Advance word rotors past expectedDelim and verify the remaining token is X...X
           let xMaster = ((wStart - 2 + 4) % 4) + 1;
           const qToRotate = (wordIndex - 1) % 4;
           mState[qToRotate] = (mState[qToRotate] % 4) + 1;
@@ -1020,7 +1086,6 @@
 
         const pChar = taiToChar(cellIndex + 1);
 
-        // Detect entry into protected Y...Y token or final X...X token at start of a token
         if (currentToken.length === 0 && !inYToken && !inXToken) {
           if (pChar === "Y" && isYLogTokenAt(payloadStream, i, baseGrid, masterGrid, mapState, wordIndex)) {
             inYToken = true;
@@ -1128,7 +1193,7 @@
       // 3. Unwrap Z...Z numbers on remaining body word tokens
       const zUnwrappedText = tokens.map(unwrapNumbers).join(" ");
 
-      // 4. Restore case and punctuation formatting
+      // 4. Restore case, punctuation, and line/paragraph breaks
       const reconstructed = useYWrapper && yPayload
         ? restoreFormatting(zUnwrappedText, yPayload)
         : zUnwrappedText.toLowerCase();
@@ -1155,7 +1220,7 @@
     }
 
     // =========================================================================
-    // 5. ANIMATED INTERACTIVE REFERENCE SHEET CANVAS & STATE
+    // 5. POLISHED INTERACTIVE REFERENCE GRID WITH COUNTER-ROTATING GLYPHS
     // =========================================================================
     const canvas = document.getElementById("gridCanvas");
     const ctx = canvas.getContext("2d");
@@ -1209,15 +1274,15 @@
       renderReferenceFrame(1);
     }
 
-    function easeOutCubic(t) {
-      return 1 - Math.pow(1 - t, 3);
+    function easeInOutCubic(t) {
+      return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     }
 
     function triggerRotationAnimation(animConfig) {
       refState.anim = {
         ...animConfig,
         startTime: performance.now(),
-        duration: 280
+        duration: 360
       };
       updateTelemetryDisplay();
 
@@ -1225,7 +1290,7 @@
         if (!refState.anim) return;
         const elapsed = now - refState.anim.startTime;
         const rawT = Math.min(1, elapsed / refState.anim.duration);
-        const eased = easeOutCubic(rawT);
+        const eased = easeInOutCubic(rawT);
 
         renderReferenceFrame(eased);
 
@@ -1240,24 +1305,93 @@
       requestAnimationFrame(tick);
     }
 
-    function drawSingleCell(x, y, cellSize, taiNumber, charText) {
-      ctx.strokeStyle = "#2e3440";
+    function drawRoundedRectPath(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    // Draws the fixed spatial cell frame + 4 corner telemetry indices (static to cell position)
+    function drawCellTelemetryChrome(x, y, cellSize, cellIdx) {
+      const cellNum = cellIdx + 1;
+      const taiAnchorChar = TAI_ALPHABET[cellIdx];
+      const cellMod4 = mod4OneBased(cellNum);
+      const cellDelimDigit = cellNum % 10;
+
+      // Subtle inner cell border
+      ctx.strokeStyle = "#191c22";
       ctx.lineWidth = 1;
       ctx.strokeRect(x, y, cellSize, cellSize);
 
-      ctx.fillStyle = "#6c7a89";
-      ctx.font = "600 11px Consolas, monospace";
-      ctx.textAlign = "left";
-      ctx.fillText(String(taiNumber), x + 6, y + 14);
+      const padX = 9;
+      const topY = y + 19;
+      const botY = y + cellSize - 9;
 
-      ctx.fillStyle = "#eceff4";
-      ctx.font = "700 24px Consolas, monospace";
-      ctx.textAlign = "center";
-      ctx.fillText(charText, x + cellSize / 2, y + cellSize / 2 + 8);
+      // Top-Left: Cell Number (1–36) in Cornflower Blue
+      ctx.fillStyle = "#6c9be8";
+      ctx.font = "600 13px 'Segoe UI', -apple-system, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(String(cellNum), x + padX, topY);
+
+      // Top-Right: Fixed TAI Anchor Character (A–Z, 0–9) in Emerald Green
+      ctx.fillStyle = "#52c47c";
+      ctx.font = "600 13px 'Segoe UI', -apple-system, sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(taiAnchorChar, x + cellSize - padX, topY);
+
+      // Bottom-Left: Cell Modulo-4 Value (1–4) in Muted Silver
+      ctx.fillStyle = "#6e7685";
+      ctx.font = "600 13px 'Segoe UI', -apple-system, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(String(cellMod4), x + padX, botY);
+
+      // Bottom-Right: Cell Delimiter Digit (0–9) in Warm Coral
+      ctx.fillStyle = "#d97757";
+      ctx.font = "600 13px 'Segoe UI', -apple-system, sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(String(cellDelimDigit), x + cellSize - padX, botY);
     }
 
-    function drawQuadrantBlock(margin, cellSize, qIdx, cells, rotationRad = 0, highlight = false) {
-      const qColors = ["#181d26", "#1c212b", "#1c212b", "#181d26"];
+    // Draws a moving active glyph orbiting smoothly around a pivot point while staying upright
+    function drawOrbitingGlyph(cellX, cellY, cellSize, charText, pivotX, pivotY, angleRad, glow = false) {
+      const cx = cellX + cellSize / 2;
+      const cy = cellY + cellSize / 2 + 2;
+
+      ctx.save();
+      if (angleRad !== 0) {
+        ctx.translate(pivotX, pivotY);
+        ctx.rotate(angleRad);
+        ctx.translate(-pivotX, -pivotY);
+      }
+
+      // Counter-rotate around the glyph's own center so letters remain upright & readable mid-spin
+      ctx.translate(cx, cy);
+      if (angleRad !== 0) {
+        ctx.rotate(-angleRad);
+      }
+
+      if (glow) {
+        ctx.shadowColor = "rgba(129, 161, 193, 0.45)";
+        ctx.shadowBlur = 10;
+      }
+
+      ctx.fillStyle = "#f2f4f8";
+      ctx.font = "500 32px 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(charText, 0, 0);
+      ctx.restore();
+    }
+
+    function drawQuadrantHighlight(margin, cellSize, qIdx, rotationRad, alpha = 1) {
       const { r0, c0 } = QUADRANT_OFFSETS[qIdx];
       const qX = margin + c0 * cellSize;
       const qY = margin + r0 * cellSize;
@@ -1266,53 +1400,35 @@
       const qCenterY = qY + qSize / 2;
 
       ctx.save();
-      if (rotationRad !== 0) {
-        ctx.translate(qCenterX, qCenterY);
-        ctx.rotate(rotationRad);
-        ctx.translate(-qCenterX, -qCenterY);
-      }
+      ctx.translate(qCenterX, qCenterY);
+      ctx.rotate(rotationRad);
+      ctx.translate(-qCenterX, -qCenterY);
 
-      ctx.fillStyle = highlight ? "#232a38" : qColors[qIdx];
-      ctx.fillRect(qX, qY, qSize, qSize);
+      ctx.fillStyle = `rgba(94, 129, 172, ${0.12 * alpha})`;
+      ctx.fillRect(qX + 1, qY + 1, qSize - 2, qSize - 2);
 
-      for (let r = 0; r < 3; r++) {
-        for (let c = 0; c < 3; c++) {
-          const globalR = r0 + r;
-          const globalC = c0 + c;
-          const idx = globalR * 6 + globalC;
-          const x = margin + globalC * cellSize;
-          const y = margin + globalR * cellSize;
-          drawSingleCell(x, y, cellSize, idx + 1, cells[idx]);
-        }
-      }
-
-      if (highlight) {
-        ctx.strokeStyle = "#ebcb8b";
-        ctx.lineWidth = 2.5;
-        ctx.strokeRect(qX, qY, qSize, qSize);
-      }
-
+      ctx.strokeStyle = `rgba(129, 161, 193, ${0.75 * alpha})`;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(qX + 1, qY + 1, qSize - 2, qSize - 2);
       ctx.restore();
     }
 
-    function drawBoardFrame(margin, gridSize) {
-      ctx.strokeStyle = "#81a1c1";
-      ctx.lineWidth = 2.5;
-      ctx.strokeRect(margin, margin, gridSize, gridSize);
-
+    function drawGridFrameChrome(margin, gridSize) {
+      // Subtle quadrant crosshairs separating Q1, Q2, Q3, Q4
+      ctx.strokeStyle = "#252a34";
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(margin + gridSize / 2, margin);
       ctx.lineTo(margin + gridSize / 2, margin + gridSize);
       ctx.moveTo(margin, margin + gridSize / 2);
       ctx.lineTo(margin + gridSize, margin + gridSize / 2);
       ctx.stroke();
-    }
 
-    function drawBoardContents(margin, gridSize, cellSize, cells) {
-      for (let q = 0; q < 4; q++) {
-        drawQuadrantBlock(margin, cellSize, q, cells, 0, false);
-      }
-      drawBoardFrame(margin, gridSize);
+      // Outer rounded border matching screenshot
+      drawRoundedRectPath(margin, margin, gridSize, gridSize, 18);
+      ctx.strokeStyle = "#262b35";
+      ctx.lineWidth = 2;
+      ctx.stroke();
     }
 
     function renderReferenceFrame(progress = 1) {
@@ -1321,64 +1437,104 @@
 
       const W = canvas.width;
       const H = canvas.height;
-      const margin = 48;
-      const gridSize = W - margin * 2;
+      const margin = 30;
+      const gridSize = W - margin * 2; // 600px -> 100px per cell
       const cellSize = gridSize / 6;
-      const centerX = W / 2;
-      const centerY = H / 2;
+      const centerX = margin + gridSize / 2;
+      const centerY = margin + gridSize / 2;
 
-      ctx.fillStyle = "#0b0d11";
+      // Pure obsidian background matching screenshot
+      ctx.fillStyle = "#050507";
       ctx.fillRect(0, 0, W, H);
 
-      ctx.strokeStyle = "#3b4252";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(8, 8, W - 16, H - 16);
+      // Subtle inner grid surface
+      drawRoundedRectPath(margin, margin, gridSize, gridSize, 18);
+      ctx.fillStyle = "#08090c";
+      ctx.fill();
 
-      ctx.fillStyle = "#7b889c";
-      ctx.font = "600 11px Segoe UI, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("OUTER BORDER: TAP FOR MASTER GRID +90° CW", W / 2, 29);
+      // 1. Draw static 4-corner telemetry in every cell (clipped to rounded grid)
+      ctx.save();
+      drawRoundedRectPath(margin, margin, gridSize, gridSize, 18);
+      ctx.clip();
+
+      for (let r = 0; r < 6; r++) {
+        for (let c = 0; c < 6; c++) {
+          const idx = r * 6 + c;
+          const x = margin + c * cellSize;
+          const y = margin + r * cellSize;
+          drawCellTelemetryChrome(x, y, cellSize, idx);
+        }
+      }
 
       const anim = refState.anim;
       const isAnimating = anim && progress < 1;
 
+      // 2. Draw active center glyphs (with fluid upright orbital motion when rotating)
       if (isAnimating && anim.type === "master") {
         const angle = anim.deltaAngle * progress;
+        const pulse = Math.sin(progress * Math.PI);
 
-        ctx.save();
-        ctx.translate(centerX, centerY);
-        ctx.rotate(angle);
-        ctx.translate(-centerX, -centerY);
+        // Subtle master border highlight pulse
+        ctx.strokeStyle = `rgba(129, 161, 193, ${0.45 * pulse})`;
+        ctx.lineWidth = 4;
+        ctx.strokeRect(margin + 2, margin + 2, gridSize - 4, gridSize - 4);
 
-        drawBoardContents(margin, gridSize, cellSize, anim.fromCells);
-        ctx.restore();
+        for (let r = 0; r < 6; r++) {
+          for (let c = 0; c < 6; c++) {
+            const idx = r * 6 + c;
+            const x = margin + c * cellSize;
+            const y = margin + r * cellSize;
+            drawOrbitingGlyph(x, y, cellSize, anim.fromCells[idx], centerX, centerY, angle, true);
+          }
+        }
       } else if (isAnimating && anim.type === "quadrant") {
         const angle = anim.deltaAngle * progress;
         const targetQ = anim.qIdx;
+        const { r0, c0 } = QUADRANT_OFFSETS[targetQ];
+        const qCenterX = margin + (c0 + 1.5) * cellSize;
+        const qCenterY = margin + (r0 + 1.5) * cellSize;
+        const pulse = Math.sin(progress * Math.PI);
 
-        for (let q = 0; q < 4; q++) {
-          if (q === targetQ) continue;
-          drawQuadrantBlock(margin, cellSize, q, anim.toCells, 0);
+        drawQuadrantHighlight(margin, cellSize, targetQ, angle, pulse);
+
+        for (let r = 0; r < 6; r++) {
+          for (let c = 0; c < 6; c++) {
+            const idx = r * 6 + c;
+            const x = margin + c * cellSize;
+            const y = margin + r * cellSize;
+            const inTargetQ = r >= r0 && r < r0 + 3 && c >= c0 && c < c0 + 3;
+
+            if (inTargetQ) {
+              drawOrbitingGlyph(x, y, cellSize, anim.fromCells[idx], qCenterX, qCenterY, angle, true);
+            } else {
+              drawOrbitingGlyph(x, y, cellSize, anim.toCells[idx], 0, 0, 0, false);
+            }
+          }
         }
-
-        drawQuadrantBlock(margin, cellSize, targetQ, anim.fromCells, angle, true);
-        drawBoardFrame(margin, gridSize);
       } else {
-        drawBoardContents(margin, gridSize, cellSize, currentCells);
+        for (let r = 0; r < 6; r++) {
+          for (let c = 0; c < 6; c++) {
+            const idx = r * 6 + c;
+            const x = margin + c * cellSize;
+            const y = margin + r * cellSize;
+            drawOrbitingGlyph(x, y, cellSize, currentCells[idx], 0, 0, 0, false);
+          }
+        }
       }
 
-      const qLabels = [
-        { label: `Q1:${refState.mapState[0]}`, x: margin + 6, y: H - 18 },
-        { label: `Q2:${refState.mapState[1]}`, x: margin + 96, y: H - 18 },
-        { label: `Q3:${refState.mapState[2]}`, x: W - margin - 146, y: H - 18 },
-        { label: `Q4:${refState.mapState[3]}`, x: W - margin - 56, y: H - 18 }
-      ];
-      ctx.fillStyle = "#ebcb8b";
-      ctx.font = "600 12px Consolas, monospace";
-      ctx.textAlign = "left";
-      for (const item of qLabels) {
-        ctx.fillText(item.label, item.x, item.y);
-      }
+      ctx.restore();
+
+      // 3. Draw crisp quadrant hairlines & outer rounded frame
+      drawGridFrameChrome(margin, gridSize);
+
+      // 4. Draw centered status footer ("GRID: X  |  MAP: X X X X") matching screenshot
+      const footerY = margin + gridSize + 44;
+      const footerText = `GRID: ${refState.masterGrid}   |   MAP: ${refState.mapState.join(" ")}`;
+      ctx.fillStyle = "#6c9be8";
+      ctx.font = "600 20px 'Segoe UI', -apple-system, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillText(footerText, W / 2, footerY);
     }
 
     canvas.addEventListener("click", (e) => {
@@ -1390,7 +1546,7 @@
       const x = (e.clientX - rect.left) * scaleX;
       const y = (e.clientY - rect.top) * scaleY;
 
-      const margin = 48;
+      const margin = 30;
       const gridSize = canvas.width - margin * 2;
       const half = gridSize / 2;
 
