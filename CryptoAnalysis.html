@@ -1,0 +1,1651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Cryptanalytic Particle Engine</title>
+<style>
+  :root {
+    --bg: #000000;
+    --panel: rgba(12, 14, 18, 0.78);
+    --panel-solid: #0d0f13;
+    --border: rgba(255, 255, 255, 0.14);
+    --border-strong: rgba(255, 255, 255, 0.26);
+    --text: #f2f4f8;
+    --muted: #98a2b3;
+    --accent: #38bdf8;
+    --font: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    overflow: hidden;
+  }
+
+  canvas#voidCanvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    z-index: 0;
+  }
+
+  /* Top-Right Floating Controls */
+  .top-controls {
+    position: fixed;
+    top: max(14px, env(safe-area-inset-top));
+    right: 14px;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: rgba(18, 20, 26, 0.72);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, transform 0.15s;
+  }
+
+  .icon-btn:hover {
+    border-color: var(--border-strong);
+    background: rgba(30, 34, 44, 0.85);
+  }
+
+  .icon-btn:active {
+    transform: scale(0.95);
+  }
+
+  .icon-btn.circle {
+    border-radius: 50%;
+    background: rgba(160, 165, 175, 0.78);
+    color: #0b0d10;
+    border: none;
+  }
+
+  .icon-btn.circle:hover {
+    background: rgba(195, 200, 210, 0.9);
+  }
+
+  /* Main Collapsible HUD Drawer */
+  .hud-shell {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    max-width: 780px;
+    margin: 0 auto;
+    z-index: 15;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.85);
+    transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+    max-height: 82vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .hud-shell.collapsed {
+    transform: translateY(calc(100% + 24px));
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .hud-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .hud-title {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+  }
+
+  .hud-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .mini-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 12px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .mini-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: var(--border-strong);
+  }
+
+  .hud-body {
+    padding: 14px 16px 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* Input Area & Sanitization Toggles */
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  textarea#cipherInput {
+    width: 100%;
+    min-height: 76px;
+    max-height: 140px;
+    resize: vertical;
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.45;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  textarea#cipherInput:focus {
+    border-color: var(--accent);
+  }
+
+  .controls-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .toggle-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .chip-toggle {
+    font-size: 11.5px;
+    padding: 4px 9px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.15s;
+  }
+
+  .chip-toggle.active {
+    background: rgba(56, 189, 248, 0.16);
+    border-color: rgba(56, 189, 248, 0.55);
+    color: #e0f2fe;
+  }
+
+  select#alphabetOverride {
+    background: rgba(0, 0, 0, 0.65);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 11.5px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  /* Metrics Grid */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+    gap: 10px;
+  }
+
+  .metric-card {
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .metric-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  .metric-label {
+    font-size: 11.5px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .info-trigger {
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    border: 1px solid var(--border-strong);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text);
+    font-family: Georgia, serif;
+    font-style: italic;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .info-trigger:hover {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+  }
+
+  .metric-value {
+    font-family: var(--mono);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .metric-sub {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.3;
+  }
+
+  /* Sub-panels for Number Pairs, N-grams, Kasiski & Period Slicer */
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+  }
+
+  .detail-box {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .pill-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .data-pill {
+    font-family: var(--mono);
+    font-size: 11px;
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 3px 7px;
+    color: #e2e8f0;
+  }
+
+  .data-pill span {
+    color: var(--accent);
+    margin-left: 4px;
+  }
+
+  /* Period Slicer */
+  .slicer-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  input[type="range"]#periodSlider {
+    flex: 1;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  /* Frequency Sparkline Bar */
+  .sparkline-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  canvas#freqSparkline {
+    width: 100%;
+    height: 44px;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    display: block;
+  }
+
+  /* Ring Telemetry Footer */
+  .telemetry-bar {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-top: 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  /* Visual Settings Popover */
+  .settings-popover {
+    position: fixed;
+    top: max(62px, calc(env(safe-area-inset-top) + 48px));
+    right: 14px;
+    width: 240px;
+    z-index: 25;
+    background: var(--panel-solid);
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    padding: 14px;
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.85);
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .settings-popover.open {
+    display: flex;
+  }
+
+  .setting-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .setting-item label {
+    display: flex;
+    justify-content: space-between;
+    color: var(--text);
+  }
+
+  /* Info Definition Modal */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+
+  .modal-backdrop.open {
+    display: flex;
+  }
+
+  .modal-dialog {
+    width: 100%;
+    max-width: 440px;
+    background: #11141b;
+    border: 1px solid var(--border-strong);
+    border-radius: 14px;
+    padding: 18px 20px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.9);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    animation: modalPop 0.18s ease-out;
+  }
+
+  @keyframes modalPop {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+  }
+
+  .modal-head h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .modal-close {
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    color: var(--text);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .modal-tag {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.03em;
+  }
+
+  .modal-text {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #d0d7de;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="voidCanvas"></canvas>
+
+<!-- Top-Right Controls matching reference layout -->
+<div class="top-controls">
+  <button class="icon-btn" id="btnSettings" title="Visual Engine Settings" aria-label="Visual Engine Settings">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+    </svg>
+  </button>
+
+  <button class="icon-btn circle" id="btnToggleHud" title="Toggle Analysis Panel" aria-label="Toggle Analysis Panel">
+    <svg id="toggleHudIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+      <line x1="18" y1="6" x2="6" y2="18"></line>
+      <line x1="6" y1="6" x2="18" y2="18"></line>
+    </svg>
+  </button>
+</div>
+
+<!-- Visual Engine Settings Popover -->
+<div class="settings-popover" id="settingsPopover">
+  <div class="setting-item">
+    <label><span>Particle Count</span><span id="lblParticles">340</span></label>
+    <input type="range" id="optParticles" min="120" max="650" value="340" />
+  </div>
+  <div class="setting-item">
+    <label><span>Nebula Intensity</span><span id="lblNebula">22%</span></label>
+    <input type="range" id="optNebula" min="0" max="50" value="22" />
+  </div>
+  <div class="setting-item">
+    <label><span>Rainbow Cycle Speed</span><span id="lblRainbow">1.0x</span></label>
+    <input type="range" id="optRainbow" min="2" max="30" value="10" />
+  </div>
+  <div class="setting-item">
+    <label><span>Glow Bloom</span><span id="lblGlow">14px</span></label>
+    <input type="range" id="optGlow" min="4" max="28" value="14" />
+  </div>
+</div>
+
+<!-- Cryptanalysis HUD Drawer -->
+<section class="hud-shell" id="hudShell">
+  <div class="hud-header">
+    <div class="hud-title">
+      <span class="status-dot" id="statusDot"></span>
+      <span>Cryptanalysis Telemetry</span>
+    </div>
+    <div class="hud-actions">
+      <button class="mini-btn" id="btnSample">Load Sample</button>
+      <button class="mini-btn" id="btnCopyReport">Copy Report</button>
+      <button class="mini-btn" id="btnClear">Clear</button>
+    </div>
+  </div>
+
+  <div class="hud-body">
+    <!-- Ciphertext Input & Sanitization -->
+    <div class="input-group">
+      <textarea id="cipherInput" placeholder="Paste ciphertext, number pairs, or glyph strings here to coalesce the particle ring..."></textarea>
+      <div class="controls-row">
+        <div class="toggle-group">
+          <button class="chip-toggle active" data-opt="ignoreSpaces">Ignore Spaces</button>
+          <button class="chip-toggle active" data-opt="stripPunct">Strip Punctuation</button>
+          <button class="chip-toggle active" data-opt="caseInsensitive">Case-Insensitive</button>
+          <button class="chip-toggle" data-opt="digitsOnly">Digits Only</button>
+        </div>
+        <select id="alphabetOverride" title="Expected Alphabet Keyspace">
+          <option value="auto">Pool: Auto-Detect</option>
+          <option value="26">Pool: 26 (A–Z)</option>
+          <option value="36">Pool: 36 (A–Z, 0–9)</option>
+          <option value="10">Pool: 10 (0–9)</option>
+          <option value="16">Pool: 16 (Hex)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Primary Cryptographic Metrics -->
+    <div class="metrics-grid">
+      <!-- Alphabet Detection -->
+      <div class="metric-card">
+        <div class="metric-top">
+          <span class="metric-label">Detected Alphabet</span>
+          <button class="info-trigger" data-def="alphabet" title="Definition">i</button>
+        </div>
+        <div class="metric-value" id="valAlphabet">Idle</div>
+        <div class="metric-sub" id="subAlphabet">0 chars • 0 unique</div>
+      </div>
+
+      <!-- Index of Coincidence -->
+      <div class="metric-card">
+        <div class="metric-top">
+          <span class="metric-label">Index of Coincidence</span>
+          <button class="info-trigger" data-def="ioc" title="Definition">i</button>
+        </div>
+        <div class="metric-value" id="valIoc">0.0000</div>
+        <div class="metric-sub" id="subIoc">Norm: 0.00 • Base: —</div>
+      </div>
+
+      <!-- Shannon Entropy -->
+      <div class="metric-card">
+        <div class="metric-top">
+          <span class="metric-label">Shannon Entropy</span>
+          <button class="info-trigger" data-def="entropy" title="Definition">i</button>
+        </div>
+        <div class="metric-value" id="valEntropy">0.00 bits</div>
+        <div class="metric-sub" id="subEntropy">Efficiency: 0% of max</div>
+      </div>
+
+      <!-- Chi-Squared -->
+      <div class="metric-card">
+        <div class="metric-top">
+          <span class="metric-label">Chi-Squared (χ²)</span>
+          <button class="info-trigger" data-def="chisquared" title="Definition">i</button>
+        </div>
+        <div class="metric-value" id="valChi">—</div>
+        <div class="metric-sub" id="subChi">English fit: N/A</div>
+      </div>
+    </div>
+
+    <!-- Pairs, N-Grams, Kasiski & Period Slicer -->
+    <div class="detail-grid">
+      <div class="detail-box">
+        <div class="detail-header">
+          <span>Number Pairs &amp; Bigrams</span>
+          <button class="info-trigger" data-def="pairs" title="Definition">i</button>
+        </div>
+        <div class="metric-sub" id="subPairs">Non-overlapping &amp; sliding pairs • Doubles: 0</div>
+        <div class="pill-list" id="listPairs">
+          <span class="data-pill">Awaiting input</span>
+        </div>
+      </div>
+
+      <div class="detail-box">
+        <div class="detail-header">
+          <span>Kasiski &amp; Grid Factors</span>
+          <button class="info-trigger" data-def="kasiski" title="Definition">i</button>
+        </div>
+        <div class="metric-sub" id="subKasiski">Length factors &amp; repeat spacing GCD</div>
+        <div class="pill-list" id="listKasiski">
+          <span class="data-pill">Awaiting input</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Columnar / Period Slicer -->
+    <div class="detail-box">
+      <div class="detail-header">
+        <span>Period / Columnar IoC Slicer: <strong id="lblPeriod" style="color:var(--accent)">1</strong></span>
+        <button class="info-trigger" data-def="period" title="Definition">i</button>
+      </div>
+      <div class="slicer-row">
+        <input type="range" id="periodSlider" min="1" max="20" value="1" />
+        <span class="metric-value" id="valPeriodIoc" style="font-size:13px;">Avg IoC: 0.0000</span>
+      </div>
+    </div>
+
+    <!-- Frequency Curve Sparkline -->
+    <div class="sparkline-wrap">
+      <div class="detail-header">
+        <span>Sorted Symbol Frequency Distribution</span>
+        <span class="metric-sub" id="lblTopChar">Top symbol: —</span>
+      </div>
+      <canvas id="freqSparkline" width="600" height="44"></canvas>
+    </div>
+
+    <!-- Ring Physics Live Mapping Readout -->
+    <div class="telemetry-bar" id="ringTelemetry">
+      <span>State: Zero-Gravity Drift</span>
+      <span>Hue: Rainbow Cycle</span>
+      <span>Orbit: Suspended</span>
+    </div>
+  </div>
+</section>
+
+<!-- Definition Dialogue Modal -->
+<div class="modal-backdrop" id="infoModal">
+  <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-head">
+      <h3 id="modalTitle">Metric Definition</h3>
+      <button class="modal-close" id="btnCloseModal" aria-label="Close">×</button>
+    </div>
+    <div class="modal-section">
+      <span class="modal-tag">What It Looks For</span>
+      <p class="modal-text" id="modalMeasures"></p>
+    </div>
+    <div class="modal-section">
+      <span class="modal-tag">Reference Benchmarks</span>
+      <p class="modal-text" id="modalBenchmarks"></p>
+    </div>
+    <div class="modal-section">
+      <span class="modal-tag">Cryptanalytic Signal</span>
+      <p class="modal-text" id="modalSignal"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  /* ==========================================================================
+     1. METRIC DEFINITIONS FOR "i" DIALOGUE POPUPS
+     ========================================================================== */
+  const DEFINITIONS = {
+    alphabet: {
+      title: "Detected Alphabet & Keyspace Pool",
+      measures: "Inspects the character composition and unique symbol spread of your sanitized text to classify its underlying symbol set (Numeric 0–9, Hexadecimal, 26-letter Latin, 36-character Alphanumeric grid, or Extended ASCII).",
+      benchmarks: "Numeric = 10 symbols (random IoC 0.1000) • Hex = 16 (0.0625) • Latin = 26 (0.0385) • Alphanumeric Grid = 36 (0.0278).",
+      signal: "Establishes the mathematical floor for Index of Coincidence and maximum Shannon Entropy so short samples from larger grids aren't misread as structured text."
+    },
+    ioc: {
+      title: "Index of Coincidence (IoC)",
+      measures: "Calculates the probability that any two characters chosen at random from your text are identical, measuring how uneven or spiky the frequency distribution is.",
+      benchmarks: "Standard English ≈ 0.0667 (1.73 normalized) • Random 26-char ≈ 0.0385 • Random 36-char ≈ 0.0278 • Random 10-digit ≈ 0.1000.",
+      signal: "High IoC near 0.065+ indicates monoalphabetic substitution or transposition. Low IoC near the random floor points toward polyalphabetic ciphers, multi-quadrant rotation, or strong diffusion."
+    },
+    entropy: {
+      title: "Shannon Entropy (Bits / Symbol)",
+      measures: "Quantifies the average information density and unpredictability per character across the entire message.",
+      benchmarks: "Typical English prose ≈ 4.00–4.20 bits • Max 26-char random = 4.70 bits • Max 36-char random = 5.17 bits • Max 10-digit random = 3.32 bits.",
+      signal: "Controls the particle ring's color temperature. Lower entropy shifts the ring into cool blues/cyans; flat, near-maximum entropy pushes the ring into hot amber, magenta, and crimson."
+    },
+    chisquared: {
+      title: "Chi-Squared (χ²) English Fit",
+      measures: "Compares the observed letter proportions of your text directly against standard English letter frequencies.",
+      benchmarks: "Under 50 = Very close match to natural English • 50–250 = Moderate shift or short sample • 500+ = Heavy substitution or non-English character distribution.",
+      signal: "A low χ² paired with scrambled text is the hallmark of a pure transposition cipher (letters were rearranged, not replaced). Also governs the ring's clockwise vs. counter-clockwise orbit."
+    },
+    pairs: {
+      title: "Number Pairs, Bigrams & Doubles",
+      measures: "Counts both non-overlapping two-character pairs (paired sequentially from index 0) and sliding adjacent bigrams, plus immediate repeated doubles (such as 11, 44, or LL).",
+      benchmarks: "Even-length numeric strings divide cleanly into 2-digit coordinates (00–99). In natural English, doubles occur roughly 2.5%–3.5% of the time.",
+      signal: "Recurring pairs highlight structural anchors, polygraphic digraphs, or grid row/column coordinates. Detected doubles trigger subtle brightness pulses across the orbiting ring."
+    },
+    kasiski: {
+      title: "Kasiski Examination & Grid Factors",
+      measures: "Scans for repeated 3- and 4-character sequences, measures the character distance between occurrences, and computes the Greatest Common Divisor (GCD) alongside clean length divisors.",
+      benchmarks: "Clean divisibility by 2, 3, 4, 6, 9, or 36 suggests block or rotating-grid dimensions (such as 3×3 or 6×6 matrices).",
+      signal: "Common factors among repeat distances expose the period or key length of repeating-key and rotating-grid substitution ciphers."
+    },
+    period: {
+      title: "Period / Columnar IoC Slicer",
+      measures: "Splits the ciphertext into N interleaved columns (from Period 1 to 20) and averages the Index of Coincidence inside each individual column.",
+      benchmarks: "At Period 1, a polyalphabetic cipher shows a flat IoC (~0.038 or ~0.028). When N hits the true key period, average column IoC spikes back toward ~0.065.",
+      signal: "Lets you visually isolate repeating-key lengths or cycle intervals by scrubbing the slider until the average IoC jumps."
+    }
+  };
+
+  /* ==========================================================================
+     2. ENGLISH FREQUENCY BASELINE & CRYPTOGRAPHIC ENGINE
+     ========================================================================== */
+  const ENGLISH_FREQ = {
+    A:0.08167, B:0.01492, C:0.02782, D:0.04253, E:0.12702, F:0.02228, G:0.02015,
+    H:0.06094, I:0.06966, J:0.00153, K:0.00772, L:0.04025, M:0.02406, N:0.06749,
+    O:0.07507, P:0.01929, Q:0.00095, R:0.05987, S:0.06327, T:0.09056, U:0.02758,
+    V:0.00978, W:0.02360, X:0.00150, Y:0.01974, Z:0.00074
+  };
+
+  const state = {
+    options: {
+      ignoreSpaces: true,
+      stripPunct: true,
+      caseInsensitive: true,
+      digitsOnly: false
+    },
+    alphabetOverride: "auto",
+    period: 1,
+    analysis: null,
+    visual: {
+      particleCount: 340,
+      nebulaAlpha: 0.22,
+      rainbowSpeed: 1.0,
+      glowBlur: 14
+    }
+  };
+
+  function gcd(a, b) {
+    a = Math.abs(a);
+    b = Math.abs(b);
+    while (b !== 0) {
+      const t = b;
+      b = a % b;
+      a = t;
+    }
+    return a;
+  }
+
+  function computeIoC(str) {
+    const n = str.length;
+    if (n < 2) return 0;
+    const counts = Object.create(null);
+    for (let i = 0; i < n; i++) {
+      const ch = str[i];
+      counts[ch] = (counts[ch] || 0) + 1;
+    }
+    let num = 0;
+    for (const k in counts) {
+      const c = counts[k];
+      num += c * (c - 1);
+    }
+    return num / (n * (n - 1));
+  }
+
+  function sanitizeText(raw) {
+    let s = raw || "";
+    if (state.options.caseInsensitive) s = s.toUpperCase();
+    if (state.options.ignoreSpaces) s = s.replace(/\s+/g, "");
+    if (state.options.digitsOnly) {
+      s = s.replace(/[^0-9]/g, "");
+    } else if (state.options.stripPunct) {
+      s = s.replace(/[^A-Za-z0-9]/g, "");
+    }
+    return s;
+  }
+
+  function classifyAlphabet(clean, uniqueCount) {
+    if (!clean.length) {
+      return { label: "Idle", poolSize: 26, randomIoC: 1 / 26, maxEntropy: Math.log2(26) };
+    }
+
+    const override = state.alphabetOverride;
+    const isDigits = /^[0-9]+$/.test(clean);
+    const isHex = /^[0-9A-Fa-f]+$/.test(clean) && /[A-Fa-f]/.test(clean);
+    const isAlpha = /^[A-Za-z]+$/.test(clean);
+    const isAlphaNum = /^[A-Za-z0-9]+$/.test(clean);
+
+    let detectedLabel = "Custom Symbol Set";
+    let poolSize = Math.max(uniqueCount, 2);
+
+    if (override !== "auto") {
+      poolSize = parseInt(override, 10);
+      const map = {
+        26: "26-Char Latin (Locked)",
+        36: "36-Char Grid (Locked)",
+        10: "10-Digit Numeric (Locked)",
+        16: "16-Char Hex (Locked)"
+      };
+      detectedLabel = map[poolSize] || `${poolSize}-Char Pool`;
+    } else if (isDigits) {
+      poolSize = 10;
+      detectedLabel = clean.length % 2 === 0 ? "10-Digit (Even Pairs)" : "10-Digit Numeric";
+    } else if (isHex && uniqueCount <= 16 && /[0-9]/.test(clean)) {
+      poolSize = 16;
+      detectedLabel = "16-Char Hexadecimal";
+    } else if (isAlpha) {
+      poolSize = state.options.caseInsensitive ? 26 : 52;
+      detectedLabel = state.options.caseInsensitive ? "26-Char Latin (A–Z)" : "52-Char Mixed Latin";
+    } else if (isAlphaNum) {
+      poolSize = state.options.caseInsensitive ? 36 : 62;
+      detectedLabel = state.options.caseInsensitive ? "36-Char Alphanumeric" : "62-Char Base62";
+    } else {
+      detectedLabel = `Extended (${uniqueCount} unique)`;
+    }
+
+    return {
+      label: detectedLabel,
+      poolSize,
+      randomIoC: 1 / poolSize,
+      maxEntropy: Math.log2(poolSize)
+    };
+  }
+
+  function analyzeCiphertext(raw) {
+    const clean = sanitizeText(raw);
+    const n = clean.length;
+
+    if (n === 0) {
+      return null;
+    }
+
+    // Frequency table
+    const freq = Object.create(null);
+    let checksum = 0;
+    for (let i = 0; i < n; i++) {
+      const ch = clean[i];
+      freq[ch] = (freq[ch] || 0) + 1;
+      checksum += clean.charCodeAt(i);
+    }
+
+    const sortedChars = Object.entries(freq).sort((a, b) => b[1] - a[1]);
+    const uniqueCount = sortedChars.length;
+    const alphaInfo = classifyAlphabet(clean, uniqueCount);
+
+    // IoC
+    const ioc = computeIoC(clean);
+    const normIoc = ioc * alphaInfo.poolSize;
+
+    // Shannon Entropy
+    let entropy = 0;
+    for (const [, count] of sortedChars) {
+      const p = count / n;
+      entropy -= p * Math.log2(p);
+    }
+    const entropyRatio = alphaInfo.maxEntropy > 0 ? Math.min(1, entropy / alphaInfo.maxEntropy) : 0;
+
+    // Chi-Squared against English (evaluated over A-Z characters)
+    let alphaTotal = 0;
+    const upperCounts = Object.create(null);
+    for (let i = 0; i < n; i++) {
+      const u = clean[i].toUpperCase();
+      if (u >= "A" && u <= "Z") {
+        upperCounts[u] = (upperCounts[u] || 0) + 1;
+        alphaTotal++;
+      }
+    }
+
+    let chiSquared = null;
+    if (alphaTotal >= 5) {
+      chiSquared = 0;
+      for (const letter in ENGLISH_FREQ) {
+        const expected = ENGLISH_FREQ[letter] * alphaTotal;
+        const observed = upperCounts[letter] || 0;
+        chiSquared += ((observed - expected) ** 2) / expected;
+      }
+    }
+
+    // Pairs (Non-overlapping pairs for even/numeric blocks + sliding bigrams) & Doubles
+    const nonOverlapPairs = Object.create(null);
+    const slidingBigrams = Object.create(null);
+    let doublesCount = 0;
+
+    for (let i = 0; i < n - 1; i += 2) {
+      const pair = clean.slice(i, i + 2);
+      nonOverlapPairs[pair] = (nonOverlapPairs[pair] || 0) + 1;
+    }
+    for (let i = 0; i < n - 1; i++) {
+      const bg = clean.slice(i, i + 2);
+      slidingBigrams[bg] = (slidingBigrams[bg] || 0) + 1;
+      if (clean[i] === clean[i + 1]) doublesCount++;
+    }
+
+    const isNumeric = /^[0-9]+$/.test(clean);
+    const primaryPairMap = (isNumeric || state.options.digitsOnly) ? nonOverlapPairs : slidingBigrams;
+    const topPairs = Object.entries(primaryPairMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 7);
+
+    // Kasiski Repeated Trigrams & Distances
+    const trigramPositions = Object.create(null);
+    for (let i = 0; i <= n - 3; i++) {
+      const tri = clean.slice(i, i + 3);
+      if (!trigramPositions[tri]) trigramPositions[tri] = [];
+      trigramPositions[tri].push(i);
+    }
+
+    const distances = [];
+    const repeatedTrigrams = [];
+    for (const [tri, pos] of Object.entries(trigramPositions)) {
+      if (pos.length > 1) {
+        repeatedTrigrams.push({ tri, count: pos.length });
+        for (let j = 1; j < pos.length; j++) {
+          distances.push(pos[j] - pos[j - 1]);
+        }
+      }
+    }
+    repeatedTrigrams.sort((a, b) => b.count - a.count);
+
+    let kasiskiGcd = 0;
+    for (const d of distances) {
+      kasiskiGcd = kasiskiGcd === 0 ? d : gcd(kasiskiGcd, d);
+    }
+
+    // Grid / Length Divisors
+    const commonGrids = [2, 3, 4, 5, 6, 8, 9, 10, 12, 16, 25, 36];
+    const matchingDivisors = commonGrids.filter(g => n >= g && n % g === 0);
+
+    // Columnar Period IoC
+    const period = Math.min(state.period, Math.max(1, Math.floor(n / 2) || 1));
+    let periodIocSum = 0;
+    let validCols = 0;
+    for (let col = 0; col < period; col++) {
+      let colStr = "";
+      for (let idx = col; idx < n; idx += period) {
+        colStr += clean[idx];
+      }
+      if (colStr.length >= 2) {
+        periodIocSum += computeIoC(colStr);
+        validCols++;
+      }
+    }
+    const avgPeriodIoc = validCols > 0 ? periodIocSum / validCols : ioc;
+
+    const peakShare = sortedChars[0][1] / n;
+
+    return {
+      clean,
+      length: n,
+      uniqueCount,
+      alphaInfo,
+      ioc,
+      normIoc,
+      entropy,
+      entropyRatio,
+      chiSquared,
+      checksum,
+      doublesCount,
+      isNumeric,
+      topPairs,
+      repeatedTrigrams: repeatedTrigrams.slice(0, 4),
+      kasiskiGcd,
+      matchingDivisors,
+      sortedChars,
+      peakShare,
+      avgPeriodIoc
+    };
+  }
+
+  /* ==========================================================================
+     3. PARTICLE + NEBULA CANVAS ENGINE
+     ========================================================================== */
+  const canvas = document.getElementById("voidCanvas");
+  const ctx = canvas.getContext("2d");
+
+  let width = 0;
+  let height = 0;
+  let dpr = 1;
+
+  // Offscreen Nebula Clouds for smooth mobile/desktop rendering
+  const nebulae = [];
+  function buildNebulaLayers() {
+    nebulae.length = 0;
+    const cloudConfigs = [
+      { size: 680, x: 0.28, y: 0.32, vx: 0.08, vy: 0.05, rot: 0, vRot: 0.00018, lobes: 7 },
+      { size: 760, x: 0.72, y: 0.68, vx: -0.06, vy: -0.04, rot: 1.4, vRot: -0.00014, lobes: 8 },
+      { size: 560, x: 0.50, y: 0.50, vx: 0.03, vy: -0.05, rot: 2.8, vRot: 0.00011, lobes: 6 }
+    ];
+
+    cloudConfigs.forEach((cfg, idx) => {
+      const off = document.createElement("canvas");
+      off.width = cfg.size;
+      off.height = cfg.size;
+      const octx = off.getContext("2d");
+      const cx = cfg.size / 2;
+      const cy = cfg.size / 2;
+
+      // Deterministic pseudo-random cloud lobes so clouds look organic & billowing
+      let seed = (idx + 1) * 9301 + 49297;
+      const rand = () => {
+        seed = (seed * 16807) % 2147483647;
+        return (seed - 1) / 2147483646;
+      };
+
+      for (let i = 0; i < cfg.lobes; i++) {
+        const angle = (i / cfg.lobes) * Math.PI * 2 + rand() * 0.7;
+        const dist = (0.08 + rand() * 0.22) * cfg.size;
+        const lx = cx + Math.cos(angle) * dist;
+        const ly = cy + Math.sin(angle) * dist;
+        const rad = (0.22 + rand() * 0.24) * cfg.size;
+
+        const grad = octx.createRadialGradient(lx, ly, rad * 0.05, lx, ly, rad);
+        grad.addColorStop(0, "rgba(255, 255, 255, 0.34)");
+        grad.addColorStop(0.45, "rgba(255, 255, 255, 0.14)");
+        grad.addColorStop(1, "rgba(255, 255, 255, 0)");
+
+        octx.fillStyle = grad;
+        octx.beginPath();
+        octx.arc(lx, ly, rad, 0, Math.PI * 2);
+        octx.fill();
+      }
+
+      nebulae.push({
+        canvas: off,
+        tintCanvas: document.createElement("canvas"),
+        size: cfg.size,
+        nx: cfg.x,
+        ny: cfg.y,
+        vx: cfg.vx,
+        vy: cfg.vy,
+        rot: cfg.rot,
+        vRot: cfg.vRot
+      });
+    });
+  }
+
+  // Particles
+  let particles = [];
+  function createParticle(index, total) {
+    // Varied depth tiers matching reference screenshots (tiny pinpoints + brighter foreground orbs)
+    const depthRoll = Math.random();
+    let radius, baseAlpha;
+    if (depthRoll < 0.55) {
+      radius = 0.9 + Math.random() * 0.8;
+      baseAlpha = 0.45 + Math.random() * 0.3;
+    } else if (depthRoll < 0.88) {
+      radius = 1.7 + Math.random() * 1.1;
+      baseAlpha = 0.72 + Math.random() * 0.22;
+    } else {
+      radius = 2.8 + Math.random() * 1.1;
+      baseAlpha = 0.90 + Math.random() * 0.10;
+    }
+
+    return {
+      x: Math.random() * (width || window.innerWidth),
+      y: Math.random() * (height || window.innerHeight),
+      vx: (Math.random() - 0.5) * 0.28,
+      vy: (Math.random() - 0.5) * 0.28,
+      radius,
+      baseAlpha,
+      orbitAngle: (index / total) * Math.PI * 2 + (Math.random() - 0.5) * 0.12,
+      radialJitter: (Math.random() - 0.5) * 2, // normalized -1 to 1
+      phase: Math.random() * Math.PI * 2,
+      twinkleSpeed: 0.015 + Math.random() * 0.025
+    };
+  }
+
+  function syncParticlePool() {
+    const target = state.visual.particleCount;
+    if (particles.length < target) {
+      const start = particles.length;
+      for (let i = start; i < target; i++) {
+        particles.push(createParticle(i, target));
+      }
+    } else if (particles.length > target) {
+      particles.length = target;
+    }
+    particles.forEach((p, i) => {
+      p.orbitAngle = (i / target) * Math.PI * 2 + (p.phase % 0.15);
+    });
+  }
+
+  function resizeCanvas() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = Math.floor(width * dpr);
+    canvas.height = Math.floor(height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  window.addEventListener("resize", resizeCanvas);
+  resizeCanvas();
+  buildNebulaLayers();
+  syncParticlePool();
+
+  // Dynamic Ring & Color State
+  let currentHue = 14; // Starts near vivid orange-red from reference screenshot
+  let activeHue = 14;
+  let globalTime = 0;
+
+  function computeRingPhysics(analysis) {
+    if (!analysis) {
+      return {
+        active: false,
+        targetHue: currentHue,
+        radius: Math.min(width, height) * 0.26,
+        bandWidth: 16,
+        angularVel: 0,
+        direction: 1,
+        wobbleAmp: 0,
+        pulseStrength: 0,
+        summary: null
+      };
+    }
+
+    // 1. Hue driven by Shannon Entropy Ratio (0 = cool blue 210°, 0.5 = cyan/emerald 160°, 1.0 = hot amber/magenta 340°)
+    // Maps smoothly across 215° -> 140° -> 45° -> 345°
+    const er = analysis.entropyRatio;
+    const targetHue = (215 + er * 145) % 360;
+
+    // 2. Radius driven by Character Length (scaled cleanly for mobile & desktop)
+    const minDim = Math.min(width, height);
+    const lenFactor = Math.min(1, Math.log10(analysis.length + 1) / 3.2);
+    const radius = minDim * (0.16 + lenFactor * 0.20);
+
+    // 3. Band Thickness driven by Unique Character Spread (unique / total)
+    const diversity = analysis.length > 0 ? analysis.uniqueCount / analysis.length : 0.5;
+    const bandWidth = 5 + diversity * 28;
+
+    // 4. Rotation Speed driven by Index of Coincidence
+    // Low IoC (flat/random) spins fast; high IoC (structured language) settles into a slow orbit
+    const iocNormalized = Math.min(1, analysis.ioc / Math.max(0.08, analysis.alphaInfo.randomIoC * 2.4));
+    const speedMag = 0.0022 + (1 - iocNormalized) * 0.014;
+
+    // 5. Direction driven by Chi-Squared threshold (or checksum parity if non-alpha)
+    let direction = 1;
+    let dirReason = "CW";
+    if (analysis.chiSquared !== null) {
+      direction = analysis.chiSquared <= 180 ? 1 : -1;
+      dirReason = direction === 1 ? "CW (χ² ≤ 180)" : "CCW (χ² > 180)";
+    } else {
+      direction = analysis.checksum % 2 === 0 ? 1 : -1;
+      dirReason = direction === 1 ? "CW (Even Sum)" : "CCW (Odd Sum)";
+    }
+
+    // 6. Harmonic Wobble driven by Peak Symbol Concentration
+    const wobbleAmp = Math.min(18, Math.max(0, (analysis.peakShare - analysis.alphaInfo.randomIoC) * 90));
+
+    // 7. Pulse Strength driven by Doubles & Repeated Trigrams
+    const repeatDensity = (analysis.doublesCount + analysis.repeatedTrigrams.length * 2) / Math.max(1, analysis.length);
+    const pulseStrength = Math.min(1, repeatDensity * 6);
+
+    return {
+      active: true,
+      targetHue,
+      radius,
+      bandWidth,
+      angularVel: speedMag * direction,
+      direction,
+      wobbleAmp,
+      pulseStrength,
+      summary: {
+        hueDeg: Math.round(targetHue),
+        radiusPx: Math.round(radius),
+        dirReason,
+        rpm: Math.abs((speedMag * 60) / (Math.PI * 2) * 60).toFixed(1)
+      }
+    };
+  }
+
+  function renderFrame() {
+    globalTime += 1;
+    const ring = computeRingPhysics(state.analysis);
+
+    // Hue transition: unified rainbow loop when idle, smooth lock onto entropy hue when active
+    if (!ring.active) {
+      currentHue = (currentHue + 0.14 * state.visual.rainbowSpeed) % 360;
+      activeHue = currentHue;
+    } else {
+      let diff = ring.targetHue - activeHue;
+      if (diff > 180) diff -= 360;
+      if (diff < -180) diff += 360;
+      activeHue = (activeHue + diff * 0.05 + 360) % 360;
+      currentHue = activeHue;
+    }
+
+    // 1. Pitch-Black Void Background (#000000)
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(0, 0, width, height);
+
+    // 2. Drifting Nebula Clouds tinted to match active particle hue
+    const nebOpacity = state.visual.nebulaAlpha * (ring.active ? 1.25 : 1.0);
+    if (nebOpacity > 0.005) {
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      nebulae.forEach((neb, i) => {
+        neb.nx += neb.vx / width;
+        neb.ny += neb.vy / height;
+        neb.rot += neb.vRot;
+
+        if (neb.nx < -0.2) neb.nx = 1.2;
+        if (neb.nx > 1.2) neb.nx = -0.2;
+        if (neb.ny < -0.2) neb.ny = 1.2;
+        if (neb.ny > 1.2) neb.ny = -0.2;
+
+        // Tint offscreen buffer cleanly with active hue
+        const tctx = neb.tintCanvas.getContext("2d");
+        if (neb.tintCanvas.width !== neb.size) {
+          neb.tintCanvas.width = neb.size;
+          neb.tintCanvas.height = neb.size;
+        }
+        tctx.globalCompositeOperation = "source-over";
+        tctx.clearRect(0, 0, neb.size, neb.size);
+        tctx.drawImage(neb.canvas, 0, 0);
+        tctx.globalCompositeOperation = "source-in";
+        const layerHue = (activeHue + i * 8) % 360;
+        tctx.fillStyle = `hsla(${layerHue}, 92%, 52%, ${nebOpacity})`;
+        tctx.fillRect(0, 0, neb.size, neb.size);
+
+        const drawX = ring.active
+          ? width * 0.5 + (neb.nx - 0.5) * width * 0.35
+          : neb.nx * width;
+        const drawY = ring.active
+          ? height * 0.38 + (neb.ny - 0.5) * height * 0.35
+          : neb.ny * height;
+
+        ctx.save();
+        ctx.translate(drawX, drawY);
+        ctx.rotate(neb.rot);
+        ctx.drawImage(neb.tintCanvas, -neb.size / 2, -neb.size / 2);
+        ctx.restore();
+      });
+      ctx.restore();
+    }
+
+    // 3. Glowing Particles (Zero-Gravity Drift OR Coalesced Cipher Ring)
+    const centerX = width * 0.5;
+    // Shift ring center slightly above bottom HUD drawer when HUD is open
+    const hudOpen = !document.getElementById("hudShell").classList.contains("collapsed");
+    const centerY = ring.active
+      ? (hudOpen ? height * 0.32 : height * 0.5)
+      : height * 0.5;
+
+    const pulseWave = ring.active
+      ? 1 + Math.sin(globalTime * 0.08) * 0.22 * ring.pulseStrength
+      : 1;
+
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    const glowColor = `hsl(${activeHue}, 100%, 56%)`;
+    const coreColor = `hsl(${activeHue}, 95%, 78%)`;
+
+    ctx.shadowBlur = state.visual.glowBlur * pulseWave;
+    ctx.shadowColor = glowColor;
+
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      p.phase += p.twinkleSpeed;
+
+      if (!ring.active) {
+        // Zero-gravity floating drift
+        p.x += p.vx;
+        p.y += p.vy;
+
+        if (p.x < -12) p.x = width + 12;
+        if (p.x > width + 12) p.x = -12;
+        if (p.y < -12) p.y = height + 12;
+        if (p.y > height + 12) p.y = -12;
+      } else {
+        // Orbiting Ring Formation driven by cryptanalysis
+        p.orbitAngle += ring.angularVel;
+        const harmonic = Math.sin(p.orbitAngle * 5 + globalTime * 0.04) * ring.wobbleAmp;
+        const targetR = ring.radius + p.radialJitter * ring.bandWidth + harmonic;
+        const tx = centerX + Math.cos(p.orbitAngle) * targetR;
+        const ty = centerY + Math.sin(p.orbitAngle) * targetR;
+
+        // Smooth spring interpolation into ring formation
+        p.x += (tx - p.x) * 0.065;
+        p.y += (ty - p.y) * 0.065;
+      }
+
+      const twinkle = 0.82 + Math.sin(p.phase) * 0.18;
+      const alpha = Math.min(1, p.baseAlpha * twinkle);
+      const r = p.radius * (ring.active ? (0.95 + pulseWave * 0.12) : 1);
+
+      // Outer saturated halo
+      ctx.fillStyle = `hsla(${activeHue}, 100%, 56%, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Hot luminous core for foreground orbs
+      if (p.radius > 1.6) {
+        ctx.fillStyle = `hsla(${activeHue}, 95%, 86%, ${alpha * 0.9})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r * 0.45, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    ctx.restore();
+
+    // Sync HUD status dot color with live canvas hue
+    const dot = document.getElementById("statusDot");
+    dot.style.background = `hsl(${activeHue}, 95%, 58%)`;
+    dot.style.boxShadow = `0 0 10px hsl(${activeHue}, 95%, 58%)`;
+
+    requestAnimationFrame(renderFrame);
+  }
+
+  requestAnimationFrame(renderFrame);
+
+  /* ==========================================================================
+     4. UI WIRING, SPARKLINE & MODAL CONTROLS
+     ========================================================================== */
+  const elInput = document.getElementById("cipherInput");
+  const elPeriodSlider = document.getElementById("periodSlider");
+  const elLblPeriod = document.getElementById("lblPeriod");
+
+  function drawSparkline(analysis) {
+    const spCanvas = document.getElementById("freqSparkline");
+    const sctx = spCanvas.getContext("2d");
+    const w = spCanvas.width;
+    const h = spCanvas.height;
+    sctx.clearRect(0, 0, w, h);
+
+    if (!analysis || !analysis.sortedChars.length) return;
+
+    const bars = analysis.sortedChars.slice(0, 40);
+    const maxCount = bars[0][1];
+    const barW = Math.max(4, (w - 16) / bars.length - 2);
+
+    bars.forEach(([ch, count], idx) => {
+      const ratio = count / maxCount;
+      const barH = Math.max(3, ratio * (h - 14));
+      const x = 8 + idx * (barW + 2);
+      const y = h - barH - 4;
+
+      sctx.fillStyle = `hsla(${activeHue}, 90%, 60%, ${0.45 + ratio * 0.55})`;
+      sctx.fillRect(x, y, barW, barH);
+    });
+  }
+
+  function updateReadout() {
+    const res = analyzeCiphertext(elInput.value);
+    state.analysis = res;
+
+    if (!res) {
+      document.getElementById("valAlphabet").textContent = "Idle";
+      document.getElementById("subAlphabet").textContent = "0 chars • 0 unique";
+      document.getElementById("valIoc").textContent = "0.0000";
+      document.getElementById("subIoc").textContent = "Norm: 0.00 • Base: —";
+      document.getElementById("valEntropy").textContent = "0.00 bits";
+      document.getElementById("subEntropy").textContent = "Efficiency: 0% of max";
+      document.getElementById("valChi").textContent = "—";
+      document.getElementById("subChi").textContent = "English fit: N/A";
+      document.getElementById("subPairs").textContent = "Non-overlapping & sliding pairs • Doubles: 0";
+      document.getElementById("listPairs").innerHTML = `<span class="data-pill">Awaiting input</span>`;
+      document.getElementById("subKasiski").textContent = "Length factors & repeat spacing GCD";
+      document.getElementById("listKasiski").innerHTML = `<span class="data-pill">Awaiting input</span>`;
+      document.getElementById("valPeriodIoc").textContent = "Avg IoC: 0.0000";
+      document.getElementById("lblTopChar").textContent = "Top symbol: —";
+      document.getElementById("ringTelemetry").innerHTML = `
+        <span>State: Zero-Gravity Drift</span>
+        <span>Hue: Rainbow Loop</span>
+        <span>Orbit: Suspended</span>
+      `;
+      drawSparkline(null);
+      return;
+    }
+
+    document.getElementById("valAlphabet").textContent = res.alphaInfo.label;
+    document.getElementById("subAlphabet").textContent = `${res.length} chars • ${res.uniqueCount} unique`;
+
+    document.getElementById("valIoc").textContent = res.ioc.toFixed(4);
+    document.getElementById("subIoc").textContent =
+      `Norm: ${res.normIoc.toFixed(2)} • Rand: ${res.alphaInfo.randomIoC.toFixed(4)}`;
+
+    document.getElementById("valEntropy").textContent = `${res.entropy.toFixed(2)} bits`;
+    document.getElementById("subEntropy").textContent =
+      `${Math.round(res.entropyRatio * 100)}% of ${res.alphaInfo.maxEntropy.toFixed(2)} max`;
+
+    if (res.chiSquared !== null) {
+      document.getElementById("valChi").textContent = res.chiSquared.toFixed(1);
+      const fitLabel = res.chiSquared < 50 ? "Strong English match"
+        : res.chiSquared < 250 ? "Moderate shift"
+        : "High divergence";
+      document.getElementById("subChi").textContent = fitLabel;
+    } else {
+      document.getElementById("valChi").textContent = "N/A";
+      document.getElementById("subChi").textContent = "Requires ≥5 A–Z letters";
+    }
+
+    // Pairs & Doubles
+    const pairMode = (res.isNumeric || state.options.digitsOnly) ? "Number pairs" : "Sliding bigrams";
+    document.getElementById("subPairs").textContent = `${pairMode} • Adjacent doubles: ${res.doublesCount}`;
+    const listPairsEl = document.getElementById("listPairs");
+    if (res.topPairs.length) {
+      listPairsEl.innerHTML = res.topPairs
+        .map(([p, c]) => `<span class="data-pill">${p}<span>×${c}</span></span>`)
+        .join("");
+    } else {
+      listPairsEl.innerHTML = `<span class="data-pill">Need 2+ chars</span>`;
+    }
+
+    // Kasiski & Grid Divisors
+    const gcdText = res.kasiskiGcd > 1 ? `Repeat GCD: ${res.kasiskiGcd}` : "No repeat GCD";
+    document.getElementById("subKasiski").textContent = gcdText;
+    const listKasiskiEl = document.getElementById("listKasiski");
+    const pills = [];
+    if (res.matchingDivisors.length) {
+      pills.push(`<span class="data-pill">Grid ÷<span>${res.matchingDivisors.join(",")}</span></span>`);
+    }
+    res.repeatedTrigrams.forEach(item => {
+      pills.push(`<span class="data-pill">${item.tri}<span>×${item.count}</span></span>`);
+    });
+    listKasiskiEl.innerHTML = pills.length
+      ? pills.join("")
+      : `<span class="data-pill">No 3-gram repeats</span>`;
+
+    // Period Slicer
+    document.getElementById("valPeriodIoc").textContent = `Avg IoC: ${res.avgPeriodIoc.toFixed(4)}`;
+
+    // Sparkline & Top Symbol
+    const [topSym, topCnt] = res.sortedChars[0];
+    const topPct = ((topCnt / res.length) * 100).toFixed(1);
+    document.getElementById("lblTopChar").textContent = `Top: "${topSym}" (${topCnt} / ${topPct}%)`;
+    drawSparkline(res);
+
+    // Live Ring Physics Summary
+    const ring = computeRingPhysics(res);
+    if (ring.summary) {
+      document.getElementById("ringTelemetry").innerHTML = `
+        <span>Ring Radius: ${ring.summary.radiusPx}px</span>
+        <span>Entropy Hue: ${ring.summary.hueDeg}°</span>
+        <span>Orbit: ${ring.summary.dirReason} • ${ring.summary.rpm} RPM</span>
+      `;
+    }
+  }
+
+  elInput.addEventListener("input", updateReadout);
+
+  // Sanitization Toggles
+  document.querySelectorAll(".chip-toggle").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.opt;
+      state.options[key] = !state.options[key];
+      btn.classList.toggle("active", state.options[key]);
+      updateReadout();
+    });
+  });
+
+  // Alphabet Pool Override
+  document.getElementById("alphabetOverride").addEventListener("change", e => {
+    state.alphabetOverride = e.target.value;
+    updateReadout();
+  });
+
+  // Period Slicer
+  elPeriodSlider.addEventListener("input", e => {
+    state.period = parseInt(e.target.value, 10);
+    elLblPeriod.textContent = state.period;
+    updateReadout();
+  });
+
+  // Sample, Copy Report & Clear Buttons
+  document.getElementById("btnSample").addEventListener("click", () => {
+    const samples = [
+      "14 28 09 33 14 28 07 19 33 14 02 11 28 33 09 14 22 05 14 28 33 18 09 14",
+      "KHOORZRUOGWKLVLVDFUBSWRJUDSKLFDQDOBVLVWHVWZLWKUHSHDWHGSDWWHUQV",
+      "X9K2M7P4Q1Z8W3L6R5T0V9B2N4C8H1J7D3F6G5S0A2Y9E4U8I1O7"
+    ];
+    const current = elInput.value.trim();
+    const next = samples[(samples.indexOf(current) + 1) % samples.length];
+    elInput.value = next;
+    updateReadout();
+  });
+
+  document.getElementById("btnClear").addEventListener("click", () => {
+    elInput.value = "";
+    updateReadout();
+  });
+
+  document.getElementById("btnCopyReport").addEventListener("click", async () => {
+    const r = state.analysis;
+    if (!r) return;
+    const report = [
+      `=== Cryptanalysis Report ===`,
+      `Length: ${r.length} | Unique: ${r.uniqueCount} | Pool: ${r.alphaInfo.label}`,
+      `IoC: ${r.ioc.toFixed(4)} (Norm: ${r.normIoc.toFixed(2)}, Random Base: ${r.alphaInfo.randomIoC.toFixed(4)})`,
+      `Shannon Entropy: ${r.entropy.toFixed(2)} / ${r.alphaInfo.maxEntropy.toFixed(2)} bits (${Math.round(r.entropyRatio * 100)}%)`,
+      `Chi-Squared: ${r.chiSquared !== null ? r.chiSquared.toFixed(1) : "N/A"}`,
+      `Adjacent Doubles: ${r.doublesCount} | Top Pairs: ${r.topPairs.map(([p, c]) => `${p}(${c})`).join(", ")}`,
+      `Period ${state.period} Avg IoC: ${r.avgPeriodIoc.toFixed(4)}`
+    ].join("\n");
+
+    try {
+      await navigator.clipboard.writeText(report);
+      const btn = document.getElementById("btnCopyReport");
+      btn.textContent = "Copied!";
+      setTimeout(() => (btn.textContent = "Copy Report"), 1400);
+    } catch (_) {}
+  });
+
+  // HUD Collapse Toggle (X button in top-right)
+  const hudShell = document.getElementById("hudShell");
+  const btnToggleHud = document.getElementById("btnToggleHud");
+  const toggleHudIcon = document.getElementById("toggleHudIcon");
+
+  btnToggleHud.addEventListener("click", () => {
+    const isCollapsed = hudShell.classList.toggle("collapsed");
+    toggleHudIcon.innerHTML = isCollapsed
+      ? `<line x1="4" y1="7" x2="20" y2="7"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="17" x2="20" y2="17"></line>`
+      : `<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>`;
+  });
+
+  // Visual Engine Settings Popover (Gear button in top-right)
+  const settingsPopover = document.getElementById("settingsPopover");
+  document.getElementById("btnSettings").addEventListener("click", e => {
+    e.stopPropagation();
+    settingsPopover.classList.toggle("open");
+  });
+
+  document.addEventListener("click", e => {
+    if (!settingsPopover.contains(e.target) && e.target.id !== "btnSettings") {
+      settingsPopover.classList.remove("open");
+    }
+  });
+
+  document.getElementById("optParticles").addEventListener("input", e => {
+    state.visual.particleCount = parseInt(e.target.value, 10);
+    document.getElementById("lblParticles").textContent = state.visual.particleCount;
+    syncParticlePool();
+  });
+
+  document.getElementById("optNebula").addEventListener("input", e => {
+    const pct = parseInt(e.target.value, 10);
+    state.visual.nebulaAlpha = pct / 100;
+    document.getElementById("lblNebula").textContent = `${pct}%`;
+  });
+
+  document.getElementById("optRainbow").addEventListener("input", e => {
+    const val = parseInt(e.target.value, 10) / 10;
+    state.visual.rainbowSpeed = val;
+    document.getElementById("lblRainbow").textContent = `${val.toFixed(1)}x`;
+  });
+
+  document.getElementById("optGlow").addEventListener("input", e => {
+    const val = parseInt(e.target.value, 10);
+    state.visual.glowBlur = val;
+    document.getElementById("lblGlow").textContent = `${val}px`;
+  });
+
+  // "i" Info Definition Dialogue Modal
+  const infoModal = document.getElementById("infoModal");
+  document.querySelectorAll(".info-trigger").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const def = DEFINITIONS[btn.dataset.def];
+      if (!def) return;
+      document.getElementById("modalTitle").textContent = def.title;
+      document.getElementById("modalMeasures").textContent = def.measures;
+      document.getElementById("modalBenchmarks").textContent = def.benchmarks;
+      document.getElementById("modalSignal").textContent = def.signal;
+      infoModal.classList.add("open");
+    });
+  });
+
+  function closeModal() {
+    infoModal.classList.remove("open");
+  }
+
+  document.getElementById("btnCloseModal").addEventListener("click", closeModal);
+  infoModal.addEventListener("click", e => {
+    if (e.target === infoModal) closeModal();
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") {
+      closeModal();
+      settingsPopover.classList.remove("open");
+    }
+  });
+})();
+</script>
+</body>
+</html>
