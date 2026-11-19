@@ -43,7 +43,7 @@
     z-index: 0;
   }
 
-  /* Top-Right Floating Controls */
+  /* Top-Right Floating Toggle Control */
   .top-controls {
     position: fixed;
     top: max(14px, env(safe-area-inset-top));
@@ -57,46 +57,34 @@
   .icon-btn {
     width: 40px;
     height: 40px;
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    background: rgba(18, 20, 26, 0.72);
+    border-radius: 50%;
+    border: none;
+    background: rgba(160, 165, 175, 0.78);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    color: var(--text);
+    color: #0b0d10;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: border-color 0.2s, background 0.2s, transform 0.15s;
+    transition: background 0.2s, transform 0.15s;
   }
 
   .icon-btn:hover {
-    border-color: var(--border-strong);
-    background: rgba(30, 34, 44, 0.85);
+    background: rgba(195, 200, 210, 0.92);
   }
 
   .icon-btn:active {
     transform: scale(0.95);
   }
 
-  .icon-btn.circle {
-    border-radius: 50%;
-    background: rgba(160, 165, 175, 0.78);
-    color: #0b0d10;
-    border: none;
-  }
-
-  .icon-btn.circle:hover {
-    background: rgba(195, 200, 210, 0.9);
-  }
-
-  /* Main Collapsible HUD Drawer */
+  /* Main Collapsible HUD Drawer — Compacted bottom height so upper viewport showcases the ring */
   .hud-shell {
     position: fixed;
     left: 12px;
     right: 12px;
     bottom: max(12px, env(safe-area-inset-bottom));
-    max-width: 780px;
+    max-width: 820px;
     margin: 0 auto;
     z-index: 15;
     background: var(--panel);
@@ -106,7 +94,7 @@
     -webkit-backdrop-filter: blur(16px);
     box-shadow: 0 18px 50px rgba(0, 0, 0, 0.85);
     transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
-    max-height: 82vh;
+    max-height: 48vh;
     display: flex;
     flex-direction: column;
   }
@@ -121,14 +109,14 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
+    padding: 10px 14px;
     border-bottom: 1px solid var(--border);
     gap: 10px;
     flex-shrink: 0;
   }
 
   .hud-title {
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 600;
     letter-spacing: 0.03em;
     display: flex;
@@ -146,7 +134,7 @@
 
   .hud-actions {
     display: flex;
-    gap: 8px;
+    gap: 6px;
   }
 
   .mini-btn {
@@ -154,8 +142,8 @@
     border: 1px solid var(--border);
     color: var(--text);
     font-family: var(--font);
-    font-size: 12px;
-    padding: 5px 10px;
+    font-size: 11.5px;
+    padding: 4px 9px;
     border-radius: 6px;
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s;
@@ -167,33 +155,33 @@
   }
 
   .hud-body {
-    padding: 14px 16px 16px;
+    padding: 12px 14px 14px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
   }
 
   /* Input Area & Sanitization Toggles */
   .input-group {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 7px;
   }
 
   textarea#cipherInput {
     width: 100%;
-    min-height: 76px;
-    max-height: 140px;
+    min-height: 54px;
+    max-height: 110px;
     resize: vertical;
     background: rgba(0, 0, 0, 0.55);
     border: 1px solid var(--border);
     border-radius: 8px;
     color: var(--text);
     font-family: var(--mono);
-    font-size: 13px;
-    line-height: 1.45;
-    padding: 10px 12px;
+    font-size: 12.5px;
+    line-height: 1.4;
+    padding: 8px 10px;
     outline: none;
     transition: border-color 0.2s;
   }
@@ -213,12 +201,12 @@
   .toggle-group {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 5px;
   }
 
   .chip-toggle {
-    font-size: 11.5px;
-    padding: 4px 9px;
+    font-size: 11px;
+    padding: 3.5px 8px;
     border-radius: 6px;
     border: 1px solid var(--border);
     background: rgba(255, 255, 255, 0.04);
@@ -239,28 +227,87 @@
     border: 1px solid var(--border);
     color: var(--text);
     font-family: var(--font);
-    font-size: 11.5px;
+    font-size: 11px;
     padding: 4px 8px;
     border-radius: 6px;
     outline: none;
     cursor: pointer;
   }
 
+  /* Probable Cipher Family Banner Card */
+  .classifier-card {
+    background: rgba(255, 255, 255, 0.045);
+    border: 1px solid var(--border-strong);
+    border-radius: 9px;
+    padding: 9px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .classifier-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .classifier-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .classifier-label {
+    font-size: 11.5px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .classifier-primary {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .confidence-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .conf-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 2.5px 7px;
+    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid var(--border);
+    color: #cbd5e1;
+  }
+
+  .conf-badge.top {
+    border-color: rgba(56, 189, 248, 0.55);
+    background: rgba(56, 189, 248, 0.14);
+    color: #e0f2fe;
+  }
+
   /* Metrics Grid */
   .metrics-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 8px;
   }
 
   .metric-card {
     background: rgba(255, 255, 255, 0.035);
     border: 1px solid var(--border);
     border-radius: 9px;
-    padding: 10px 12px;
+    padding: 9px 11px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
   }
 
   .metric-top {
@@ -271,7 +318,7 @@
   }
 
   .metric-label {
-    font-size: 11.5px;
+    font-size: 11px;
     color: var(--muted);
     font-weight: 500;
   }
@@ -304,13 +351,13 @@
 
   .metric-value {
     font-family: var(--mono);
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--text);
   }
 
   .metric-sub {
-    font-size: 11px;
+    font-size: 10.5px;
     color: var(--muted);
     line-height: 1.3;
   }
@@ -318,25 +365,25 @@
   /* Sub-panels for Number Pairs, N-grams, Kasiski & Period Slicer */
   .detail-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
+    gap: 8px;
   }
 
   .detail-box {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid var(--border);
     border-radius: 9px;
-    padding: 10px 12px;
+    padding: 9px 11px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 7px;
   }
 
   .detail-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 600;
     color: var(--text);
   }
@@ -353,7 +400,7 @@
     background: rgba(0, 0, 0, 0.55);
     border: 1px solid var(--border);
     border-radius: 5px;
-    padding: 3px 7px;
+    padding: 2.5px 6.5px;
     color: #e2e8f0;
   }
 
@@ -384,7 +431,7 @@
 
   canvas#freqSparkline {
     width: 100%;
-    height: 44px;
+    height: 40px;
     background: rgba(0, 0, 0, 0.45);
     border: 1px solid var(--border);
     border-radius: 7px;
@@ -394,48 +441,13 @@
   /* Ring Telemetry Footer */
   .telemetry-bar {
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: 10.5px;
     color: var(--muted);
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 10px;
     padding-top: 4px;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
-  }
-
-  /* Visual Settings Popover */
-  .settings-popover {
-    position: fixed;
-    top: max(62px, calc(env(safe-area-inset-top) + 48px));
-    right: 14px;
-    width: 240px;
-    z-index: 25;
-    background: var(--panel-solid);
-    border: 1px solid var(--border-strong);
-    border-radius: 12px;
-    padding: 14px;
-    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.85);
-    display: none;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .settings-popover.open {
-    display: flex;
-  }
-
-  .setting-item {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    font-size: 12px;
-    color: var(--muted);
-  }
-
-  .setting-item label {
-    display: flex;
-    justify-content: space-between;
-    color: var(--text);
   }
 
   /* Info Definition Modal */
@@ -530,41 +542,14 @@
 
 <canvas id="voidCanvas"></canvas>
 
-<!-- Top-Right Controls matching reference layout -->
+<!-- Top-Right HUD Toggle Control -->
 <div class="top-controls">
-  <button class="icon-btn" id="btnSettings" title="Visual Engine Settings" aria-label="Visual Engine Settings">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="3"></circle>
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-    </svg>
-  </button>
-
-  <button class="icon-btn circle" id="btnToggleHud" title="Toggle Analysis Panel" aria-label="Toggle Analysis Panel">
+  <button class="icon-btn" id="btnToggleHud" title="Toggle Analysis Panel" aria-label="Toggle Analysis Panel">
     <svg id="toggleHudIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
       <line x1="18" y1="6" x2="6" y2="18"></line>
       <line x1="6" y1="6" x2="18" y2="18"></line>
     </svg>
   </button>
-</div>
-
-<!-- Visual Engine Settings Popover -->
-<div class="settings-popover" id="settingsPopover">
-  <div class="setting-item">
-    <label><span>Particle Count</span><span id="lblParticles">340</span></label>
-    <input type="range" id="optParticles" min="120" max="650" value="340" />
-  </div>
-  <div class="setting-item">
-    <label><span>Nebula Intensity</span><span id="lblNebula">22%</span></label>
-    <input type="range" id="optNebula" min="0" max="50" value="22" />
-  </div>
-  <div class="setting-item">
-    <label><span>Rainbow Cycle Speed</span><span id="lblRainbow">1.0x</span></label>
-    <input type="range" id="optRainbow" min="2" max="30" value="10" />
-  </div>
-  <div class="setting-item">
-    <label><span>Glow Bloom</span><span id="lblGlow">14px</span></label>
-    <input type="range" id="optGlow" min="4" max="28" value="14" />
-  </div>
 </div>
 
 <!-- Cryptanalysis HUD Drawer -->
@@ -602,9 +587,22 @@
       </div>
     </div>
 
+    <!-- Heuristic Cipher Family Guess -->
+    <div class="classifier-card">
+      <div class="classifier-top">
+        <div class="classifier-title-wrap">
+          <span class="classifier-label">Probable Cipher Family:</span>
+          <span class="classifier-primary" id="valCipherGuess">Awaiting Signal</span>
+        </div>
+        <button class="info-trigger" data-def="classifier" title="Definition">i</button>
+      </div>
+      <div class="confidence-pills" id="listCipherCandidates">
+        <span class="conf-badge">Enter text to evaluate structural signature</span>
+      </div>
+    </div>
+
     <!-- Primary Cryptographic Metrics -->
     <div class="metrics-grid">
-      <!-- Alphabet Detection -->
       <div class="metric-card">
         <div class="metric-top">
           <span class="metric-label">Detected Alphabet</span>
@@ -614,7 +612,6 @@
         <div class="metric-sub" id="subAlphabet">0 chars • 0 unique</div>
       </div>
 
-      <!-- Index of Coincidence -->
       <div class="metric-card">
         <div class="metric-top">
           <span class="metric-label">Index of Coincidence</span>
@@ -624,7 +621,6 @@
         <div class="metric-sub" id="subIoc">Norm: 0.00 • Base: —</div>
       </div>
 
-      <!-- Shannon Entropy -->
       <div class="metric-card">
         <div class="metric-top">
           <span class="metric-label">Shannon Entropy</span>
@@ -634,7 +630,6 @@
         <div class="metric-sub" id="subEntropy">Efficiency: 0% of max</div>
       </div>
 
-      <!-- Chi-Squared -->
       <div class="metric-card">
         <div class="metric-top">
           <span class="metric-label">Chi-Squared (χ²)</span>
@@ -678,7 +673,7 @@
       </div>
       <div class="slicer-row">
         <input type="range" id="periodSlider" min="1" max="20" value="1" />
-        <span class="metric-value" id="valPeriodIoc" style="font-size:13px;">Avg IoC: 0.0000</span>
+        <span class="metric-value" id="valPeriodIoc" style="font-size:12.5px;">Avg IoC: 0.0000</span>
       </div>
     </div>
 
@@ -688,13 +683,13 @@
         <span>Sorted Symbol Frequency Distribution</span>
         <span class="metric-sub" id="lblTopChar">Top symbol: —</span>
       </div>
-      <canvas id="freqSparkline" width="600" height="44"></canvas>
+      <canvas id="freqSparkline" width="600" height="40"></canvas>
     </div>
 
     <!-- Ring Physics Live Mapping Readout -->
     <div class="telemetry-bar" id="ringTelemetry">
       <span>State: Zero-Gravity Drift</span>
-      <span>Hue: Rainbow Cycle</span>
+      <span>Hue: Rainbow Cycle (2.0x)</span>
       <span>Orbit: Suspended</span>
     </div>
   </div>
@@ -728,6 +723,12 @@
      1. METRIC DEFINITIONS FOR "i" DIALOGUE POPUPS
      ========================================================================== */
   const DEFINITIONS = {
+    classifier: {
+      title: "Heuristic Cipher Family Classifier",
+      measures: "Cross-references Index of Coincidence, Shannon Entropy, Chi-Squared fit, Caesar ROT-N shift testing, Kasiski/Period IoC spikes, adjacent doubles, and alphabet pool constraints to rank the most probable cipher architecture.",
+      benchmarks: "High IoC + Low χ² → Transposition • High IoC + High χ² → Monoalphabetic (or Caesar ROT-N) • Low IoC + Period Spike → Polyalphabetic / Rotating-Grid • Flat IoC + >96% Entropy → Homophonic / Modern Diffusion.",
+      signal: "Treats your ciphertext's statistical metrics as a multi-point fingerprint rather than relying on a single indicator—helpful for separating simple substitutions from periodic or fractionating grid ciphers."
+    },
     alphabet: {
       title: "Detected Alphabet & Keyspace Pool",
       measures: "Inspects the character composition and unique symbol spread of your sanitized text to classify its underlying symbol set (Numeric 0–9, Hexadecimal, 26-letter Latin, 36-character Alphanumeric grid, or Extended ASCII).",
@@ -781,6 +782,7 @@
     O:0.07507, P:0.01929, Q:0.00095, R:0.05987, S:0.06327, T:0.09056, U:0.02758,
     V:0.00978, W:0.02360, X:0.00150, Y:0.01974, Z:0.00074
   };
+  const ALPHABET_AZ = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
   const state = {
     options: {
@@ -793,10 +795,10 @@
     period: 1,
     analysis: null,
     visual: {
-      particleCount: 340,
-      nebulaAlpha: 0.22,
-      rainbowSpeed: 1.0,
-      glowBlur: 14
+      particleCount: 650,   // Maxed out particles
+      nebulaAlpha: 0.30,    // Richer nebula visibility
+      rainbowSpeed: 2.0,    // 2x rainbow cycle rotation
+      glowBlur: 24          // Bumped up bloom
     }
   };
 
@@ -886,15 +888,176 @@
     };
   }
 
+  function findBestCaesarShift(upperCounts, alphaTotal) {
+    if (alphaTotal < 6) return null;
+    let bestShift = 0;
+    let bestChi = Infinity;
+    for (let shift = 0; shift < 26; shift++) {
+      let chi = 0;
+      for (let i = 0; i < 26; i++) {
+        const plainLetter = ALPHABET_AZ[i];
+        const cipherLetter = ALPHABET_AZ[(i + shift) % 26];
+        const expected = ENGLISH_FREQ[plainLetter] * alphaTotal;
+        const observed = upperCounts[cipherLetter] || 0;
+        chi += ((observed - expected) ** 2) / expected;
+      }
+      if (chi < bestChi) {
+        bestChi = chi;
+        bestShift = shift;
+      }
+    }
+    return { shift: bestShift, chi: bestChi };
+  }
+
+  function scanBestPeriodSpike(clean, baseIoC) {
+    const n = clean.length;
+    if (n < 12) return { bestPeriod: 1, bestIoC: baseIoC };
+    const maxP = Math.min(16, Math.floor(n / 3));
+    let bestPeriod = 1;
+    let bestIoC = baseIoC;
+
+    for (let p = 2; p <= maxP; p++) {
+      let sum = 0;
+      let valid = 0;
+      for (let c = 0; c < p; c++) {
+        let colStr = "";
+        for (let idx = c; idx < n; idx += p) colStr += clean[idx];
+        if (colStr.length >= 2) {
+          sum += computeIoC(colStr);
+          valid++;
+        }
+      }
+      const avg = valid > 0 ? sum / valid : 0;
+      if (avg > bestIoC * 1.18 && avg > bestIoC + 0.008) {
+        bestIoC = avg;
+        bestPeriod = p;
+      }
+    }
+    return { bestPeriod, bestIoC };
+  }
+
+  function classifyCipherFamily(metrics) {
+    const {
+      clean, length, uniqueCount, alphaInfo, ioc, normIoc,
+      entropyRatio, chiSquared, doublesCount, isNumeric,
+      kasiskiGcd, upperCounts, alphaTotal
+    } = metrics;
+
+    if (length < 4) {
+      return {
+        primary: "Sample Too Short (< 4 chars)",
+        candidates: [{ name: "Add more characters for statistical signature", score: 100 }]
+      };
+    }
+
+    const candidates = [];
+    const caesar = findBestCaesarShift(upperCounts, alphaTotal);
+    const periodScan = scanBestPeriodSpike(clean, ioc);
+    const hasPeriodSpike = periodScan.bestPeriod > 1 || kasiskiGcd > 1;
+    const detectedPeriod = periodScan.bestPeriod > 1 ? periodScan.bestPeriod : kasiskiGcd;
+
+    // 1. Numeric / Coordinate / Polybius Pair Code
+    if (isNumeric) {
+      const evenNote = length % 2 === 0 ? "Even 2-Digit Pairs" : "Numeric Stream";
+      candidates.push({
+        name: `Polybius / Number-Pair Code (${evenNote})`,
+        score: length % 2 === 0 ? 88 : 74
+      });
+      if (normIoc > 1.35) {
+        candidates.push({ name: "Monographic Digit Substitution", score: 62 });
+      } else {
+        candidates.push({ name: "Homophonic / Modular Digit Cipher", score: 58 });
+      }
+    }
+
+    // 2. Fractionating 5/6-Symbol Grid (ADFGX / ADFGVX / Baconian)
+    if (!isNumeric && uniqueCount >= 2 && uniqueCount <= 6 && length >= 10) {
+      candidates.push({
+        name: `Fractionating Grid (${uniqueCount}-Symbol Alphabet)`,
+        score: 86
+      });
+    }
+
+    // 3. Playfair / Digraphic Substitution (Even length, <=25 letters, zero doubles)
+    if (!isNumeric && alphaTotal === length && length >= 10 && length % 2 === 0 && uniqueCount <= 25 && doublesCount === 0) {
+      candidates.push({
+        name: "Playfair / Digraphic Square Cipher",
+        score: normIoc < 1.45 ? 82 : 64
+      });
+    }
+
+    // 4. Transposition Cipher (High IoC + Low Chi-Squared)
+    if (chiSquared !== null && chiSquared <= 65 && normIoc >= 1.40) {
+      candidates.push({
+        name: "Transposition (Columnar / Rail Fence / Route)",
+        score: 91
+      });
+    }
+
+    // 5. Caesar / ROT-N Shift (Best Caesar shift drops Chi-Squared low)
+    if (caesar && caesar.shift > 0 && caesar.chi <= 65 && normIoc >= 1.38) {
+      candidates.push({
+        name: `Caesar / ROT-${caesar.shift} Shift`,
+        score: 94
+      });
+    }
+
+    // 6. Monoalphabetic Substitution (High IoC + High Chi-Squared)
+    if (normIoc >= 1.42 && (chiSquared === null || chiSquared > 65)) {
+      candidates.push({
+        name: "Monoalphabetic / Keyword Substitution",
+        score: 85
+      });
+    }
+
+    // 7. Polyalphabetic / Periodic / Rotating-Grid (Low IoC + Period Spike or Kasiski GCD)
+    if (normIoc < 1.45 && hasPeriodSpike) {
+      const pLabel = detectedPeriod > 1 ? ` (Period ~${detectedPeriod})` : "";
+      candidates.push({
+        name: `Polyalphabetic / Rotating-Grid${pLabel}`,
+        score: 87
+      });
+    }
+
+    // 8. High-Diffusion / Stream / Homophonic / Base Encoding
+    if (normIoc < 1.25 && entropyRatio >= 0.92 && !hasPeriodSpike && !isNumeric) {
+      const label = alphaInfo.poolSize >= 36
+        ? "High-Diffusion / Multi-Grid / Modern Encoding"
+        : "Homophonic / Running-Key / Stream Cipher";
+      candidates.push({
+        name: label,
+        score: 84
+      });
+    }
+
+    if (!candidates.length) {
+      candidates.push({
+        name: normIoc >= 1.3 ? "Structured / Partial Substitution" : "Polyalphabetic or High-Diffusion Cipher",
+        score: 65
+      });
+    }
+
+    // Deduplicate & sort descending
+    const uniqueMap = new Map();
+    for (const c of candidates) {
+      if (!uniqueMap.has(c.name) || uniqueMap.get(c.name).score < c.score) {
+        uniqueMap.set(c.name, c);
+      }
+    }
+    const sorted = Array.from(uniqueMap.values()).sort((a, b) => b.score - a.score).slice(0, 3);
+
+    return {
+      primary: sorted[0].name,
+      candidates: sorted
+    };
+  }
+
   function analyzeCiphertext(raw) {
     const clean = sanitizeText(raw);
     const n = clean.length;
 
-    if (n === 0) {
-      return null;
-    }
+    if (n === 0) return null;
 
-    // Frequency table
     const freq = Object.create(null);
     let checksum = 0;
     for (let i = 0; i < n; i++) {
@@ -919,7 +1082,7 @@
     }
     const entropyRatio = alphaInfo.maxEntropy > 0 ? Math.min(1, entropy / alphaInfo.maxEntropy) : 0;
 
-    // Chi-Squared against English (evaluated over A-Z characters)
+    // Chi-Squared against English
     let alphaTotal = 0;
     const upperCounts = Object.create(null);
     for (let i = 0; i < n; i++) {
@@ -940,7 +1103,7 @@
       }
     }
 
-    // Pairs (Non-overlapping pairs for even/numeric blocks + sliding bigrams) & Doubles
+    // Pairs & Doubles
     const nonOverlapPairs = Object.create(null);
     const slidingBigrams = Object.create(null);
     let doublesCount = 0;
@@ -1005,10 +1168,9 @@
       }
     }
     const avgPeriodIoc = validCols > 0 ? periodIocSum / validCols : ioc;
-
     const peakShare = sortedChars[0][1] / n;
 
-    return {
+    const baseMetrics = {
       clean,
       length: n,
       uniqueCount,
@@ -1027,12 +1189,17 @@
       matchingDivisors,
       sortedChars,
       peakShare,
-      avgPeriodIoc
+      avgPeriodIoc,
+      upperCounts,
+      alphaTotal
     };
+
+    baseMetrics.cipherGuess = classifyCipherFamily(baseMetrics);
+    return baseMetrics;
   }
 
   /* ==========================================================================
-     3. PARTICLE + NEBULA CANVAS ENGINE
+     3. PARTICLE + MULTI-LAYER NEBULA CANVAS ENGINE
      ========================================================================== */
   const canvas = document.getElementById("voidCanvas");
   const ctx = canvas.getContext("2d");
@@ -1041,14 +1208,17 @@
   let height = 0;
   let dpr = 1;
 
-  // Offscreen Nebula Clouds for smooth mobile/desktop rendering
+  // 6 Rich Offscreen Nebula Cloud Layers for deep cosmic parallax
   const nebulae = [];
   function buildNebulaLayers() {
     nebulae.length = 0;
     const cloudConfigs = [
-      { size: 680, x: 0.28, y: 0.32, vx: 0.08, vy: 0.05, rot: 0, vRot: 0.00018, lobes: 7 },
-      { size: 760, x: 0.72, y: 0.68, vx: -0.06, vy: -0.04, rot: 1.4, vRot: -0.00014, lobes: 8 },
-      { size: 560, x: 0.50, y: 0.50, vx: 0.03, vy: -0.05, rot: 2.8, vRot: 0.00011, lobes: 6 }
+      { size: 760, x: 0.22, y: 0.24, vx: 0.09, vy: 0.05, rot: 0.2, vRot: 0.00022, lobes: 8, hueOffset: -10 },
+      { size: 840, x: 0.78, y: 0.30, vx: -0.07, vy: 0.06, rot: 1.5, vRot: -0.00018, lobes: 9, hueOffset: 12 },
+      { size: 700, x: 0.50, y: 0.28, vx: 0.04, vy: -0.04, rot: 2.9, vRot: 0.00015, lobes: 7, hueOffset: 0 },
+      { size: 800, x: 0.26, y: 0.72, vx: 0.06, vy: -0.07, rot: 4.1, vRot: -0.00016, lobes: 8, hueOffset: 18 },
+      { size: 740, x: 0.74, y: 0.68, vx: -0.08, vy: -0.05, rot: 5.0, vRot: 0.00020, lobes: 7, hueOffset: -16 },
+      { size: 620, x: 0.50, y: 0.52, vx: -0.03, vy: 0.04, rot: 3.6, vRot: -0.00012, lobes: 6, hueOffset: 6 }
     ];
 
     cloudConfigs.forEach((cfg, idx) => {
@@ -1059,7 +1229,6 @@
       const cx = cfg.size / 2;
       const cy = cfg.size / 2;
 
-      // Deterministic pseudo-random cloud lobes so clouds look organic & billowing
       let seed = (idx + 1) * 9301 + 49297;
       const rand = () => {
         seed = (seed * 16807) % 2147483647;
@@ -1067,15 +1236,15 @@
       };
 
       for (let i = 0; i < cfg.lobes; i++) {
-        const angle = (i / cfg.lobes) * Math.PI * 2 + rand() * 0.7;
-        const dist = (0.08 + rand() * 0.22) * cfg.size;
+        const angle = (i / cfg.lobes) * Math.PI * 2 + rand() * 0.75;
+        const dist = (0.06 + rand() * 0.24) * cfg.size;
         const lx = cx + Math.cos(angle) * dist;
         const ly = cy + Math.sin(angle) * dist;
-        const rad = (0.22 + rand() * 0.24) * cfg.size;
+        const rad = (0.22 + rand() * 0.25) * cfg.size;
 
-        const grad = octx.createRadialGradient(lx, ly, rad * 0.05, lx, ly, rad);
-        grad.addColorStop(0, "rgba(255, 255, 255, 0.34)");
-        grad.addColorStop(0.45, "rgba(255, 255, 255, 0.14)");
+        const grad = octx.createRadialGradient(lx, ly, rad * 0.04, lx, ly, rad);
+        grad.addColorStop(0, "rgba(255, 255, 255, 0.36)");
+        grad.addColorStop(0.45, "rgba(255, 255, 255, 0.15)");
         grad.addColorStop(1, "rgba(255, 255, 255, 0)");
 
         octx.fillStyle = grad;
@@ -1093,26 +1262,26 @@
         vx: cfg.vx,
         vy: cfg.vy,
         rot: cfg.rot,
-        vRot: cfg.vRot
+        vRot: cfg.vRot,
+        hueOffset: cfg.hueOffset
       });
     });
   }
 
-  // Particles
+  // Maxed-Out Particle Pool (650 particles)
   let particles = [];
   function createParticle(index, total) {
-    // Varied depth tiers matching reference screenshots (tiny pinpoints + brighter foreground orbs)
     const depthRoll = Math.random();
     let radius, baseAlpha;
-    if (depthRoll < 0.55) {
-      radius = 0.9 + Math.random() * 0.8;
-      baseAlpha = 0.45 + Math.random() * 0.3;
-    } else if (depthRoll < 0.88) {
-      radius = 1.7 + Math.random() * 1.1;
-      baseAlpha = 0.72 + Math.random() * 0.22;
+    if (depthRoll < 0.52) {
+      radius = 0.9 + Math.random() * 0.85;
+      baseAlpha = 0.48 + Math.random() * 0.3;
+    } else if (depthRoll < 0.86) {
+      radius = 1.75 + Math.random() * 1.15;
+      baseAlpha = 0.74 + Math.random() * 0.22;
     } else {
-      radius = 2.8 + Math.random() * 1.1;
-      baseAlpha = 0.90 + Math.random() * 0.10;
+      radius = 2.9 + Math.random() * 1.2;
+      baseAlpha = 0.92 + Math.random() * 0.08;
     }
 
     return {
@@ -1123,25 +1292,18 @@
       radius,
       baseAlpha,
       orbitAngle: (index / total) * Math.PI * 2 + (Math.random() - 0.5) * 0.12,
-      radialJitter: (Math.random() - 0.5) * 2, // normalized -1 to 1
+      radialJitter: (Math.random() - 0.5) * 2,
       phase: Math.random() * Math.PI * 2,
       twinkleSpeed: 0.015 + Math.random() * 0.025
     };
   }
 
-  function syncParticlePool() {
+  function initParticles() {
     const target = state.visual.particleCount;
-    if (particles.length < target) {
-      const start = particles.length;
-      for (let i = start; i < target; i++) {
-        particles.push(createParticle(i, target));
-      }
-    } else if (particles.length > target) {
-      particles.length = target;
+    particles = [];
+    for (let i = 0; i < target; i++) {
+      particles.push(createParticle(i, target));
     }
-    particles.forEach((p, i) => {
-      p.orbitAngle = (i / target) * Math.PI * 2 + (p.phase % 0.15);
-    });
   }
 
   function resizeCanvas() {
@@ -1156,10 +1318,9 @@
   window.addEventListener("resize", resizeCanvas);
   resizeCanvas();
   buildNebulaLayers();
-  syncParticlePool();
+  initParticles();
 
-  // Dynamic Ring & Color State
-  let currentHue = 14; // Starts near vivid orange-red from reference screenshot
+  let currentHue = 14;
   let activeHue = 14;
   let globalTime = 0;
 
@@ -1168,8 +1329,8 @@
       return {
         active: false,
         targetHue: currentHue,
-        radius: Math.min(width, height) * 0.26,
-        bandWidth: 16,
+        radius: Math.min(width, height) * 0.24,
+        bandWidth: 14,
         angularVel: 0,
         direction: 1,
         wobbleAmp: 0,
@@ -1178,26 +1339,26 @@
       };
     }
 
-    // 1. Hue driven by Shannon Entropy Ratio (0 = cool blue 210°, 0.5 = cyan/emerald 160°, 1.0 = hot amber/magenta 340°)
-    // Maps smoothly across 215° -> 140° -> 45° -> 345°
+    // 1. Hue driven by Shannon Entropy Ratio
     const er = analysis.entropyRatio;
     const targetHue = (215 + er * 145) % 360;
 
-    // 2. Radius driven by Character Length (scaled cleanly for mobile & desktop)
-    const minDim = Math.min(width, height);
+    // 2. Radius sized cleanly to fit inside the upper clear zone above the HUD drawer
+    const hudOpen = !document.getElementById("hudShell").classList.contains("collapsed");
+    const availableHeight = hudOpen ? height * 0.48 : height * 0.86;
+    const limitingDim = Math.min(width * 0.88, availableHeight);
     const lenFactor = Math.min(1, Math.log10(analysis.length + 1) / 3.2);
-    const radius = minDim * (0.16 + lenFactor * 0.20);
+    const radius = limitingDim * (0.25 + lenFactor * 0.16);
 
-    // 3. Band Thickness driven by Unique Character Spread (unique / total)
+    // 3. Band Thickness driven by Unique Character Spread
     const diversity = analysis.length > 0 ? analysis.uniqueCount / analysis.length : 0.5;
-    const bandWidth = 5 + diversity * 28;
+    const bandWidth = 4 + diversity * 22;
 
     // 4. Rotation Speed driven by Index of Coincidence
-    // Low IoC (flat/random) spins fast; high IoC (structured language) settles into a slow orbit
     const iocNormalized = Math.min(1, analysis.ioc / Math.max(0.08, analysis.alphaInfo.randomIoC * 2.4));
     const speedMag = 0.0022 + (1 - iocNormalized) * 0.014;
 
-    // 5. Direction driven by Chi-Squared threshold (or checksum parity if non-alpha)
+    // 5. Direction driven by Chi-Squared threshold (or checksum parity)
     let direction = 1;
     let dirReason = "CW";
     if (analysis.chiSquared !== null) {
@@ -1209,7 +1370,7 @@
     }
 
     // 6. Harmonic Wobble driven by Peak Symbol Concentration
-    const wobbleAmp = Math.min(18, Math.max(0, (analysis.peakShare - analysis.alphaInfo.randomIoC) * 90));
+    const wobbleAmp = Math.min(14, Math.max(0, (analysis.peakShare - analysis.alphaInfo.randomIoC) * 80));
 
     // 7. Pulse Strength driven by Doubles & Repeated Trigrams
     const repeatDensity = (analysis.doublesCount + analysis.repeatedTrigrams.length * 2) / Math.max(1, analysis.length);
@@ -1237,7 +1398,7 @@
     globalTime += 1;
     const ring = computeRingPhysics(state.analysis);
 
-    // Hue transition: unified rainbow loop when idle, smooth lock onto entropy hue when active
+    // 2.0x Rainbow cycle speed when idle; smooth lock onto entropy hue when active
     if (!ring.active) {
       currentHue = (currentHue + 0.14 * state.visual.rainbowSpeed) % 360;
       activeHue = currentHue;
@@ -1254,22 +1415,28 @@
     ctx.fillStyle = "#000000";
     ctx.fillRect(0, 0, width, height);
 
-    // 2. Drifting Nebula Clouds tinted to match active particle hue
-    const nebOpacity = state.visual.nebulaAlpha * (ring.active ? 1.25 : 1.0);
+    const hudOpen = !document.getElementById("hudShell").classList.contains("collapsed");
+    const centerX = width * 0.5;
+    // Center the ring cleanly in the open upper viewport when HUD is visible
+    const centerY = ring.active
+      ? (hudOpen ? height * 0.26 : height * 0.5)
+      : height * 0.5;
+
+    // 2. Multi-Layer Drifting Nebula Clouds
+    const nebOpacity = state.visual.nebulaAlpha * (ring.active ? 1.2 : 1.0);
     if (nebOpacity > 0.005) {
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
-      nebulae.forEach((neb, i) => {
+      nebulae.forEach(neb => {
         neb.nx += neb.vx / width;
         neb.ny += neb.vy / height;
         neb.rot += neb.vRot;
 
-        if (neb.nx < -0.2) neb.nx = 1.2;
-        if (neb.nx > 1.2) neb.nx = -0.2;
-        if (neb.ny < -0.2) neb.ny = 1.2;
-        if (neb.ny > 1.2) neb.ny = -0.2;
+        if (neb.nx < -0.25) neb.nx = 1.25;
+        if (neb.nx > 1.25) neb.nx = -0.25;
+        if (neb.ny < -0.25) neb.ny = 1.25;
+        if (neb.ny > 1.25) neb.ny = -0.25;
 
-        // Tint offscreen buffer cleanly with active hue
         const tctx = neb.tintCanvas.getContext("2d");
         if (neb.tintCanvas.width !== neb.size) {
           neb.tintCanvas.width = neb.size;
@@ -1279,15 +1446,15 @@
         tctx.clearRect(0, 0, neb.size, neb.size);
         tctx.drawImage(neb.canvas, 0, 0);
         tctx.globalCompositeOperation = "source-in";
-        const layerHue = (activeHue + i * 8) % 360;
+        const layerHue = (activeHue + neb.hueOffset + 360) % 360;
         tctx.fillStyle = `hsla(${layerHue}, 92%, 52%, ${nebOpacity})`;
         tctx.fillRect(0, 0, neb.size, neb.size);
 
         const drawX = ring.active
-          ? width * 0.5 + (neb.nx - 0.5) * width * 0.35
+          ? centerX + (neb.nx - 0.5) * width * 0.42
           : neb.nx * width;
         const drawY = ring.active
-          ? height * 0.38 + (neb.ny - 0.5) * height * 0.35
+          ? centerY + (neb.ny - 0.5) * height * 0.36
           : neb.ny * height;
 
         ctx.save();
@@ -1299,22 +1466,14 @@
       ctx.restore();
     }
 
-    // 3. Glowing Particles (Zero-Gravity Drift OR Coalesced Cipher Ring)
-    const centerX = width * 0.5;
-    // Shift ring center slightly above bottom HUD drawer when HUD is open
-    const hudOpen = !document.getElementById("hudShell").classList.contains("collapsed");
-    const centerY = ring.active
-      ? (hudOpen ? height * 0.32 : height * 0.5)
-      : height * 0.5;
-
+    // 3. Glowing Particles with Bumped-Up Bloom
     const pulseWave = ring.active
-      ? 1 + Math.sin(globalTime * 0.08) * 0.22 * ring.pulseStrength
+      ? 1 + Math.sin(globalTime * 0.08) * 0.24 * ring.pulseStrength
       : 1;
 
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    const glowColor = `hsl(${activeHue}, 100%, 56%)`;
-    const coreColor = `hsl(${activeHue}, 95%, 78%)`;
+    const glowColor = `hsl(${activeHue}, 100%, 58%)`;
 
     ctx.shadowBlur = state.visual.glowBlur * pulseWave;
     ctx.shadowColor = glowColor;
@@ -1324,7 +1483,6 @@
       p.phase += p.twinkleSpeed;
 
       if (!ring.active) {
-        // Zero-gravity floating drift
         p.x += p.vx;
         p.y += p.vy;
 
@@ -1333,40 +1491,37 @@
         if (p.y < -12) p.y = height + 12;
         if (p.y > height + 12) p.y = -12;
       } else {
-        // Orbiting Ring Formation driven by cryptanalysis
         p.orbitAngle += ring.angularVel;
         const harmonic = Math.sin(p.orbitAngle * 5 + globalTime * 0.04) * ring.wobbleAmp;
         const targetR = ring.radius + p.radialJitter * ring.bandWidth + harmonic;
         const tx = centerX + Math.cos(p.orbitAngle) * targetR;
         const ty = centerY + Math.sin(p.orbitAngle) * targetR;
 
-        // Smooth spring interpolation into ring formation
-        p.x += (tx - p.x) * 0.065;
-        p.y += (ty - p.y) * 0.065;
+        p.x += (tx - p.x) * 0.07;
+        p.y += (ty - p.y) * 0.07;
       }
 
       const twinkle = 0.82 + Math.sin(p.phase) * 0.18;
       const alpha = Math.min(1, p.baseAlpha * twinkle);
       const r = p.radius * (ring.active ? (0.95 + pulseWave * 0.12) : 1);
 
-      // Outer saturated halo
-      ctx.fillStyle = `hsla(${activeHue}, 100%, 56%, ${alpha})`;
+      // Saturated Outer Bloom Halo
+      ctx.fillStyle = `hsla(${activeHue}, 100%, 58%, ${alpha})`;
       ctx.beginPath();
       ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
       ctx.fill();
 
-      // Hot luminous core for foreground orbs
-      if (p.radius > 1.6) {
-        ctx.fillStyle = `hsla(${activeHue}, 95%, 86%, ${alpha * 0.9})`;
+      // Luminous Hot Center Core
+      if (p.radius > 1.5) {
+        ctx.fillStyle = `hsla(${activeHue}, 95%, 88%, ${alpha * 0.92})`;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, r * 0.45, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, r * 0.46, 0, Math.PI * 2);
         ctx.fill();
       }
     }
 
     ctx.restore();
 
-    // Sync HUD status dot color with live canvas hue
     const dot = document.getElementById("statusDot");
     dot.style.background = `hsl(${activeHue}, 95%, 58%)`;
     dot.style.boxShadow = `0 0 10px hsl(${activeHue}, 95%, 58%)`;
@@ -1396,7 +1551,7 @@
     const maxCount = bars[0][1];
     const barW = Math.max(4, (w - 16) / bars.length - 2);
 
-    bars.forEach(([ch, count], idx) => {
+    bars.forEach(([, count], idx) => {
       const ratio = count / maxCount;
       const barH = Math.max(3, ratio * (h - 14));
       const x = 8 + idx * (barW + 2);
@@ -1412,6 +1567,10 @@
     state.analysis = res;
 
     if (!res) {
+      document.getElementById("valCipherGuess").textContent = "Awaiting Signal";
+      document.getElementById("listCipherCandidates").innerHTML =
+        `<span class="conf-badge">Enter text to evaluate structural signature</span>`;
+
       document.getElementById("valAlphabet").textContent = "Idle";
       document.getElementById("subAlphabet").textContent = "0 chars • 0 unique";
       document.getElementById("valIoc").textContent = "0.0000";
@@ -1428,12 +1587,18 @@
       document.getElementById("lblTopChar").textContent = "Top symbol: —";
       document.getElementById("ringTelemetry").innerHTML = `
         <span>State: Zero-Gravity Drift</span>
-        <span>Hue: Rainbow Loop</span>
+        <span>Hue: Rainbow Cycle (2.0x)</span>
         <span>Orbit: Suspended</span>
       `;
       drawSparkline(null);
       return;
     }
+
+    // Probable Cipher Family Readout
+    document.getElementById("valCipherGuess").textContent = res.cipherGuess.primary;
+    document.getElementById("listCipherCandidates").innerHTML = res.cipherGuess.candidates
+      .map((c, i) => `<span class="conf-badge ${i === 0 ? "top" : ""}">${c.name} (${c.score}%)</span>`)
+      .join("");
 
     document.getElementById("valAlphabet").textContent = res.alphaInfo.label;
     document.getElementById("subAlphabet").textContent = `${res.length} chars • ${res.uniqueCount} unique`;
@@ -1552,6 +1717,7 @@
     if (!r) return;
     const report = [
       `=== Cryptanalysis Report ===`,
+      `Probable Cipher: ${r.cipherGuess.primary}`,
       `Length: ${r.length} | Unique: ${r.uniqueCount} | Pool: ${r.alphaInfo.label}`,
       `IoC: ${r.ioc.toFixed(4)} (Norm: ${r.normIoc.toFixed(2)}, Random Base: ${r.alphaInfo.randomIoC.toFixed(4)})`,
       `Shannon Entropy: ${r.entropy.toFixed(2)} / ${r.alphaInfo.maxEntropy.toFixed(2)} bits (${Math.round(r.entropyRatio * 100)}%)`,
@@ -1580,43 +1746,6 @@
       : `<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>`;
   });
 
-  // Visual Engine Settings Popover (Gear button in top-right)
-  const settingsPopover = document.getElementById("settingsPopover");
-  document.getElementById("btnSettings").addEventListener("click", e => {
-    e.stopPropagation();
-    settingsPopover.classList.toggle("open");
-  });
-
-  document.addEventListener("click", e => {
-    if (!settingsPopover.contains(e.target) && e.target.id !== "btnSettings") {
-      settingsPopover.classList.remove("open");
-    }
-  });
-
-  document.getElementById("optParticles").addEventListener("input", e => {
-    state.visual.particleCount = parseInt(e.target.value, 10);
-    document.getElementById("lblParticles").textContent = state.visual.particleCount;
-    syncParticlePool();
-  });
-
-  document.getElementById("optNebula").addEventListener("input", e => {
-    const pct = parseInt(e.target.value, 10);
-    state.visual.nebulaAlpha = pct / 100;
-    document.getElementById("lblNebula").textContent = `${pct}%`;
-  });
-
-  document.getElementById("optRainbow").addEventListener("input", e => {
-    const val = parseInt(e.target.value, 10) / 10;
-    state.visual.rainbowSpeed = val;
-    document.getElementById("lblRainbow").textContent = `${val.toFixed(1)}x`;
-  });
-
-  document.getElementById("optGlow").addEventListener("input", e => {
-    const val = parseInt(e.target.value, 10);
-    state.visual.glowBlur = val;
-    document.getElementById("lblGlow").textContent = `${val}px`;
-  });
-
   // "i" Info Definition Dialogue Modal
   const infoModal = document.getElementById("infoModal");
   document.querySelectorAll(".info-trigger").forEach(btn => {
@@ -1640,10 +1769,7 @@
     if (e.target === infoModal) closeModal();
   });
   document.addEventListener("keydown", e => {
-    if (e.key === "Escape") {
-      closeModal();
-      settingsPopover.classList.remove("open");
-    }
+    if (e.key === "Escape") closeModal();
   });
 })();
 </script>
