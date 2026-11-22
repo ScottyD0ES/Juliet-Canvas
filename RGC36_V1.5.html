@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <title>RGC36 v1.5 — Rotating Grid Cipher</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        :root {
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-left: env(safe-area-inset-left, 0px);
+            --safe-right: env(safe-area-inset-right, 0px);
+            --badge-top: max(18px, calc(var(--safe-top) + 10px));
+            --badge-left: max(18px, calc(var(--safe-left) + 12px));
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #02040a;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: #ffffff;
+        }
+        canvas {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+        #logoBadge {
+            position: fixed;
+            top: var(--badge-top);
+            left: var(--badge-left);
+            z-index: 10;
+            font-size: clamp(24px, 6.2vw, 38px);
+            font-weight: 800;
+            letter-spacing: clamp(2px, 0.65vw, 4px);
+            line-height: 1;
+            white-space: nowrap;
+            color: #ffffff;
+            cursor: pointer;
+            pointer-events: auto;
+            transform-origin: left top;
+            transition: transform 0.16s ease;
+        }
+        #logoBadge:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="logoBadge" title="RGC36 v1.5 — Tap to trigger surge">RGC36</div>
+    <canvas id="rgcCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('rgcCanvas');
+        const ctx = canvas.getContext('2d');
+        const logoBadge = document.getElementById('logoBadge');
+
+        const BOOT_DURATION_MS = 2200;
+
+        let width, height, centerX, centerY;
+        let badgeTargetLeft = 18;
+        let badgeTargetTop = 18;
+
+        // ==========================================
+        // TELEMETRY & WAVE STATE MACHINE
+        // mode:
+        //   'idle'           -> calm ambient lattice
+        //   'encode_rainbow' -> rainbow wave sweep on successful encode
+        //   'decode_ok'      -> continuous green waves after successful decode
+        //   'decode_fail'    -> continuous red waves after failed decode
+        // ==========================================
+        const state = {
+            baseHue: 198,
+            mode: 'idle',
+            isBooting: false,
+            bootStart: 0,
+            oneShotWave: null, // { start, duration, type: 'rainbow' | 'cyan' }
+            continuousPhase: 0
+        };
+
+        function getComputedBadgeAnchor() {
+            const probe = document.createElement('div');
+            probe.style.position = 'fixed';
+            probe.style.top = 'var(--badge-top)';
+            probe.style.left = 'var(--badge-left)';
+            probe.style.visibility = 'hidden';
+            probe.style.pointerEvents = 'none';
+            document.body.appendChild(probe);
+            const r = probe.getBoundingClientRect();
+            document.body.removeChild(probe);
+            return {
+                left: Number.isFinite(r.left) ? r.left : 18,
+                top: Number.isFinite(r.top) ? r.top : 18
+            };
+        }
+
+        function updateLogoColor(now) {
+            let h1, h2, h3;
+            if (state.mode === 'decode_ok') {
+                h1 = 142 + Math.sin(now * 0.002) * 10;
+                h2 = 156 + Math.cos(now * 0.002) * 10;
+                h3 = 128;
+            } else if (state.mode === 'decode_fail') {
+                h1 = 0 + Math.sin(now * 0.004) * 8;
+                h2 = 352;
+                h3 = 12;
+            } else if (state.mode === 'encode_rainbow') {
+                h1 = (now * 0.08) % 360;
+                h2 = (h1 + 90) % 360;
+                h3 = (h1 + 180) % 360;
+            } else {
+                h1 = (state.baseHue + now * 0.006) % 360;
+                h2 = (h1 + 55) % 360;
+                h3 = (h1 + 110) % 360;
+            }
+
+            logoBadge.style.backgroundImage = `linear-gradient(95deg, hsl(${h1.toFixed(1)}, 95%, 68%), hsl(${h2.toFixed(1)}, 95%, 70%), hsl(${h3.toFixed(1)}, 95%, 72%))`;
+            logoBadge.style.webkitBackgroundClip = 'text';
+            logoBadge.style.backgroundClip = 'text';
+            logoBadge.style.color = 'transparent';
+            logoBadge.style.filter = `drop-shadow(0 0 16px hsla(${h1.toFixed(1)}, 100%, 62%, 0.45))`;
+        }
+
+        function triggerOneShotWave(type, duration = 1250) {
+            state.oneShotWave = {
+                type,
+                start: performance.now(),
+                duration
+            };
+        }
+
+        // ==========================================
+        // LINKED SIX-SIDED HONEYCOMB LATTICE
+        // ==========================================
+        const hexCells = [];
+        let hexRadius = 38;
+
+        class HexCell {
+            constructor(col, row, x, y, normY) {
+                this.col = col;
+                this.row = row;
+                this.x = x;
+                this.y = y;
+                this.normY = normY;
+                this.revealProgress = 0;
+                this.bootDelay = 0;
+                this.pulseIntensity = 0;
+                this.pulseHue = state.baseHue;
+                this.pulseSaturation = 95;
+            }
+
+            resetForBoot() {
+                this.revealProgress = 0;
+                const wave = this.normY * 0.65 + (Math.sin(this.col * 0.7 + this.row * 0.4) * 0.5 + 0.5) * 0.25;
+                this.bootDelay = Math.max(0, Math.min(0.85, wave));
+                this.pulseIntensity = 0;
+            }
+
+            getVertices(radius, offsetX = 0, offsetY = 0) {
+                const pts = [];
+                for (let i = 0; i < 6; i++) {
+                    const angle = (Math.PI / 3) * i - Math.PI / 2;
+                    pts.push({
+                        x: this.x + offsetX + Math.cos(angle) * radius,
+                        y: this.y + offsetY + Math.sin(angle) * radius
+                    });
+                }
+                return pts;
+            }
+
+            update(now, bootT, oneShotProgress) {
+                if (state.isBooting) {
+                    const localT = Math.max(0, (bootT - this.bootDelay * 0.55) / 0.45);
+                    this.revealProgress = Math.min(1, 1 - Math.pow(1 - localT, 3));
+                } else {
+                    this.revealProgress = 1;
+                }
+
+                let targetIntensity = 0;
+                let targetHue = (state.baseHue + this.col * 6 + this.row * 4) % 360;
+                let targetSat = 95;
+
+                // Continuous decode status waves (green on success, red on failure)
+                if (state.mode === 'decode_ok' || state.mode === 'decode_fail') {
+                    const wavePos = (state.continuousPhase - this.normY * 1.45);
+                    const waveBand = (Math.sin(wavePos * Math.PI * 2) + 1) * 0.5;
+                    const crest = Math.pow(waveBand, 3.2);
+                    targetIntensity = Math.max(targetIntensity, crest * 0.78);
+                    targetHue = state.mode === 'decode_ok'
+                        ? (138 + this.normY * 22)
+                        : (358 + this.normY * 12);
+                    targetSat = 96;
+                }
+
+                // One-shot wave (rainbow on encode, cyan-blue on clipboard copy)
+                if (state.oneShotWave && oneShotProgress >= 0 && oneShotProgress <= 1) {
+                    const waveFront = -0.25 + oneShotProgress * 1.5;
+                    const bandWidth = 0.28;
+                    const dist = Math.abs(this.normY - waveFront);
+                    if (dist < bandWidth) {
+                        const falloff = 1 - dist / bandWidth;
+                        const smooth = falloff * falloff * (3 - 2 * falloff);
+                        if (smooth >= targetIntensity) {
+                            targetIntensity = smooth;
+                            if (state.oneShotWave.type === 'rainbow') {
+                                targetHue = (this.normY * 300 + oneShotProgress * 180) % 360;
+                            } else if (state.oneShotWave.type === 'cyan') {
+                                targetHue = 192 + this.normY * 16; // crisp cyan-blue (~192°–208°)
+                            }
+                            targetSat = 100;
+                        }
+                    }
+                }
+
+                if (targetIntensity > this.pulseIntensity) {
+                    this.pulseIntensity += (targetIntensity - this.pulseIntensity) * 0.45;
+                    this.pulseHue = targetHue;
+                    this.pulseSaturation = targetSat;
+                } else {
+                    this.pulseIntensity *= 0.9;
+                }
+            }
+
+            draw(now) {
+                if (this.revealProgress <= 0.01) return;
+
+                const tSec = now * 0.001;
+                const breathe = Math.sin(tSec * 1.4 + this.row * 0.6 + this.col * 0.4) * 0.015;
+                const activeR = hexRadius * (0.94 + breathe) * (0.5 + 0.5 * this.revealProgress);
+
+                const driftOut = (1 - this.revealProgress) * 28;
+                const dx = (this.x - centerX) * 0.08 * (1 - this.revealProgress);
+                const dy = (this.y - centerY) * 0.08 * (1 - this.revealProgress) - driftOut;
+
+                const verts = this.getVertices(activeR, dx, dy);
+                const hasWave = this.pulseIntensity > 0.03;
+                const activeHue = hasWave ? this.pulseHue : (state.baseHue + this.col * 6 + this.row * 4) % 360;
+                const sat = hasWave ? this.pulseSaturation : 95;
+
+                if (hasWave) {
+                    ctx.fillStyle = `hsla(${activeHue}, ${sat}%, 58%, ${this.pulseIntensity * 0.16 * this.revealProgress})`;
+                    ctx.beginPath();
+                    verts.forEach((v, i) => i === 0 ? ctx.moveTo(v.x, v.y) : ctx.lineTo(v.x, v.y));
+                    ctx.closePath();
+                    ctx.fill();
+                }
+
+                const baseAlpha = 0.16 * this.revealProgress;
+                const waveAlpha = this.pulseIntensity * 0.88 * this.revealProgress;
+                const strokeAlpha = Math.min(0.98, baseAlpha + waveAlpha);
+                const lightness = hasWave ? (58 + this.pulseIntensity * 26) : 65;
+
+                ctx.save();
+                if (hasWave && this.pulseIntensity > 0.25) {
+                    ctx.shadowBlur = 15 * this.pulseIntensity;
+                    ctx.shadowColor = `hsla(${activeHue}, ${sat}%, 65%, ${this.pulseIntensity * 0.88})`;
+                }
+                ctx.strokeStyle = `hsla(${activeHue}, ${sat}%, ${lightness}%, ${strokeAlpha})`;
+                ctx.lineWidth = hasWave ? (1.2 + this.pulseIntensity * 2.1) : 1.0;
+
+                ctx.beginPath();
+                verts.forEach((v, i) => i === 0 ? ctx.moveTo(v.x, v.y) : ctx.lineTo(v.x, v.y));
+                ctx.closePath();
+                ctx.stroke();
+
+                if (hasWave && this.pulseIntensity > 0.45) {
+                    ctx.fillStyle = `hsla(${(activeHue + 24) % 360}, 100%, 85%, ${this.pulseIntensity * 0.72})`;
+                    ctx.beginPath();
+                    ctx.arc(this.x + dx, this.y + dy, 1.8 * this.pulseIntensity, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+        }
+
+        function buildHoneycombLattice() {
+            hexCells.length = 0;
+            const minDim = Math.min(width, height);
+            hexRadius = Math.max(28, Math.min(46, minDim * 0.056));
+
+            const horizSpacing = Math.sqrt(3) * hexRadius;
+            const vertSpacing = 1.5 * hexRadius;
+
+            const cols = Math.ceil(width / horizSpacing) + 3;
+            const rows = Math.ceil(height / vertSpacing) + 3;
+
+            const startX = centerX - ((cols - 1) * horizSpacing) / 2;
+            const startY = centerY - ((rows - 1) * vertSpacing) / 2;
+
+            for (let r = 0; r < rows; r++) {
+                const rowOffsetX = (r % 2 === 1) ? horizSpacing * 0.5 : 0;
+                for (let c = 0; c < cols; c++) {
+                    const x = startX + c * horizSpacing + rowOffsetX;
+                    const y = startY + r * vertSpacing;
+                    const normY = Math.max(0, Math.min(1, y / Math.max(1, height)));
+                    hexCells.push(new HexCell(c, r, x, y, normY));
+                }
+            }
+        }
+
+        // ==========================================
+        // LOGO ENTRY & SAFE-AREA DOCKING
+        // ==========================================
+        function updateLogoPose(bootT) {
+            const appearT = Math.max(0, Math.min(1, (bootT - 0.12) / 0.38));
+            const appearEased = 1 - Math.pow(1 - appearT, 3);
+
+            const dockT = Math.max(0, Math.min(1, (bootT - 0.52) / 0.48));
+            const dockEased = 1 - Math.pow(1 - dockT, 3.5);
+
+            const rect = logoBadge.getBoundingClientRect();
+            const badgeW = rect.width || 130;
+            const badgeH = rect.height || 36;
+
+            const centerStartX = centerX - badgeW * 0.5;
+            const centerStartY = centerY - badgeH * 0.5;
+
+            const curX = centerStartX + (badgeTargetLeft - centerStartX) * dockEased;
+            const curY = centerStartY + (badgeTargetTop - centerStartY) * dockEased;
+            const curScale = (1.35 - 0.35 * dockEased) * (0.85 + 0.15 * appearEased);
+
+            logoBadge.style.opacity = appearEased.toFixed(3);
+            logoBadge.style.transform = `translate3d(${(curX - badgeTargetLeft).toFixed(1)}px, ${(curY - badgeTargetTop).toFixed(1)}px, 0) scale(${curScale.toFixed(3)})`;
+        }
+
+        // ==========================================
+        // RGC36 v1.5 PUBLIC TELEMETRY API
+        // ==========================================
+        window.RGC36 = {
+            replayBoot() {
+                state.mode = 'idle';
+                state.isBooting = true;
+                state.bootStart = performance.now();
+                state.oneShotWave = null;
+                hexCells.forEach(h => h.resetForBoot());
+                updateLogoPose(0);
+            },
+            notifyEncodeSuccess() {
+                state.mode = 'encode_rainbow';
+                state.baseHue = (state.baseHue + 45) % 360;
+                triggerOneShotWave('rainbow', 1450);
+            },
+            notifyDecodeSuccess() {
+                state.mode = 'decode_ok';
+            },
+            notifyDecodeFailure() {
+                state.mode = 'decode_fail';
+            },
+            notifyCopyDecoded() {
+                // One-shot cyan-blue wave without cancelling active decode_ok / decode_fail mode
+                triggerOneShotWave('cyan', 1100);
+            },
+            resetToIdle() {
+                state.mode = 'idle';
+                state.oneShotWave = null;
+            }
+        };
+
+        // ==========================================
+        // RICH-TEXT -> PLAIN-TEXT PREPROCESSOR (v1.5)
+        // ==========================================
+        window.normalizeRichTextForRGC36 = function normalizeRichTextForRGC36(input, options = {}) {
+            const symbols = {
+                bullet: options.bulletSymbol ?? '*',
+                checked: options.checkedSymbol ?? 'X',
+                unchecked: options.uncheckedSymbol ?? 'O'
+            };
+
+            let raw = String(input ?? '');
+
+            // If HTML / rich text tags are present, parse via DOM while preserving list & checklist structure
+            if (/<[a-z][\s\S]*>/i.test(raw)) {
+                const container = document.createElement('div');
+                container.innerHTML = raw;
+
+                container.querySelectorAll('li').forEach(li => {
+                    const checkbox = li.querySelector('input[type="checkbox"]');
+                    if (checkbox) {
+                        const marker = checkbox.checked ? symbols.checked : symbols.unchecked;
+                        checkbox.replaceWith(document.createTextNode(`[${marker}] `));
+                    } else {
+                        li.prepend(document.createTextNode(`${symbols.bullet} `));
+                    }
+                });
+
+                container.querySelectorAll('br').forEach(br => br.replaceWith(document.createTextNode('\n')));
+                container.querySelectorAll('p, div, h1, h2, h3, h4, h5, h6, blockquote, tr').forEach(block => {
+                    block.after(document.createTextNode('\n'));
+                });
+
+                raw = container.textContent || '';
+            }
+
+            // Normalize Markdown checklists & bullet lines to plain-text symbols
+            return raw
+                .replace(/\r\n/g, '\n')
+                .replace(/^[ \t]*[-*+]\s+\[[xX]\]\s+/gm, `[${symbols.checked}] `)
+                .replace(/^[ \t]*[-*+]\s+\[\s*\]\s+/gm, `[${symbols.unchecked}] `)
+                .replace(/^[ \t]*[-*+]\s+/gm, `${symbols.bullet} `)
+                .replace(/\n{3,}/g, '\n\n')
+                .trim();
+        };
+
+        // ==========================================
+        // RESIZE, EVENTS & RENDER LOOP
+        // ==========================================
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            centerX = width / 2;
+            centerY = height / 2;
+
+            const anchor = getComputedBadgeAnchor();
+            badgeTargetLeft = anchor.left;
+            badgeTargetTop = anchor.top;
+
+            buildHoneycombLattice();
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        logoBadge.addEventListener('click', () => {
+            window.RGC36.notifyEncodeSuccess();
+        });
+
+        let lastTime = performance.now();
+
+        function animate(now) {
+            const dtSec = Math.min(0.05, (now - lastTime) * 0.001);
+            lastTime = now;
+
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.fillStyle = 'rgba(2, 4, 10, 0.42)';
+            ctx.fillRect(0, 0, width, height);
+
+            updateLogoColor(now);
+
+            let bootT = 1;
+            if (state.isBooting) {
+                const elapsed = now - state.bootStart;
+                if (elapsed >= BOOT_DURATION_MS) {
+                    state.isBooting = false;
+                    updateLogoPose(1);
+                    triggerOneShotWave('cyan', 1000);
+                } else {
+                    bootT = elapsed / BOOT_DURATION_MS;
+                    updateLogoPose(bootT);
+                }
+            } else {
+                updateLogoPose(1);
+            }
+
+            let oneShotProgress = -1;
+            if (state.oneShotWave) {
+                const sElapsed = now - state.oneShotWave.start;
+                if (sElapsed >= state.oneShotWave.duration) {
+                    state.oneShotWave = null;
+                } else {
+                    oneShotProgress = sElapsed / state.oneShotWave.duration;
+                }
+            }
+
+            if (state.mode === 'decode_ok' || state.mode === 'decode_fail') {
+                state.continuousPhase = (state.continuousPhase + dtSec * 0.65) % 1000;
+            }
+
+            for (let i = 0; i < hexCells.length; i++) {
+                hexCells[i].update(now, bootT, oneShotProgress);
+                hexCells[i].draw(now);
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        window.RGC36.replayBoot();
+        requestAnimationFrame(animate);
+    </script>
+</body>
+</html>
