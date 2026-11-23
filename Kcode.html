@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>RGC36 v1.6 — Rotating Grid Cypher - 36</title>
+  <title>RGC36 v1.6</title>
   <style>
     :root {
       --bg: #02040a;
@@ -77,40 +77,46 @@
 
     header {
       margin-bottom: 18px;
-      padding-bottom: 14px;
+      padding-bottom: 16px;
       border-bottom: 1px solid var(--border);
       display: flex;
-      justify-content: space-between;
+      flex-direction: column;
       align-items: center;
-      flex-wrap: wrap;
-      gap: 12px;
+      justify-content: center;
+      text-align: center;
+      gap: 14px;
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
     }
 
     .brand-title-row {
       display: flex;
       align-items: center;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .brand h1 {
-      margin: 0;
-      font-size: clamp(1.18rem, 4.2vw, 1.45rem);
-      font-weight: 600;
-      letter-spacing: 0.03em;
-      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.65);
+      justify-content: center;
+      gap: 12px;
+      position: relative;
     }
 
     #brandLogoTrigger {
       cursor: pointer;
       display: inline-block;
-      font-weight: 800;
-      letter-spacing: 0.06em;
+      font-size: clamp(2.45rem, 11vw, 3.6rem);
+      font-weight: 900;
+      line-height: 1.02;
+      letter-spacing: 0.14em;
+      padding-left: 0.14em;
+      user-select: none;
       transition: transform 0.16s ease;
     }
 
     #brandLogoTrigger:active {
-      transform: scale(0.96);
+      transform: scale(0.95);
     }
 
     .version-badge {
@@ -122,19 +128,15 @@
       font-family: var(--font-mono);
       font-size: 0.78rem;
       font-weight: 700;
-      padding: 2px 8px;
+      padding: 3px 8px;
       border-radius: 6px;
-    }
-
-    .brand span {
-      display: block;
-      color: var(--muted);
-      font-size: 0.84rem;
-      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.75);
+      align-self: flex-start;
+      margin-top: 4px;
     }
 
     .nav-menu {
       display: flex;
+      justify-content: center;
       gap: 6px;
       background: var(--surface);
       backdrop-filter: blur(22px) saturate(160%);
@@ -150,7 +152,7 @@
       background: transparent;
       border: 1px solid transparent;
       color: var(--muted);
-      padding: 8px 14px;
+      padding: 8px 16px;
       border-radius: 8px;
       font-size: 0.88rem;
       font-weight: 600;
@@ -475,10 +477,9 @@
   <header>
     <div class="brand">
       <div class="brand-title-row">
-        <h1><span id="brandLogoTrigger" title="Tap to trigger surge">RGC36</span> — Rotating Grid Cypher - 36</h1>
+        <span id="brandLogoTrigger" title="Tap to trigger surge">RGC36</span>
         <span class="version-badge">v1.6</span>
       </div>
-      <span>5-Rotor Polyalphabetic Mechanical Grid Engine</span>
     </div>
 
     <nav class="nav-menu" aria-label="Primary Navigation">
@@ -689,15 +690,16 @@
 
       function updateBrandLogoColor(now) {
         if (!brandLogo) return;
-        const slowCycleHue = (bgState.baseHue + now * 0.006) % 360;
-        const secondHue = (slowCycleHue + 55) % 360;
-        const thirdHue = (slowCycleHue + 110) % 360;
+        const loopHue = (bgState.baseHue + now * 0.048) % 360;
+        const secondHue = (loopHue + 60) % 360;
+        const thirdHue = (loopHue + 125) % 360;
+        const fourthHue = (loopHue + 195) % 360;
 
-        brandLogo.style.backgroundImage = `linear-gradient(95deg, hsl(${slowCycleHue.toFixed(1)}, 95%, 68%), hsl(${secondHue.toFixed(1)}, 95%, 70%), hsl(${thirdHue.toFixed(1)}, 95%, 72%))`;
+        brandLogo.style.backgroundImage = `linear-gradient(105deg, hsl(${loopHue.toFixed(1)}, 98%, 66%), hsl(${secondHue.toFixed(1)}, 98%, 68%), hsl(${thirdHue.toFixed(1)}, 98%, 70%), hsl(${fourthHue.toFixed(1)}, 98%, 66%))`;
         brandLogo.style.webkitBackgroundClip = "text";
         brandLogo.style.backgroundClip = "text";
         brandLogo.style.color = "transparent";
-        brandLogo.style.filter = `drop-shadow(0 0 12px hsla(${slowCycleHue.toFixed(1)}, 100%, 62%, 0.42))`;
+        brandLogo.style.filter = `drop-shadow(0 0 18px hsla(${loopHue.toFixed(1)}, 100%, 62%, 0.55)) drop-shadow(0 0 34px hsla(${thirdHue.toFixed(1)}, 100%, 58%, 0.32))`;
       }
 
       function triggerSurgeWave(duration = 1200, hueSpan = 135) {
