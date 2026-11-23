@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>RGC36 Mechanical Grid Sandbox</title>
+  <style>
+    :root {
+      --bg: #020308;
+      --surface: rgba(14, 18, 30, 0.44);
+      --surface-strong: rgba(20, 26, 44, 0.62);
+      --surface-input: rgba(6, 9, 18, 0.48);
+      --border: rgba(255, 255, 255, 0.16);
+      --border-bright: rgba(255, 255, 255, 0.3);
+      --text: #f0f4f8;
+      --muted: #9fb0c7;
+      --accent: rgba(94, 129, 172, 0.78);
+      --accent-glow: rgba(129, 161, 193, 0.9);
+      --blue: #6c9be8;
+      --green: #52c47c;
+      --orange: #d97757;
+      --gold: #ebcb8b;
+      --font-sans: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      --font-mono: "Consolas", "SFMono-Regular", Menlo, Monaco, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      min-height: 100vh;
+      min-height: 100dvh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      overflow-x: hidden;
+      -webkit-text-size-adjust: 100%;
+      touch-action: pan-y;
+    }
+
+    #nebulaCanvas {
+      position: fixed;
+      top: -10vh;
+      left: -10vw;
+      width: 120vw;
+      height: 120vh;
+      z-index: 0;
+      pointer-events: none;
+      display: block;
+    }
+
+    .app-shell {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: max(8px, env(safe-area-inset-top)) max(6px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left));
+      gap: 6px;
+    }
+
+    /* Top HUD */
+    .top-hud {
+      width: 100%;
+      max-width: 960px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .hud-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      background: var(--surface);
+      backdrop-filter: blur(20px) saturate(160%);
+      -webkit-backdrop-filter: blur(20px) saturate(160%);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 6px 8px;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+      flex-wrap: wrap;
+    }
+
+    .brand-pill {
+      font-weight: 900;
+      font-size: 1.05rem;
+      letter-spacing: 0.12em;
+      padding: 2px 6px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .mode-tabs {
+      display: flex;
+      gap: 4px;
+      background: rgba(6, 9, 18, 0.46);
+      padding: 3px;
+      border-radius: 9px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .mode-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--muted);
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 5px 10px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .mode-btn.active {
+      background: var(--accent);
+      border-color: var(--border-bright);
+      color: #fff;
+      box-shadow: 0 2px 10px rgba(94, 129, 172, 0.4);
+    }
+
+    .keyword-box {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex: 1 1 200px;
+      min-width: 175px;
+    }
+
+    .keyword-box input {
+      width: 100%;
+      background: var(--surface-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 16px;
+      padding: 5px 9px;
+      outline: none;
+      text-transform: uppercase;
+    }
+
+    @media (min-width: 640px) {
+      .keyword-box input {
+        font-size: 0.85rem;
+      }
+    }
+
+    .keyword-box input:focus {
+      border-color: var(--accent-glow);
+    }
+
+    .seed-btn {
+      background: var(--accent);
+      border: 1px solid var(--border-bright);
+      color: #fff;
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 6px 11px;
+      border-radius: 8px;
+      cursor: pointer;
+      white-space: nowrap;
+      box-shadow: 0 2px 10px rgba(94, 129, 172, 0.35);
+    }
+
+    .seed-btn:active {
+      transform: scale(0.96);
+    }
+
+    /* 36-Cell Keyed Delimiter Strip */
+    .delim-strip-wrap {
+      background: var(--surface);
+      backdrop-filter: blur(18px) saturate(150%);
+      -webkit-backdrop-filter: blur(18px) saturate(150%);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 5px 7px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .delim-strip-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+
+    .delim-strip-header strong {
+      color: var(--orange);
+    }
+
+    .delim-strip {
+      display: grid;
+      grid-template-columns: repeat(18, minmax(0, 1fr));
+      gap: 2px;
+    }
+
+    @media (min-width: 780px) {
+      .delim-strip {
+        grid-template-columns: repeat(36, minmax(0, 1fr));
+      }
+    }
+
+    .d-chip {
+      background: rgba(6, 10, 20, 0.52);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+      padding: 2px 0;
+      text-align: center;
+      font-family: var(--font-mono);
+      line-height: 1.05;
+      transition: transform 0.15s, border-color 0.15s, background 0.15s;
+    }
+
+    .d-chip .dc-char {
+      display: block;
+      font-size: 0.66rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .d-chip .dc-num {
+      display: block;
+      font-size: 0.6rem;
+      font-weight: 700;
+      color: var(--orange);
+    }
+
+    .d-chip.active-word {
+      background: rgba(217, 119, 87, 0.28);
+      border-color: var(--orange);
+      transform: scale(1.1);
+      z-index: 2;
+      box-shadow: 0 0 10px rgba(217, 119, 87, 0.55);
+    }
+
+    /* Maximized Edge-to-Edge Grid Stage */
+    .grid-stage {
+      flex: 1 1 auto;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+    }
+
+    #gridCanvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 720 / 768;
+      border-radius: 18px;
+      cursor: pointer;
+      user-select: none;
+      touch-action: manipulation;
+    }
+
+    /* Bottom Action & Live Stream Tray */
+    .bottom-hud {
+      width: 100%;
+      max-width: 960px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .stream-tray {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface);
+      backdrop-filter: blur(20px) saturate(160%);
+      -webkit-backdrop-filter: blur(20px) saturate(160%);
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      padding: 6px 9px;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    }
+
+    .stream-label {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--blue);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    #liveStreamOutput {
+      flex: 1 1 auto;
+      min-width: 0;
+      background: rgba(5, 8, 16, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 7px;
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 0.92rem;
+      font-weight: 600;
+      padding: 6px 9px;
+      outline: none;
+      letter-spacing: 0.04em;
+    }
+
+    .controls-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .ctrl-btn {
+      background: var(--surface-strong);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 7px 11px;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: transform 0.12s, background 0.15s, border-color 0.15s;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    }
+
+    .ctrl-btn:hover {
+      border-color: var(--border-bright);
+    }
+
+    .ctrl-btn:active {
+      transform: scale(0.95);
+    }
+
+    .ctrl-btn.primary {
+      background: var(--accent);
+      border-color: var(--border-bright);
+      color: #fff;
+    }
+
+    .ctrl-btn.delim-action {
+      background: rgba(217, 119, 87, 0.34);
+      border-color: rgba(217, 119, 87, 0.72);
+      color: #ffe3d8;
+    }
+
+    .hint-line {
+      text-align: center;
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="nebulaCanvas"></canvas>
+
+  <div class="app-shell">
+    <!-- Top Compact HUD -->
+    <header class="top-hud">
+      <div class="hud-bar">
+        <span class="brand-pill" id="brandTrigger" title="Tap for nebula surge">RGC36</span>
+
+        <div class="mode-tabs" role="tablist">
+          <button type="button" class="mode-btn active" data-mode="reference">Reference</button>
+          <button type="button" class="mode-btn" data-mode="encode">Live Encode</button>
+          <button type="button" class="mode-btn" data-mode="decode">Live Decode</button>
+        </div>
+
+        <div class="keyword-box">
+          <input type="text" id="keywordInput" placeholder="KEYWORD (BLANK = TAI)" autocomplete="off" spellcheck="false" />
+          <button type="button" class="seed-btn" id="seedSpinBtn">Spin Key</button>
+        </div>
+      </div>
+
+      <!-- 36-Cell Keyed TAI & Delimiter Strip -->
+      <div class="delim-strip-wrap">
+        <div class="delim-strip-header">
+          <span>KEYED TAI SEQUENCE (1–36) &amp; DELIMITER DIGITS</span>
+          <span>WORD #<strong id="hudWordNum">1</strong> • DELIM: <strong id="hudActiveDelim">1</strong></span>
+        </div>
+        <div class="delim-strip" id="delimStrip"></div>
+      </div>
+    </header>
+
+    <!-- Maximized Center Stage -->
+    <main class="grid-stage" id="gridStage">
+      <canvas id="gridCanvas"></canvas>
+    </main>
+
+    <!-- Bottom Live Output & Mechanical Controls -->
+    <footer class="bottom-hud">
+      <div class="stream-tray" id="streamTray">
+        <span class="stream-label" id="streamModeLabel">STREAM</span>
+        <input type="text" id="liveStreamOutput" readonly placeholder="Tap cells in Encode or Decode mode..." />
+        <button type="button" class="ctrl-btn" id="copyStreamBtn">Copy</button>
+        <button type="button" class="ctrl-btn" id="clearStreamBtn">Clear</button>
+      </div>
+
+      <div class="controls-row">
+        <button type="button" class="ctrl-btn delim-action" id="spaceDelimBtn">Space / Delimiter</button>
+        <button type="button" class="ctrl-btn" id="stepBackBtn">Step Back</button>
+        <button type="button" class="ctrl-btn" id="zeroGridBtn">Zero (1 1111)</button>
+        <button type="button" class="ctrl-btn primary" id="reseedInstantBtn">Re-Spin Key</button>
+      </div>
+
+      <div class="hint-line" id="modeHintLine">
+        Reference Mode: Tap outer bezel to spin Master Grid (+90° CW) • Tap any Q1–Q4 quadrant to spin sub-grid (+90° CW)
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    "use strict";
+
+    // Prevent browser pinch/double-tap zoom
+    document.addEventListener("gesturestart", (e) => e.preventDefault(), { passive: false });
+    document.addEventListener("gesturechange", (e) => e.preventDefault(), { passive: false });
+    document.addEventListener("gestureend", (e) => e.preventDefault(), { passive: false });
+
+    // =========================================================================
+    // 1. CORE RGC36 ALPHABET, TAI & ROTATION MATH
+    // =========================================================================
+    const TAI_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+    function charToTAI(ch) {
+      const idx = TAI_ALPHABET.indexOf(String(ch || "").toUpperCase());
+      return idx === -1 ? -1 : idx + 1;
+    }
+
+    function taiToChar(tai) {
+      return TAI_ALPHABET[((tai - 1) % 36 + 36) % 36];
+    }
+
+    function mod4OneBased(n) {
+      const r = ((n % 4) + 4) % 4;
+      return r === 0 ? 4 : r;
+    }
+
+    function buildKeyedAlphabet(keyword) {
+      const seen = new Set();
+      const grid = [];
+      const cleanKey = (keyword || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+      for (const ch of cleanKey) {
+        if (!seen.has(ch)) {
+          seen.add(ch);
+          grid.push(ch);
+        }
+      }
+      for (const ch of TAI_ALPHABET) {
+        if (!seen.has(ch)) {
+          seen.add(ch);
+          grid.push(ch);
+        }
+      }
+      return grid;
+    }
+
+    function getSeedMapFromGrid(baseGrid) {
+      return [
+        mod4OneBased(charToTAI(baseGrid[0])),
+        mod4OneBased(charToTAI(baseGrid[1])),
+        mod4OneBased(charToTAI(baseGrid[2])),
+        mod4OneBased(charToTAI(baseGrid[3]))
+      ];
+    }
+
+    const QUADRANT_OFFSETS = [
+      { r0: 0, c0: 0 }, // Q1 Top-Left
+      { r0: 0, c0: 3 }, // Q2 Top-Right
+      { r0: 3, c0: 0 }, // Q3 Bottom-Left
+      { r0: 3, c0: 3 }  // Q4 Bottom-Right
+    ];
+
+    function rotate6x6CW(grid) {
+      const next = new Array(36);
+      for (let r = 0; r < 6; r++) {
+        for (let c = 0; c < 6; c++) {
+          next[c * 6 + (5 - r)] = grid[r * 6 + c];
+        }
+      }
+      return next;
+    }
+
+    function rotateQuadrantInPlace(grid, qIdx, turnsCW) {
+      const turns = ((turnsCW % 4) + 4) % 4;
+      if (turns === 0) return;
+      const { r0, c0 } = QUADRANT_OFFSETS[qIdx];
+
+      for (let t = 0; t < turns; t++) {
+        const sub = new Array(9);
+        for (let r = 0; r < 3; r++) {
+          for (let c = 0; c < 3; c++) {
+            sub[r * 3 + c] = grid[(r0 + r) * 6 + (c0 + c)];
+          }
+        }
+        for (let r = 0; r < 3; r++) {
+          for (let c = 0; c < 3; c++) {
+            grid[(r0 + c) * 6 + (c0 + (2 - r))] = sub[r * 3 + c];
+          }
+        }
+      }
+    }
+
+    function getActiveGrid(baseGrid, masterOrientation, mapState) {
+      let current = baseGrid.slice();
+      const masterTurns = (masterOrientation - 1 + 4) % 4;
+      for (let t = 0; t < masterTurns; t++) {
+        current = rotate6x6CW(current);
+      }
+      for (let q = 0; q < 4; q++) {
+        const qTurns = (mapState[q] - 1 + 4) % 4;
+        rotateQuadrantInPlace(current, q, qTurns);
+      }
+      return current;
+    }
+
+    // =========================================================================
+    // 2. MACHINE STATE & UNDO HISTORY
+    // =========================================================================
+    const machine = {
+      mode: "reference", // 'reference' | 'encode' | 'decode'
+      keyword: "",
+      baseGrid: buildKeyedAlphabet(""),
+      masterGrid: 1,
+      wordStartMaster: 1,
+      mapState: [1, 1, 1, 1],
+      wordNumber: 1,
+      streamText: "",
+      history: [],
+      animQueue: [],
+      activeAnim: null,
+      lastClickCell: -1,
+      lastClickFlash: 0
+    };
+
+    function snapshotMachine() {
+      machine.history.push({
+        masterGrid: machine.masterGrid,
+        wordStartMaster: machine.wordStartMaster,
+        mapState: machine.mapState.slice(),
+        wordNumber: machine.wordNumber,
+        streamText: machine.streamText
+      });
+      if (machine.history.length > 250) machine.history.shift();
+    }
+
+    function getCurrentWordDelimiterDigit() {
+      const idx = (machine.wordNumber - 1) % 36;
+      const anchorChar = machine.baseGrid[idx];
+      return String(charToTAI(anchorChar) % 10);
+    }
+
+    // =========================================================================
+    // 3. REACTIVE NEBULA CLOUDS & SPARKLE/COMET PARTICLE WALLPAPER
+    // =========================================================================
+    const NebulaWallpaper = (function () {
+      const canvas = document.getElementById("nebulaCanvas");
+      const ctx = canvas.getContext("2d");
+      const brandEl = document.getElementById("brandTrigger");
+
+      let W = 0;
+      let H = 0;
+
+      const state = {
+        rainbowHue: 235,
+        nebulaHue: 235,
+        targetNebulaHue: 235,
+        particleHue: 280,
+        targetParticleHue: 280,
+        swirlAngle: 0,
+        targetSwirlAngle: 0,
+        energyBoost: 0
+      };
+
+      const clouds = [];
+      const particles = [];
+
+      function initEntities() {
+        clouds.length = 0;
+        particles.length = 0;
+
+        for (let i = 0; i < 7; i++) {
+          clouds.push({
+            nx: Math.random(),
+            ny: Math.random(),
+            vx: (Math.random() - 0.5) * 0.00022,
+            vy: (Math.random() - 0.5) * 0.00022,
+            radiusFactor: 0.34 + Math.random() * 0.28,
+            hueOffset: (i - 3) * 14,
+            alpha: 0.14 + Math.random() * 0.08,
+            phase: Math.random() * Math.PI * 2
+          });
+        }
+
+        const totalParticles = 95;
+        for (let i = 0; i < totalParticles; i++) {
+          const isComet = i < 16;
+          particles.push({
+            x: Math.random() * (W || 800),
+            y: Math.random() * (H || 1200),
+            vx: isComet ? (0.45 + Math.random() * 0.75) * (Math.random() < 0.5 ? 1 : -1) : (Math.random() - 0.5) * 0.22,
+            vy: isComet ? (0.25 + Math.random() * 0.55) * (Math.random() < 0.5 ? 1 : -1) : (Math.random() - 0.5) * 0.22,
+            size: isComet ? 2.4 + Math.random() * 2.1 : 0.8 + Math.random() * 1.5,
+            isComet,
+            twinklePhase: Math.random() * Math.PI * 2,
+            twinkleSpeed: 0.02 + Math.random() * 0.04,
+            hueJitter: (Math.random() - 0.5) * 28
+          });
+        }
+      }
+
+      function resize() {
+        const rect = canvas.getBoundingClientRect();
+        const newW = Math.max(Math.ceil(rect.width), Math.ceil(window.innerWidth * 1.2));
+        const newH = Math.max(Math.ceil(rect.height), Math.ceil(window.innerHeight * 1.2));
+        if (newW === W && newH === H) return;
+        W = canvas.width = newW;
+        H = canvas.height = newH;
+        if (clouds.length === 0) initEntities();
+      }
+
+      window.addEventListener("resize", resize);
+      resize();
+
+      function lerpHue(current, target, factor) {
+        let diff = ((target - current + 540) % 360) - 180;
+        return (current + diff * factor + 360) % 360;
+      }
+
+      function computeStateTargets() {
+        // Master Grid (1..4) drives Nebula Cloud hue & drift rotation
+        const masterHues = [225, 278, 342, 168]; // Sapphire, Violet, Crimson, Emerald
+        const mIdx = (machine.masterGrid - 1) % 4;
+        const mHue = masterHues[mIdx];
+
+        // Sub-grid map [Q1, Q2, Q3, Q4] drives contrasting Particle hue
+        const qSum =
+          machine.mapState[0] * 1 +
+          machine.mapState[1] * 3 +
+          machine.mapState[2] * 5 +
+          machine.mapState[3] * 7;
+        const pHue = (mHue + 115 + (qSum * 23) % 130) % 360;
+
+        state.targetNebulaHue = mHue;
+        state.targetParticleHue = pHue;
+        state.targetSwirlAngle = mIdx * (Math.PI / 2);
+      }
+
+      function pulse(strength = 1.0) {
+        state.energyBoost = Math.min(2.2, state.energyBoost + strength);
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i];
+          if (p.isComet) {
+            p.vx *= 1.18;
+            p.vy *= 1.18;
+            const speed = Math.hypot(p.vx, p.vy);
+            if (speed > 3.2) {
+              p.vx = (p.vx / speed) * 3.2;
+              p.vy = (p.vy / speed) * 3.2;
+            }
+          }
+        }
+      }
+
+      if (brandEl) {
+        brandEl.addEventListener("click", () => pulse(1.5));
+      }
+
+      function animate(now) {
+        if (machine.mode === "reference") {
+          // Continuous smooth rainbow loop in Reference mode
+          state.rainbowHue = (state.rainbowHue + 0.14) % 360;
+          state.nebulaHue = state.rainbowHue;
+          state.particleHue = (state.rainbowHue + 48) % 360;
+        } else {
+          // State-locked dual-channel palette in Live Encode / Decode modes
+          computeStateTargets();
+          state.nebulaHue = lerpHue(state.nebulaHue, state.targetNebulaHue, 0.045);
+          state.particleHue = lerpHue(state.particleHue, state.targetParticleHue, 0.06);
+        }
+
+        state.swirlAngle += (state.targetSwirlAngle - state.swirlAngle) * 0.04;
+        state.energyBoost *= 0.94;
+
+        // Update animated RGC36 brand gradient
+        if (brandEl) {
+          const h1 = state.nebulaHue;
+          const h2 = state.particleHue;
+          const h3 = (h1 + 95) % 360;
+          brandEl.style.backgroundImage = `linear-gradient(100deg, hsl(${h1.toFixed(1)}, 95%, 68%), hsl(${h2.toFixed(1)}, 95%, 72%), hsl(${h3.toFixed(1)}, 95%, 68%))`;
+          brandEl.style.webkitBackgroundClip = "text";
+          brandEl.style.backgroundClip = "text";
+          brandEl.style.color = "transparent";
+          brandEl.style.filter = `drop-shadow(0 0 12px hsla(${h2.toFixed(1)}, 100%, 62%, 0.45))`;
+        }
+
+        // Deep space base fill with soft motion trail
+        ctx.globalCompositeOperation = "source-over";
+        ctx.fillStyle = "rgba(2, 3, 9, 0.34)";
+        ctx.fillRect(0, 0, W, H);
+
+        // Draw Nebula Clouds
+        ctx.globalCompositeOperation = "screen";
+        const minDim = Math.min(W, H);
+        const rotCos = Math.cos(state.swirlAngle * 0.25);
+        const rotSin = Math.sin(state.swirlAngle * 0.25);
+
+        for (let i = 0; i < clouds.length; i++) {
+          const c = clouds[i];
+          c.nx += c.vx * (1 + state.energyBoost * 1.4);
+          c.ny += c.vy * (1 + state.energyBoost * 1.4);
+          if (c.nx < -0.2) c.nx = 1.2;
+          if (c.nx > 1.2) c.nx = -0.2;
+          if (c.ny < -0.2) c.ny = 1.2;
+          if (c.ny > 1.2) c.ny = -0.2;
+
+          const dx = c.nx - 0.5;
+          const dy = c.ny - 0.5;
+          const cx = (0.5 + dx * rotCos - dy * rotSin) * W;
+          const cy = (0.5 + dx * rotSin + dy * rotCos) * H;
+          const rad = minDim * c.radiusFactor * (1 + Math.sin(now * 0.0007 + c.phase) * 0.06);
+          const hue = (state.nebulaHue + c.hueOffset + 360) % 360;
+          const alpha = c.alpha * (1 + state.energyBoost * 0.35);
+
+          const grad = ctx.createRadialGradient(cx, cy, rad * 0.04, cx, cy, rad);
+          grad.addColorStop(0, `hsla(${hue.toFixed(1)}, 88%, 54%, ${alpha.toFixed(3)})`);
+          grad.addColorStop(0.5, `hsla(${((hue + 18) % 360).toFixed(1)}, 82%, 34%, ${(alpha * 0.55).toFixed(3)})`);
+          grad.addColorStop(1, `hsla(${hue.toFixed(1)}, 80%, 12%, 0)`);
+
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Draw Sparkles & Glowing Comet Motes
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i];
+          const speedMult = 1 + state.energyBoost * 1.8;
+          p.x += p.vx * speedMult;
+          p.y += p.vy * speedMult;
+
+          if (p.isComet) {
+            p.vx *= 0.992;
+            p.vy *= 0.992;
+            if (Math.hypot(p.vx, p.vy) < 0.42) {
+              p.vx *= 1.04;
+              p.vy *= 1.04;
+            }
+          }
+
+          if (p.x < -40) p.x = W + 40;
+          if (p.x > W + 40) p.x = -40;
+          if (p.y < -40) p.y = H + 40;
+          if (p.y > H + 40) p.y = -40;
+
+          p.twinklePhase += p.twinkleSpeed;
+          const twinkle = 0.55 + 0.45 * Math.sin(p.twinklePhase);
+          const pHue = (state.particleHue + p.hueJitter + 360) % 360;
+
+          if (p.isComet) {
+            // Comet tail
+            const tailLen = 22 + state.energyBoost * 16;
+            const tailX = p.x - p.vx * tailLen;
+            const tailY = p.y - p.vy * tailLen;
+            const tailGrad = ctx.createLinearGradient(p.x, p.y, tailX, tailY);
+            tailGrad.addColorStop(0, `hsla(${pHue.toFixed(1)}, 100%, 78%, ${(0.78 * twinkle).toFixed(3)})`);
+            tailGrad.addColorStop(1, `hsla(${pHue.toFixed(1)}, 95%, 55%, 0)`);
+
+            ctx.strokeStyle = tailGrad;
+            ctx.lineWidth = p.size * 1.4;
+            ctx.lineCap = "round";
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(tailX, tailY);
+            ctx.stroke();
+
+            // Glowing halo
+            const haloRad = p.size * (5.2 + state.energyBoost * 2.2);
+            const halo = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, haloRad);
+            halo.addColorStop(0, `hsla(${pHue.toFixed(1)}, 100%, 92%, ${(0.95 * twinkle).toFixed(3)})`);
+            halo.addColorStop(0.35, `hsla(${pHue.toFixed(1)}, 98%, 65%, ${(0.45 * twinkle).toFixed(3)})`);
+            halo.addColorStop(1, `hsla(${pHue.toFixed(1)}, 95%, 50%, 0)`);
+
+            ctx.fillStyle = halo;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, haloRad, 0, Math.PI * 2);
+            ctx.fill();
+          } else {
+            // Crisp ambient star/sparkle
+            ctx.fillStyle = `hsla(${pHue.toFixed(1)}, 95%, 82%, ${(0.72 * twinkle).toFixed(3)})`;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        requestAnimationFrame(animate);
+      }
+
+      requestAnimationFrame(animate);
+
+      return { pulse };
+    })();
+
+    // =========================================================================
+    // 4. GIMBALED MECHANICAL GRID CANVAS & PHYSICAL CARRIER PLATES
+    // =========================================================================
+    const gridCanvas = document.getElementById("gridCanvas");
+    const gCtx = gridCanvas.getContext("2d");
+
+    // Logical canvas geometry (high-precision coordinate space)
+    const LOGICAL_W = 720;
+    const LOGICAL_H = 772;
+    const MARGIN = 18;
+    const GRID_SIZE = LOGICAL_W - MARGIN * 2; // 684px
+    const CELL_SIZE = GRID_SIZE / 6;        // 114px per cell
+
+    function sizeGridCanvas() {
+      const stage = document.getElementById("gridStage");
+      const availW = Math.max(260, stage.clientWidth - 4);
+      const availH = Math.max(260, stage.clientHeight - 4);
+
+      const aspect = LOGICAL_W / LOGICAL_H;
+      let displayW = availW;
+      let displayH = displayW / aspect;
+
+      if (displayH > availH) {
+        displayH = availH;
+        displayW = displayH * aspect;
+      }
+
+      gridCanvas.style.width = Math.floor(displayW) + "px";
+      gridCanvas.style.height = Math.floor(displayH) + "px";
+
+      const dpr = Math.min(window.devicePixelRatio || 1, 3);
+      gridCanvas.width = Math.round(LOGICAL_W * dpr);
+      gridCanvas.height = Math.round(LOGICAL_H * dpr);
+      gCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function easeInOutCubic(t) {
+      return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+
+    function drawRoundedRectPath(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    /**
+     * Draws one physical rotating carrier tile (translucent backing plate + gimbaled upright glyph).
+     * When the carrier plate rotates around (pivotX, pivotY) by `angleRad`, the tile sweeps
+     * physically along the circular path while the character counter-rotates (`-angleRad`)
+     * on its own center axis so it stays 100% upright and never snaps back at the end.
+     */
+    function drawPhysicalCarrierTile(cellX, cellY, charText, pivotX, pivotY, angleRad, isMoving, isHighlighted) {
+      const cx = cellX + CELL_SIZE / 2;
+      const cy = cellY + CELL_SIZE / 2;
+      const pad = 4;
+      const tileSize = CELL_SIZE - pad * 2;
+
+      gCtx.save();
+
+      if (angleRad !== 0) {
+        gCtx.translate(pivotX, pivotY);
+        gCtx.rotate(angleRad);
+        gCtx.translate(-pivotX, -pivotY);
+      }
+
+      // Physical translucent tile backing
+      drawRoundedRectPath(gCtx, cellX + pad, cellY + pad, tileSize, tileSize, 11);
+
+      if (isHighlighted) {
+        gCtx.fillStyle = "rgba(108, 155, 232, 0.34)";
+        gCtx.strokeStyle = "rgba(163, 206, 255, 0.85)";
+        gCtx.lineWidth = 2;
+      } else if (isMoving) {
+        gCtx.fillStyle = "rgba(26, 36, 58, 0.72)";
+        gCtx.strokeStyle = "rgba(129, 161, 193, 0.55)";
+        gCtx.lineWidth = 1.6;
+      } else {
+        gCtx.fillStyle = "rgba(10, 14, 24, 0.56)";
+        gCtx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+        gCtx.lineWidth = 1;
+      }
+
+      gCtx.fill();
+      gCtx.stroke();
+
+      // Gimbal-stabilized upright glyph
+      gCtx.translate(cx, cy + 2);
+      if (angleRad !== 0) {
+        gCtx.rotate(-angleRad);
+      }
+
+      if (isMoving || isHighlighted) {
+        gCtx.shadowColor = "rgba(140, 185, 255, 0.65)";
+        gCtx.shadowBlur = 12;
+      }
+
+      gCtx.fillStyle = "#f4f7fb";
+      gCtx.font = "500 38px 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif";
+      gCtx.textAlign = "center";
+      gCtx.textBaseline = "middle";
+      gCtx.fillText(charText, 0, 0);
+
+      gCtx.restore();
+    }
+
+    /**
+     * Draws the fixed glass housing telemetry overlay (Cell #1-36 top-left blue,
+     * TAI anchor top-right green, Mod-4 bottom-left grey, Delimiter bottom-right orange).
+     */
+    function drawStaticHousingOverlay(now) {
+      const flashAge = now - machine.lastClickFlash;
+      const showFlash = machine.lastClickCell >= 0 && flashAge < 420;
+      const flashAlpha = showFlash ? 1 - flashAge / 420 : 0;
+
+      for (let r = 0; r < 6; r++) {
+        for (let c = 0; c < 6; c++) {
+          const idx = r * 6 + c;
+          const x = MARGIN + c * CELL_SIZE;
+          const y = MARGIN + r * CELL_SIZE;
+
+          // Subtle static cell frame
+          gCtx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+          gCtx.lineWidth = 1;
+          gCtx.strokeRect(x, y, CELL_SIZE, CELL_SIZE);
+
+          if (showFlash && idx === machine.lastClickCell) {
+            gCtx.fillStyle = `rgba(163, 190, 140, ${(0.28 * flashAlpha).toFixed(3)})`;
+            gCtx.fillRect(x + 2, y + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+          }
+
+          const cellNum = idx + 1;
+          const taiAnchor = TAI_ALPHABET[idx];
+          const mod4Val = mod4OneBased(cellNum);
+          const delimVal = cellNum % 10;
+
+          const padX = 10;
+          const topY = y + 21;
+          const botY = y + CELL_SIZE - 10;
+
+          // Top-Left: Cell / TAI Index (Blue)
+          gCtx.fillStyle = "#6c9be8";
+          gCtx.font = "700 14px 'Segoe UI', -apple-system, sans-serif";
+          gCtx.textAlign = "left";
+          gCtx.textBaseline = "alphabetic";
+          gCtx.fillText(String(cellNum), x + padX, topY);
+
+          // Top-Right: Standard TAI Anchor Letter (Green)
+          gCtx.fillStyle = "#52c47c";
+          gCtx.font = "700 14px 'Segoe UI', -apple-system, sans-serif";
+          gCtx.textAlign = "right";
+          gCtx.fillText(taiAnchor, x + CELL_SIZE - padX, topY);
+
+          // Bottom-Left: Mod-4 Quadrant Orientation (Muted Grey)
+          gCtx.fillStyle = "#8492a6";
+          gCtx.font = "700 14px 'Segoe UI', -apple-system, sans-serif";
+          gCtx.textAlign = "left";
+          gCtx.fillText(String(mod4Val), x + padX, botY);
+
+          // Bottom-Right: Delimiter Digit (Orange/Red)
+          gCtx.fillStyle = "#d97757";
+          gCtx.font = "700 14px 'Segoe UI', -apple-system, sans-serif";
+          gCtx.textAlign = "right";
+          gCtx.fillText(String(delimVal), x + CELL_SIZE - padX, botY);
+        }
+      }
+
+      // Quadrant Crosshairs
+      gCtx.strokeStyle = "rgba(255, 255, 255, 0.22)";
+      gCtx.lineWidth = 2;
+      gCtx.beginPath();
+      gCtx.moveTo(MARGIN + GRID_SIZE / 2, MARGIN);
+      gCtx.lineTo(MARGIN + GRID_SIZE / 2, MARGIN + GRID_SIZE);
+      gCtx.moveTo(MARGIN, MARGIN + GRID_SIZE / 2);
+      gCtx.lineTo(MARGIN + GRID_SIZE, MARGIN + GRID_SIZE / 2);
+      gCtx.stroke();
+
+      // Outer Housing Bezel
+      drawRoundedRectPath(gCtx, MARGIN, MARGIN, GRID_SIZE, GRID_SIZE, 18);
+      gCtx.strokeStyle = "rgba(255, 255, 255, 0.28)";
+      gCtx.lineWidth = 2.5;
+      gCtx.stroke();
+    }
+
+    function renderGridFrame(now) {
+      gCtx.clearRect(0, 0, LOGICAL_W, LOGICAL_H);
+
+      // Process animation queue if idle
+      if (!machine.activeAnim && machine.animQueue.length > 0) {
+        const nextStep = machine.animQueue.shift();
+        nextStep.startTime = now;
+        if (nextStep.onStart) nextStep.onStart();
+        machine.activeAnim = nextStep;
+        NebulaWallpaper.pulse(0.75);
+      }
+
+      let progress = 1;
+      const anim = machine.activeAnim;
+      if (anim) {
+        const elapsed = now - anim.startTime;
+        const rawT = Math.min(1, elapsed / anim.duration);
+        progress = easeInOutCubic(rawT);
+
+        if (rawT >= 1) {
+          if (anim.onComplete) anim.onComplete();
+          machine.activeAnim = null;
+          updateUIReadouts();
+        }
+      }
+
+      // Outer subtle glass backing
+      drawRoundedRectPath(gCtx, MARGIN, MARGIN, GRID_SIZE, GRID_SIZE, 18);
+      gCtx.fillStyle = "rgba(4, 7, 14, 0.42)";
+      gCtx.fill();
+
+      // Clip interior so rotating carrier plates stay cleanly inside the bezel
+      gCtx.save();
+      drawRoundedRectPath(gCtx, MARGIN, MARGIN, GRID_SIZE, GRID_SIZE, 18);
+      gCtx.clip();
+
+      const gridCenterX = MARGIN + GRID_SIZE / 2;
+      const gridCenterY = MARGIN + GRID_SIZE / 2;
+
+      if (anim && progress < 1) {
+        if (anim.type === "master") {
+          const angle = anim.deltaAngle * progress;
+          for (let r = 0; r < 6; r++) {
+            for (let c = 0; c < 6; c++) {
+              const idx = r * 6 + c;
+              const x = MARGIN + c * CELL_SIZE;
+              const y = MARGIN + r * CELL_SIZE;
+              drawPhysicalCarrierTile(x, y, anim.fromCells[idx], gridCenterX, gridCenterY, angle, true, false);
+            }
+          }
+        } else if (anim.type === "quadrant") {
+          const angle = anim.deltaAngle * progress;
+          const qIdx = anim.qIdx;
+          const { r0, c0 } = QUADRANT_OFFSETS[qIdx];
+          const qCenterX = MARGIN + (c0 + 1.5) * CELL_SIZE;
+          const qCenterY = MARGIN + (r0 + 1.5) * CELL_SIZE;
+
+          // Draw stationary quadrants first
+          for (let r = 0; r < 6; r++) {
+            for (let c = 0; c < 6; c++) {
+              const inTarget = r >= r0 && r < r0 + 3 && c >= c0 && c < c0 + 3;
+              if (inTarget) continue;
+              const idx = r * 6 + c;
+              const x = MARGIN + c * CELL_SIZE;
+              const y = MARGIN + r * CELL_SIZE;
+              drawPhysicalCarrierTile(x, y, anim.fromCells[idx], 0, 0, 0, false, false);
+            }
+          }
+
+          // Active quadrant carrier plate highlight ring
+          const qX = MARGIN + c0 * CELL_SIZE;
+          const qY = MARGIN + r0 * CELL_SIZE;
+          const qSize = CELL_SIZE * 3;
+          gCtx.save();
+          gCtx.translate(qCenterX, qCenterY);
+          gCtx.rotate(angle);
+          gCtx.translate(-qCenterX, -qCenterY);
+          gCtx.strokeStyle = "rgba(129, 161, 193, 0.72)";
+          gCtx.lineWidth = 2.5;
+          gCtx.strokeRect(qX + 2, qY + 2, qSize - 4, qSize - 4);
+          gCtx.restore();
+
+          // Draw rotating quadrant tiles on top
+          for (let r = r0; r < r0 + 3; r++) {
+            for (let c = c0; c < c0 + 3; c++) {
+              const idx = r * 6 + c;
+              const x = MARGIN + c * CELL_SIZE;
+              const y = MARGIN + r * CELL_SIZE;
+              drawPhysicalCarrierTile(x, y, anim.fromCells[idx], qCenterX, qCenterY, angle, true, true);
+            }
+          }
+        }
+      } else {
+        // Resting locked state
+        const currentCells = getActiveGrid(machine.baseGrid, machine.masterGrid, machine.mapState);
+        for (let r = 0; r < 6; r++) {
+          for (let c = 0; c < 6; c++) {
+            const idx = r * 6 + c;
+            const x = MARGIN + c * CELL_SIZE;
+            const y = MARGIN + r * CELL_SIZE;
+            drawPhysicalCarrierTile(x, y, currentCells[idx], 0, 0, 0, false, false);
+          }
+        }
+      }
+
+      gCtx.restore();
+
+      // Fixed top telemetry numbers & grid lines
+      drawStaticHousingOverlay(now);
+
+      // Bottom GRID | MAP telemetry line matching Pythonista reference
+      const footerY = MARGIN + GRID_SIZE + 44;
+      gCtx.font = "700 22px 'Segoe UI', -apple-system, sans-serif";
+      gCtx.textAlign = "center";
+      gCtx.textBaseline = "alphabetic";
+
+      const labelPart1 = "GRID: ";
+      const valGrid = String(machine.masterGrid);
+      const labelPart2 = "   |   MAP: ";
+      const valMap = machine.mapState.join(" ");
+
+      const w1 = gCtx.measureText(labelPart1).width;
+      const w2 = gCtx.measureText(valGrid).width;
+      const w3 = gCtx.measureText(labelPart2).width;
+      const w4 = gCtx.measureText(valMap).width;
+      let cursorX = (LOGICAL_W - (w1 + w2 + w3 + w4)) / 2;
+
+      gCtx.textAlign = "left";
+      gCtx.fillStyle = "#8492a6";
+      gCtx.fillText(labelPart1, cursorX, footerY);
+      cursorX += w1;
+
+      gCtx.fillStyle = "#6c9be8";
+      gCtx.fillText(valGrid, cursorX, footerY);
+      cursorX += w2;
+
+      gCtx.fillStyle = "#8492a6";
+      gCtx.fillText(labelPart2, cursorX, footerY);
+      cursorX += w3;
+
+      gCtx.fillStyle = "#6c9be8";
+      gCtx.fillText(valMap, cursorX, footerY);
+
+      requestAnimationFrame(renderGridFrame);
+    }
+
+    // =========================================================================
+    // 5. CHOREOGRAPHED KEYWORD SPIN-UP & MECHANICAL STEP TRIGGERS
+    // =========================================================================
+    function enqueueStep(stepObj) {
+      machine.animQueue.push(stepObj);
+    }
+
+    function runChoreographedKeywordSpinUp() {
+      machine.animQueue.length = 0;
+      machine.activeAnim = null;
+
+      const kw = document.getElementById("keywordInput").value;
+      machine.keyword = kw;
+      machine.baseGrid = buildKeyedAlphabet(kw);
+      machine.masterGrid = 1;
+      machine.wordStartMaster = 1;
+      machine.mapState = [1, 1, 1, 1];
+      machine.wordNumber = 1;
+      machine.history = [];
+
+      renderDelimiterStrip();
+      updateUIReadouts();
+
+      const targetSeedMap = getSeedMapFromGrid(machine.baseGrid);
+
+      // Choreograph Q1 -> Q2 -> Q3 -> Q4 physically turning clockwise to their seeded angles
+      for (let q = 0; q < 4; q++) {
+        const turnsNeeded = (targetSeedMap[q] - 1 + 4) % 4;
+        for (let t = 0; t < turnsNeeded; t++) {
+          enqueueStep({
+            type: "quadrant",
+            qIdx: q,
+            deltaAngle: Math.PI / 2,
+            duration: 280,
+            fromCells: null,
+            onStart() {
+              this.fromCells = getActiveGrid(machine.baseGrid, machine.masterGrid, machine.mapState);
+            },
+            onComplete() {
+              machine.mapState[q] = (machine.mapState[q] % 4) + 1;
+              machine.wordStartMaster = machine.masterGrid;
+            }
+          });
+        }
+      }
+    }
+
+    function executeWordBoundaryShift(appendSpaceToStream = false) {
+      if (machine.activeAnim || machine.animQueue.length > 0) return;
+
+      snapshotMachine();
+
+      const fromCells = getActiveGrid(machine.baseGrid, machine.masterGrid, machine.mapState);
+      const nextMaster = ((machine.wordStartMaster - 2 + 4) % 4) + 1;
+      const masterSteps = (nextMaster - machine.masterGrid + 4) % 4;
+      const qToRotate = (machine.wordNumber - 1) % 4;
+
+      if (appendSpaceToStream) {
+        if (machine.mode === "encode") {
+          // Encode mode: look up delimiter digit from keyed alphabet, encode its TAI cell, append cipher char
+          const delimDigit = getCurrentWordDelimiterDigit();
+          const delimTai = charToTAI(delimDigit);
+          const cipherDelimChar = fromCells[delimTai - 1];
+          machine.streamText += cipherDelimChar;
+        } else if (machine.mode === "decode") {
+          // Decode mode: append readable space between words
+          machine.streamText += " ";
+        }
+      }
+
+      // 1. Rotate Master Grid to new word-start orientation if needed
+      if (masterSteps > 0) {
+        enqueueStep({
+          type: "master",
+          deltaAngle: (Math.PI / 2) * masterSteps,
+          duration: 300,
+          fromCells: null,
+          onStart() {
+            this.fromCells = getActiveGrid(machine.baseGrid, machine.masterGrid, machine.mapState);
+          },
+          onComplete() {
+            machine.masterGrid = nextMaster;
+            machine.wordStartMaster = nextMaster;
+          }
+        });
+      } else {
+        machine.wordStartMaster = nextMaster;
+      }
+
+      // 2. Rotate the active 3x3 Quadrant (+90° CW)
+      enqueueStep({
+        type: "quadrant",
+        qIdx: qToRotate,
+        deltaAngle: Math.PI / 2,
+        duration: 340,
+        fromCells: null,
+        onStart() {
+          this.fromCells = getActiveGrid(machine.baseGrid, machine.masterGrid, machine.mapState);
+        },
+        onComplete() {
+          machine.mapState[qToRotate] = (machine.mapState[qToRotate] % 4) + 1;
+          machine.wordNumber++;
+          renderDelimiterStrip();
+        }
+      });
+
+      updateUIReadouts();
+    }
+
+    // =========================================================================
+    // 6. CANVAS TAP INTERACTION (REFERENCE vs LIVE ENCODE vs LIVE DECODE)
+    // =========================================================================
+    gridCanvas.addEventListener("click", (e) => {
+      if (machine.activeAnim || machine.animQueue.length > 0) return;
+
+      const rect = gridCanvas.getBoundingClientRect();
+      const scaleX = LOGICAL_W / rect.width;
+      const scaleY = LOGICAL_H / rect.height;
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
+
+      const isOutsideGrid =
+        x < MARGIN || x > MARGIN + GRID_SIZE || y < MARGIN || y > MARGIN + GRID_SIZE;
+
+      // In Reference Mode: outer bezel spins Master Grid, quadrants spin Q1-Q4
+      if (machine.mode === "reference") {
+        snapshotMachine();
+        const fromCells = getActiveGrid(machine.baseGrid, machine.masterGrid, machine.mapState);
+
+        if (isOutsideGrid) {
+          enqueueStep({
+            type: "master",
+            deltaAngle: Math.PI / 2,
+            duration: 340,
+            fromCells,
+            onComplete() {
+              machine.masterGrid = (machine.masterGrid % 4) + 1;
+              machine.wordStartMaster = machine.masterGrid;
+            }
+          });
+        } else {
+          const half = GRID_SIZE / 2;
+          const colRight = x >= MARGIN + half ? 1 : 0;
+          const rowBottom = y >= MARGIN + half ? 2 : 0;
+          const qIdx = rowBottom + colRight;
+
+          enqueueStep({
+            type: "quadrant",
+            qIdx,
+            deltaAngle: Math.PI / 2,
+            duration: 340,
+            fromCells,
+            onComplete() {
+              machine.mapState[qIdx] = (machine.mapState[qIdx] % 4) + 1;
+            }
+          });
+        }
+        return;
+      }
+
+      // In Live Encode / Decode Mode: tapping outside bezel allows manual Master Grid orientation before starting
+      if (isOutsideGrid) {
+        snapshotMachine();
+        const fromCells = getActiveGrid(machine.baseGrid, machine.masterGrid, machine.mapState);
+        enqueueStep({
+          type: "master",
+          deltaAngle: Math.PI / 2,
+          duration: 340,
+          fromCells,
+          onComplete() {
+            machine.masterGrid = (machine.masterGrid % 4) + 1;
+            machine.wordStartMaster = machine.masterGrid;
+          }
+        });
+        return;
+      }
+
+      // Determine tapped cell (0..35)
+      const col = Math.min(5, Math.max(0, Math.floor((x - MARGIN) / CELL_SIZE)));
+      const row = Math.min(5, Math.max(0, Math.floor((y - MARGIN) / CELL_SIZE)));
+      const cellIdx = row * 6 + col;
+
+      machine.lastClickCell = cellIdx;
+      machine.lastClickFlash = performance.now();
+
+      const fromCells = getActiveGrid(machine.baseGrid, machine.masterGrid, machine.mapState);
+      const cellGlyph = fromCells[cellIdx];
+      const taiAnchorChar = TAI_ALPHABET[cellIdx];
+
+      if (machine.mode === "encode") {
+        // User taps the cell containing their plaintext letter -> outputs green TAI anchor (or vice-versa).
+        // Per RGC36 rule: Plaintext char -> TAI index -> Grid[TAI - 1] = Ciphertext char.
+        // Tapping a cell directly by its visible letter encodes that letter:
+        snapshotMachine();
+        const plainChar = cellGlyph;
+        const plainTai = charToTAI(plainChar);
+        const cipherChar = fromCells[plainTai - 1];
+        machine.streamText += cipherChar;
+        updateUIReadouts();
+
+        // Advance Master Grid (+90° CW)
+        enqueueStep({
+          type: "master",
+          deltaAngle: Math.PI / 2,
+          duration: 320,
+          fromCells,
+          onComplete() {
+            machine.masterGrid = (machine.masterGrid % 4) + 1;
+          }
+        });
+      } else if (machine.mode === "decode") {
+        // User taps the incoming Ciphertext letter on the grid -> reads green TAI anchor as decoded plaintext
+        const decodedChar = taiAnchorChar;
+        const expectedDelim = getCurrentWordDelimiterDigit();
+
+        // Auto-detect if this tapped ciphertext cell decoded to the active word's delimiter digit
+        if (decodedChar === expectedDelim && machine.streamText.length > 0 && !machine.streamText.endsWith(" ")) {
+          executeWordBoundaryShift(true);
+          return;
+        }
+
+        snapshotMachine();
+        machine.streamText += decodedChar;
+        updateUIReadouts();
+
+        // Advance Master Grid (+90° CW)
+        enqueueStep({
+          type: "master",
+          deltaAngle: Math.PI / 2,
+          duration: 320,
+          fromCells,
+          onComplete() {
+            machine.masterGrid = (machine.masterGrid % 4) + 1;
+          }
+        });
+      }
+    });
+
+    // =========================================================================
+    // 7. HUD RENDERING & CONTROL WIRING
+    // =========================================================================
+    function renderDelimiterStrip() {
+      const stripEl = document.getElementById("delimStrip");
+      stripEl.innerHTML = "";
+      const activeIdx = (machine.wordNumber - 1) % 36;
+
+      for (let i = 0; i < 36; i++) {
+        const ch = machine.baseGrid[i];
+        const delimDigit = charToTAI(ch) % 10;
+        const chip = document.createElement("div");
+        chip.className = "d-chip" + (i === activeIdx ? " active-word" : "");
+        chip.title = `Cell ${i + 1}: '${ch}' -> TAI ${charToTAI(ch)} -> Delim ${delimDigit}`;
+        chip.innerHTML = `<span class="dc-char">${ch}</span><span class="dc-num">${delimDigit}</span>`;
+        stripEl.appendChild(chip);
+      }
+
+      document.getElementById("hudWordNum").textContent = String(machine.wordNumber);
+      document.getElementById("hudActiveDelim").textContent = getCurrentWordDelimiterDigit();
+    }
+
+    function updateUIReadouts() {
+      document.getElementById("liveStreamOutput").value = machine.streamText;
+      document.getElementById("hudWordNum").textContent = String(machine.wordNumber);
+      document.getElementById("hudActiveDelim").textContent = getCurrentWordDelimiterDigit();
+    }
+
+    function setMode(newMode) {
+      machine.mode = newMode;
+      document.querySelectorAll(".mode-btn").forEach((b) => {
+        b.classList.toggle("active", b.dataset.mode === newMode);
+      });
+
+      const label = document.getElementById("streamModeLabel");
+      const hint = document.getElementById("modeHintLine");
+
+      if (newMode === "reference") {
+        label.textContent = "STREAM";
+        hint.textContent = "Reference Mode: Tap outer bezel to spin Master Grid (+90° CW) • Tap any Q1–Q4 quadrant to spin sub-grid (+90° CW)";
+      } else if (newMode === "encode") {
+        label.textContent = "CIPHER";
+        hint.textContent = "Live Encode: Tap outer bezel to set starting Grid (1–4), then tap your plaintext letter cells • Tap Space/Delimiter between words";
+      } else if (newMode === "decode") {
+        label.textContent = "PLAIN";
+        hint.textContent = "Live Decode: Tap outer bezel to set starting Grid (1–4), then tap incoming ciphertext letters • Delimiters auto-advance words";
+      }
+    }
+
+    document.querySelectorAll(".mode-btn").forEach((btn) => {
+      btn.addEventListener("click", () => setMode(btn.dataset.mode));
+    });
+
+    document.getElementById("seedSpinBtn").addEventListener("click", runChoreographedKeywordSpinUp);
+    document.getElementById("reseedInstantBtn").addEventListener("click", runChoreographedKeywordSpinUp);
+
+    document.getElementById("keywordInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        runChoreographedKeywordSpinUp();
+      }
+    });
+
+    document.getElementById("zeroGridBtn").addEventListener("click", () => {
+      machine.animQueue.length = 0;
+      machine.activeAnim = null;
+      machine.baseGrid = buildKeyedAlphabet(document.getElementById("keywordInput").value);
+      machine.masterGrid = 1;
+      machine.wordStartMaster = 1;
+      machine.mapState = [1, 1, 1, 1];
+      machine.wordNumber = 1;
+      machine.history = [];
+      renderDelimiterStrip();
+      updateUIReadouts();
+      NebulaWallpaper.pulse(0.9);
+    });
+
+    document.getElementById("spaceDelimBtn").addEventListener("click", () => {
+      executeWordBoundaryShift(true);
+    });
+
+    document.getElementById("stepBackBtn").addEventListener("click", () => {
+      if (machine.activeAnim || machine.animQueue.length > 0) return;
+      const prev = machine.history.pop();
+      if (!prev) return;
+      machine.masterGrid = prev.masterGrid;
+      machine.wordStartMaster = prev.wordStartMaster;
+      machine.mapState = prev.mapState;
+      machine.wordNumber = prev.wordNumber;
+      machine.streamText = prev.streamText;
+      renderDelimiterStrip();
+      updateUIReadouts();
+      NebulaWallpaper.pulse(0.6);
+    });
+
+    document.getElementById("copyStreamBtn").addEventListener("click", async () => {
+      if (!machine.streamText) return;
+      await navigator.clipboard.writeText(machine.streamText);
+      const btn = document.getElementById("copyStreamBtn");
+      const orig = btn.textContent;
+      btn.textContent = "Copied!";
+      setTimeout(() => (btn.textContent = orig), 1100);
+    });
+
+    document.getElementById("clearStreamBtn").addEventListener("click", () => {
+      snapshotMachine();
+      machine.streamText = "";
+      updateUIReadouts();
+    });
+
+    window.addEventListener("resize", sizeGridCanvas);
+    window.addEventListener("orientationchange", () => setTimeout(sizeGridCanvas, 100));
+
+    // Boot
+    renderDelimiterStrip();
+    updateUIReadouts();
+    sizeGridCanvas();
+    requestAnimationFrame(renderGridFrame);
+  </script>
+</body>
+</html>
