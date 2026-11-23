@@ -7,15 +7,15 @@
   <style>
     :root {
       --bg: #02040a;
-      --surface: rgba(14, 18, 28, 0.42);
-      --surface-alt: rgba(24, 31, 46, 0.52);
-      --surface-input: rgba(6, 9, 16, 0.45);
-      --border: rgba(255, 255, 255, 0.13);
-      --border-highlight: rgba(255, 255, 255, 0.24);
+      --surface: rgba(18, 24, 38, 0.34);
+      --surface-alt: rgba(30, 40, 62, 0.44);
+      --surface-input: rgba(8, 12, 22, 0.36);
+      --border: rgba(255, 255, 255, 0.16);
+      --border-highlight: rgba(255, 255, 255, 0.28);
       --text: #eceff4;
-      --muted: #a6b2c2;
-      --accent: rgba(94, 129, 172, 0.78);
-      --accent-hover: rgba(129, 161, 193, 0.9);
+      --muted: #b0bccd;
+      --accent: rgba(94, 129, 172, 0.72);
+      --accent-hover: rgba(129, 161, 193, 0.88);
       --success: #a3be8c;
       --warning: #ebcb8b;
       --danger: #bf616a;
@@ -27,25 +27,30 @@
       box-sizing: border-box;
     }
 
-    body {
+    html, body {
       margin: 0;
-      padding: 24px;
-      background: var(--bg);
+      padding: 0;
+      background: #02040a;
       color: var(--text);
       font-family: var(--font-sans);
       line-height: 1.5;
-      position: relative;
       min-height: 100vh;
+    }
+
+    body {
+      padding: 24px;
+      position: relative;
+      overflow-x: auto;
     }
 
     #bgCanvas {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
       z-index: 0;
       pointer-events: none;
+      display: block;
     }
 
     header,
@@ -53,11 +58,15 @@
     .view-section {
       position: relative;
       z-index: 2;
+      width: 100%;
+      max-width: 1080px;
+      min-width: max(320px, calc(36ch + 110px));
+      margin-left: auto;
+      margin-right: auto;
     }
 
     header {
-      max-width: 980px;
-      margin: 0 auto 20px auto;
+      margin-bottom: 20px;
       padding-bottom: 14px;
       border-bottom: 1px solid var(--border);
       display: flex;
@@ -95,8 +104,8 @@
 
     .version-badge {
       background: var(--surface-alt);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--accent-hover);
       color: #d8dee9;
       font-family: var(--font-mono);
@@ -117,12 +126,12 @@
       display: flex;
       gap: 6px;
       background: var(--surface);
-      backdrop-filter: blur(18px) saturate(140%);
-      -webkit-backdrop-filter: blur(18px) saturate(140%);
+      backdrop-filter: blur(22px) saturate(160%);
+      -webkit-backdrop-filter: blur(22px) saturate(160%);
       padding: 5px;
-      border-radius: 10px;
+      border-radius: 12px;
       border: 1px solid var(--border);
-      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.14);
     }
 
     .nav-btn {
@@ -130,7 +139,7 @@
       border: 1px solid transparent;
       color: var(--muted);
       padding: 8px 18px;
-      border-radius: 7px;
+      border-radius: 8px;
       font-size: 0.9rem;
       font-weight: 600;
       cursor: pointer;
@@ -139,7 +148,7 @@
 
     .nav-btn:hover {
       color: var(--text);
-      background: rgba(255, 255, 255, 0.07);
+      background: rgba(255, 255, 255, 0.08);
     }
 
     .nav-btn.active {
@@ -150,23 +159,20 @@
     }
 
     .shared-controls {
-      max-width: 980px;
-      margin: 0 auto 18px auto;
+      margin-bottom: 18px;
       background: var(--surface);
-      backdrop-filter: blur(18px) saturate(140%);
-      -webkit-backdrop-filter: blur(18px) saturate(140%);
+      backdrop-filter: blur(22px) saturate(160%);
+      -webkit-backdrop-filter: blur(22px) saturate(160%);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 18px 22px;
+      border-radius: 14px;
+      padding: 20px 24px;
       display: flex;
       flex-direction: column;
       gap: 14px;
-      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+      box-shadow: 0 12px 38px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15);
     }
 
     .view-section {
-      max-width: 980px;
-      margin: 0 auto;
       display: none;
     }
 
@@ -176,15 +182,15 @@
 
     .panel {
       background: var(--surface);
-      backdrop-filter: blur(18px) saturate(140%);
-      -webkit-backdrop-filter: blur(18px) saturate(140%);
+      backdrop-filter: blur(22px) saturate(160%);
+      -webkit-backdrop-filter: blur(22px) saturate(160%);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 22px;
+      border-radius: 14px;
+      padding: 24px;
       display: flex;
       flex-direction: column;
       gap: 16px;
-      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+      box-shadow: 0 14px 42px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.15);
     }
 
     .panel h2 {
@@ -206,44 +212,45 @@
       letter-spacing: 0.05em;
     }
 
-    .field-scroll-wrap {
-      width: 100%;
-      overflow-x: auto;
-      border-radius: 8px;
-    }
-
     input[type="text"],
     textarea {
       width: 100%;
-      min-width: calc(36ch + 30px);
+      min-width: calc(36ch + 32px);
       background: var(--surface-input);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(14px) saturate(140%);
+      -webkit-backdrop-filter: blur(14px) saturate(140%);
       color: var(--text);
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: 10px;
       padding: 12px 14px;
       font-family: var(--font-mono);
       font-size: 0.95rem;
       line-height: 1.55;
       outline: none;
       transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
-      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.35);
+      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06);
     }
 
     input[type="text"]:focus,
     textarea:focus {
       border-color: var(--accent-hover);
-      background: rgba(8, 12, 22, 0.62);
-      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 0 2px rgba(129, 161, 193, 0.18);
+      background: rgba(10, 16, 30, 0.52);
+      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.34), 0 0 0 2px rgba(129, 161, 193, 0.22);
     }
 
     textarea {
       min-height: 120px;
       resize: vertical;
       overflow-y: hidden;
-      overflow-x: auto;
+      overflow-x: hidden;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    #encodeOutput,
+    #decodeInput {
       white-space: pre;
+      overflow-x: auto;
     }
 
     .row {
@@ -255,35 +262,35 @@
 
     button {
       background: var(--surface-alt);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
       color: var(--text);
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: 9px;
       padding: 9px 16px;
       font-family: var(--font-sans);
       font-size: 0.88rem;
       font-weight: 600;
       cursor: pointer;
       transition: background 0.15s, border-color 0.15s, transform 0.12s;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
     }
 
     button:hover {
       border-color: var(--border-highlight);
-      background: rgba(42, 52, 74, 0.68);
+      background: rgba(46, 58, 84, 0.58);
     }
 
     button.primary {
       background: var(--accent);
       border-color: var(--border-highlight);
       color: #fff;
-      box-shadow: 0 4px 14px rgba(94, 129, 172, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      box-shadow: 0 4px 14px rgba(94, 129, 172, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.22);
     }
 
     button.primary:hover {
       background: var(--accent-hover);
-      border-color: rgba(255, 255, 255, 0.35);
+      border-color: rgba(255, 255, 255, 0.38);
     }
 
     button.active {
@@ -335,11 +342,11 @@
     }
 
     .debug-section {
-      background: rgba(6, 9, 16, 0.52);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      background: rgba(8, 12, 22, 0.42);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: 10px;
       padding: 12px 14px;
     }
 
@@ -381,11 +388,11 @@
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 10px;
-      background: rgba(6, 9, 16, 0.48);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      background: rgba(8, 12, 22, 0.38);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: 10px;
       padding: 12px;
       font-family: var(--font-mono);
       font-size: 0.85rem;
@@ -461,9 +468,7 @@
   <section class="shared-controls">
     <div>
       <label for="keywordInput">Keyword (Blank = Standard TAI A–Z, 0–9)</label>
-      <div class="field-scroll-wrap">
-        <input type="text" id="keywordInput" autocomplete="off" spellcheck="false" />
-      </div>
+      <input type="text" id="keywordInput" autocomplete="off" spellcheck="false" />
     </div>
 
     <div class="toggle-group">
@@ -489,9 +494,7 @@
 
       <div>
         <label for="encodeInput">Plaintext Input</label>
-        <div class="field-scroll-wrap">
-          <textarea id="encodeInput" spellcheck="false"></textarea>
-        </div>
+        <textarea id="encodeInput" spellcheck="false"></textarea>
       </div>
 
       <div class="row">
@@ -503,9 +506,7 @@
 
       <div>
         <label for="encodeOutput">Ciphertext Output</label>
-        <div class="field-scroll-wrap">
-          <textarea id="encodeOutput" readonly spellcheck="false"></textarea>
-        </div>
+        <textarea id="encodeOutput" readonly spellcheck="false"></textarea>
       </div>
 
       <div class="status-bar" id="encodeStatus"></div>
@@ -536,9 +537,7 @@
 
       <div>
         <label for="decodeInput">Ciphertext Input</label>
-        <div class="field-scroll-wrap">
-          <textarea id="decodeInput" spellcheck="false"></textarea>
-        </div>
+        <textarea id="decodeInput" spellcheck="false"></textarea>
       </div>
 
       <div class="row">
@@ -550,9 +549,7 @@
 
       <div>
         <label for="decodeOutput">Decoded Plaintext</label>
-        <div class="field-scroll-wrap">
-          <textarea id="decodeOutput" readonly spellcheck="false"></textarea>
-        </div>
+        <textarea id="decodeOutput" readonly spellcheck="false"></textarea>
       </div>
 
       <div class="status-bar" id="decodeStatus"></div>
@@ -654,8 +651,8 @@
 
       const bgState = {
         baseHue: 198,
-        isBooting: true,
-        bootStart: performance.now(),
+        isBooting: false,
+        bootStart: 0,
         surgeActive: false,
         surgeStart: 0,
         surgeDuration: 1200,
@@ -673,7 +670,7 @@
         brandLogo.style.webkitBackgroundClip = "text";
         brandLogo.style.backgroundClip = "text";
         brandLogo.style.color = "transparent";
-        brandLogo.style.filter = `drop-shadow(0 0 12px hsla(${slowCycleHue.toFixed(1)}, 100%, 62%, 0.38))`;
+        brandLogo.style.filter = `drop-shadow(0 0 12px hsla(${slowCycleHue.toFixed(1)}, 100%, 62%, 0.42))`;
       }
 
       function triggerSurgeWave(duration = 1200, hueSpan = 135) {
@@ -688,7 +685,15 @@
       }
 
       window.RGC36Background = {
-        triggerSurge: () => triggerSurgeWave(1200, 135)
+        replayBoot() {
+          bgState.isBooting = true;
+          bgState.bootStart = performance.now();
+          bgState.surgeActive = false;
+          hexCells.forEach((h) => h.resetForBoot());
+        },
+        triggerSurge() {
+          triggerSurgeWave(1200, 135);
+        }
       };
 
       const hexCells = [];
@@ -701,11 +706,17 @@
           this.x = x;
           this.y = y;
           this.normY = normY;
+          this.revealProgress = 1;
+          this.bootDelay = 0;
+          this.surgeIntensity = 0;
+          this.surgeHue = bgState.baseHue;
+        }
+
+        resetForBoot() {
           this.revealProgress = 0;
           const wave = this.normY * 0.65 + (Math.sin(this.col * 0.7 + this.row * 0.4) * 0.5 + 0.5) * 0.25;
           this.bootDelay = Math.max(0, Math.min(0.85, wave));
           this.surgeIntensity = 0;
-          this.surgeHue = bgState.baseHue;
         }
 
         getVertices(radius, offsetX = 0, offsetY = 0) {
@@ -764,17 +775,17 @@
           const activeHue = hasSurge ? this.surgeHue : (baseHue + this.col * 6 + this.row * 4) % 360;
 
           if (hasSurge) {
-            bgCtx.fillStyle = `hsla(${activeHue}, 100%, 58%, ${this.surgeIntensity * 0.16 * this.revealProgress})`;
+            bgCtx.fillStyle = `hsla(${activeHue}, 100%, 58%, ${this.surgeIntensity * 0.2 * this.revealProgress})`;
             bgCtx.beginPath();
             verts.forEach((v, i) => (i === 0 ? bgCtx.moveTo(v.x, v.y) : bgCtx.lineTo(v.x, v.y)));
             bgCtx.closePath();
             bgCtx.fill();
           }
 
-          const baseAlpha = 0.16 * this.revealProgress;
-          const surgeAlpha = this.surgeIntensity * 0.88 * this.revealProgress;
+          const baseAlpha = 0.22 * this.revealProgress;
+          const surgeAlpha = this.surgeIntensity * 0.9 * this.revealProgress;
           const strokeAlpha = Math.min(0.98, baseAlpha + surgeAlpha);
-          const lightness = hasSurge ? 60 + this.surgeIntensity * 26 : 65;
+          const lightness = hasSurge ? 60 + this.surgeIntensity * 26 : 66;
 
           bgCtx.save();
           if (hasSurge && this.surgeIntensity > 0.25) {
@@ -782,7 +793,7 @@
             bgCtx.shadowColor = `hsla(${activeHue}, 100%, 65%, ${this.surgeIntensity * 0.88})`;
           }
           bgCtx.strokeStyle = `hsla(${activeHue}, 95%, ${lightness}%, ${strokeAlpha})`;
-          bgCtx.lineWidth = hasSurge ? 1.2 + this.surgeIntensity * 2.1 : 1.0;
+          bgCtx.lineWidth = hasSurge ? 1.2 + this.surgeIntensity * 2.1 : 1.1;
 
           bgCtx.beginPath();
           verts.forEach((v, i) => (i === 0 ? bgCtx.moveTo(v.x, v.y) : bgCtx.lineTo(v.x, v.y)));
@@ -800,6 +811,7 @@
       }
 
       function buildHoneycombLattice() {
+        const wasBooting = bgState.isBooting;
         hexCells.length = 0;
         const minDim = Math.min(width, height);
         hexRadius = Math.max(28, Math.min(46, minDim * 0.056));
@@ -819,7 +831,9 @@
             const x = startX + c * horizSpacing + rowOffsetX;
             const y = startY + r * vertSpacing;
             const normY = Math.max(0, Math.min(1, y / Math.max(1, height)));
-            hexCells.push(new HexCell(c, r, x, y, normY));
+            const cell = new HexCell(c, r, x, y, normY);
+            if (wasBooting) cell.resetForBoot();
+            hexCells.push(cell);
           }
         }
       }
@@ -834,6 +848,7 @@
 
       window.addEventListener("resize", resizeBg);
       resizeBg();
+      window.RGC36Background.replayBoot();
 
       if (brandLogo) {
         brandLogo.addEventListener("click", () => triggerSurgeWave(1200, 135));
@@ -1009,9 +1024,6 @@
 
     // =========================================================================
     // 3. RICH-TEXT SANITIZER & FORMATTING LOG (Y...Y)
-    //    Reserved Structural/Case: U (Upper), B (Line Break), G (Para), F (Page)
-    //    32 Punctuation & Symbol Slots: A-Z (remaining 22) + 0-9 (10)
-    //    Bullets normalize to "-" (code "H"); checkboxes normalize to "( )" / "(X)"
     // =========================================================================
     const PUNCT_TO_CODE = {
       ".": "P",
@@ -2058,4 +2070,218 @@
     function formatOutputBlocks(str, useBlocks) {
       if (!useBlocks) return str;
       const chunks = [];
-      for (let i = 0; i < str.length;
+      for (let i = 0; i < str.length; i += 36) {
+        chunks.push(str.slice(i, i + 36));
+      }
+      return chunks.join("\n");
+    }
+
+    function setStatus(elementId, msg, isError = false) {
+      const el = document.getElementById(elementId);
+      el.textContent = msg;
+      el.classList.toggle("error", isError);
+    }
+
+    document.getElementById("groupBlockToggle").addEventListener("change", (e) => {
+      if (!lastRawCiphertext) return;
+      const encOut = document.getElementById("encodeOutput");
+      encOut.value = formatOutputBlocks(lastRawCiphertext, e.target.checked);
+      autoResizeTextarea(encOut);
+    });
+
+    document.getElementById("encodeBtn").addEventListener("click", () => {
+      try {
+        const text = document.getElementById("encodeInput").value;
+        const kw = document.getElementById("keywordInput").value;
+        const useY = document.getElementById("yWrapperToggle").checked;
+        const useBlocks = document.getElementById("groupBlockToggle").checked;
+
+        const res = encodeRGC36(text, kw, useY);
+        lastRawCiphertext = res.ciphertext;
+        const encOut = document.getElementById("encodeOutput");
+        encOut.value = formatOutputBlocks(res.ciphertext, useBlocks);
+        autoResizeTextarea(encOut);
+
+        document.getElementById("encDbgSeed").textContent = res.debugData.seed;
+        document.getElementById("encDbgStages").textContent = res.debugData.stages;
+        document.getElementById("encDbgTrace").textContent = res.debugData.trace;
+
+        if (window.RGC36Background) {
+          window.RGC36Background.triggerSurge();
+        }
+
+        setStatus(
+          "encodeStatus",
+          `Encoded successfully (${res.ciphertext.length} chars, ${res.ciphertext.length / 36} block${res.ciphertext.length === 36 ? "" : "s"}).`
+        );
+      } catch (err) {
+        setStatus("encodeStatus", err.message, true);
+      }
+    });
+
+    document.getElementById("sendToDecodeBtn").addEventListener("click", () => {
+      const cipher = document.getElementById("encodeOutput").value;
+      if (!cipher) return;
+      const decIn = document.getElementById("decodeInput");
+      decIn.value = cipher;
+      switchView("decodeView");
+      autoResizeTextarea(decIn);
+      setStatus("decodeStatus", "Ciphertext loaded from Encode tab.");
+    });
+
+    document.getElementById("copyEncodeBtn").addEventListener("click", async () => {
+      const out = document.getElementById("encodeOutput").value;
+      if (!out) return;
+      await navigator.clipboard.writeText(out);
+      setStatus("encodeStatus", "Ciphertext copied to clipboard.");
+    });
+
+    document.getElementById("clearEncodeBtn").addEventListener("click", () => {
+      lastRawCiphertext = "";
+      const encIn = document.getElementById("encodeInput");
+      const encOut = document.getElementById("encodeOutput");
+      encIn.value = "";
+      encOut.value = "";
+      autoResizeTextarea(encIn);
+      autoResizeTextarea(encOut);
+      document.getElementById("encDbgSeed").textContent = "";
+      document.getElementById("encDbgStages").textContent = "";
+      document.getElementById("encDbgTrace").textContent = "";
+      setStatus("encodeStatus", "");
+    });
+
+    document.getElementById("decodeBtn").addEventListener("click", () => {
+      try {
+        const cipher = document.getElementById("decodeInput").value;
+        const kw = document.getElementById("keywordInput").value;
+        const useY = document.getElementById("yWrapperToggle").checked;
+
+        const res = decodeRGC36(cipher, kw, useY);
+        const decOut = document.getElementById("decodeOutput");
+        decOut.value = res.plaintext;
+        autoResizeTextarea(decOut);
+
+        document.getElementById("decDbgSeed").textContent = res.debugData.seed;
+        document.getElementById("decDbgPeel").textContent = res.debugData.peel;
+        document.getElementById("decDbgTrace").textContent = res.debugData.trace;
+
+        if (window.RGC36Background) {
+          window.RGC36Background.triggerSurge();
+        }
+
+        setStatus("decodeStatus", "Decoded successfully.");
+      } catch (err) {
+        setStatus("decodeStatus", err.message, true);
+      }
+    });
+
+    document.getElementById("sendToEncodeBtn").addEventListener("click", () => {
+      const plain = document.getElementById("decodeOutput").value;
+      if (!plain) return;
+      const encIn = document.getElementById("encodeInput");
+      encIn.value = plain;
+      switchView("encodeView");
+      autoResizeTextarea(encIn);
+      setStatus("encodeStatus", "Plaintext loaded from Decode tab.");
+    });
+
+    document.getElementById("copyDecodeBtn").addEventListener("click", async () => {
+      const out = document.getElementById("decodeOutput").value;
+      if (!out) return;
+      await navigator.clipboard.writeText(out);
+      setStatus("decodeStatus", "Plaintext copied to clipboard.");
+    });
+
+    document.getElementById("clearDecodeBtn").addEventListener("click", () => {
+      const decIn = document.getElementById("decodeInput");
+      const decOut = document.getElementById("decodeOutput");
+      decIn.value = "";
+      decOut.value = "";
+      autoResizeTextarea(decIn);
+      autoResizeTextarea(decOut);
+      document.getElementById("decDbgSeed").textContent = "";
+      document.getElementById("decDbgPeel").textContent = "";
+      document.getElementById("decDbgTrace").textContent = "";
+      setStatus("decodeStatus", "");
+    });
+
+    document.getElementById("debugToggle").addEventListener("change", (e) => {
+      const show = e.target.checked;
+      document.getElementById("encodeDebugPanel").classList.toggle("visible", show);
+      document.getElementById("decodeDebugPanel").classList.toggle("visible", show);
+    });
+
+    document.getElementById("keywordInput").addEventListener("input", () => {
+      syncReferenceToKeyword(true);
+    });
+
+    document.querySelectorAll(".start-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".start-btn").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        refState.startMaster = Number(btn.dataset.start);
+        syncReferenceToKeyword(true);
+      });
+    });
+
+    document.getElementById("zerodModeBtn").addEventListener("click", () => {
+      refState.useConfiguredSeed = false;
+      document.getElementById("zerodModeBtn").classList.add("active");
+      document.getElementById("configuredModeBtn").classList.remove("active");
+      syncReferenceToKeyword(true);
+    });
+
+    document.getElementById("configuredModeBtn").addEventListener("click", () => {
+      refState.useConfiguredSeed = true;
+      document.getElementById("configuredModeBtn").classList.add("active");
+      document.getElementById("zerodModeBtn").classList.remove("active");
+      syncReferenceToKeyword(true);
+    });
+
+    document.getElementById("nextWordBtn").addEventListener("click", () => {
+      if (refState.anim) return;
+
+      const baseGrid = buildKeyedAlphabet(document.getElementById("keywordInput").value);
+      const fromCells = getActiveGrid(baseGrid, refState.masterGrid, refState.mapState);
+
+      snapshotRefState();
+
+      refState.masterGrid = ((refState.wordStartMaster - 2 + 4) % 4) + 1;
+      refState.wordStartMaster = refState.masterGrid;
+
+      const qIdx = (refState.wordNumber - 1) % 4;
+      refState.mapState[qIdx] = (refState.mapState[qIdx] % 4) + 1;
+      refState.wordNumber++;
+
+      const toCells = getActiveGrid(baseGrid, refState.masterGrid, refState.mapState);
+
+      triggerRotationAnimation({
+        type: "quadrant",
+        qIdx,
+        deltaAngle: Math.PI / 2,
+        fromCells,
+        toCells
+      });
+    });
+
+    document.getElementById("stepBackBtn").addEventListener("click", () => {
+      const prev = refState.history.pop();
+      if (!prev) return;
+      refState.anim = null;
+      refState.wordStartMaster = prev.wordStartMaster;
+      refState.masterGrid = prev.masterGrid;
+      refState.mapState = prev.mapState;
+      refState.wordNumber = prev.wordNumber;
+      updateTelemetryDisplay();
+      renderReferenceFrame(1);
+    });
+
+    document.getElementById("resetRefBtn").addEventListener("click", () => {
+      syncReferenceToKeyword(true);
+    });
+
+    syncReferenceToKeyword(true);
+    syncAllTextareas();
+  </script>
+</body>
+</html>
