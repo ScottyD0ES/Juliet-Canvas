@@ -6,9 +6,9 @@
   <title>RGC36 v1.6 — Rotating Grid Cypher - 36</title>
   <style>
     :root {
-      --bg: #0f1115;
-      --surface: #171a21;
-      --surface-alt: #1f242e;
+      --bg: #02040a;
+      --surface: rgba(23, 26, 33, 0.84);
+      --surface-alt: rgba(31, 36, 46, 0.9);
       --border: #2e3440;
       --text: #eceff4;
       --muted: #9aa5b4;
@@ -33,12 +33,13 @@
       font-family: var(--font-sans);
       line-height: 1.5;
       position: relative;
-      overflow-x: hidden;
+      min-height: 100vh;
     }
 
     #bgCanvas {
       position: fixed;
-      inset: 0;
+      top: 0;
+      left: 0;
       width: 100%;
       height: 100%;
       z-index: 0;
@@ -49,7 +50,7 @@
     .shared-controls,
     .view-section {
       position: relative;
-      z-index: 1;
+      z-index: 2;
     }
 
     header {
@@ -77,6 +78,18 @@
       letter-spacing: 0.04em;
     }
 
+    #brandLogoTrigger {
+      cursor: pointer;
+      display: inline-block;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      transition: transform 0.16s ease;
+    }
+
+    #brandLogoTrigger:active {
+      transform: scale(0.96);
+    }
+
     .version-badge {
       background: var(--surface-alt);
       border: 1px solid var(--accent);
@@ -98,6 +111,8 @@
       display: flex;
       gap: 6px;
       background: var(--surface);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       padding: 4px;
       border-radius: 8px;
       border: 1px solid var(--border);
@@ -129,6 +144,8 @@
       max-width: 980px;
       margin: 0 auto 18px auto;
       background: var(--surface);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 18px 22px;
@@ -149,6 +166,8 @@
 
     .panel {
       background: var(--surface);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 22px;
@@ -179,7 +198,7 @@
     input[type="text"],
     textarea {
       width: 100%;
-      background: var(--bg);
+      background: rgba(11, 14, 22, 0.88);
       color: var(--text);
       border: 1px solid var(--border);
       border-radius: 6px;
@@ -285,7 +304,7 @@
     }
 
     .debug-section {
-      background: var(--bg);
+      background: rgba(11, 14, 22, 0.9);
       border: 1px solid var(--border);
       border-radius: 6px;
       padding: 12px 14px;
@@ -329,7 +348,7 @@
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 10px;
-      background: var(--bg);
+      background: rgba(11, 14, 22, 0.88);
       border: 1px solid var(--border);
       border-radius: 6px;
       padding: 12px;
@@ -386,12 +405,12 @@
   </style>
 </head>
 <body>
-  <canvas id="bgCanvas" aria-hidden="true"></canvas>
+  <canvas id="bgCanvas"></canvas>
 
   <header>
     <div class="brand">
       <div class="brand-title-row">
-        <h1>RGC36 — Rotating Grid Cypher - 36</h1>
+        <h1><span id="brandLogoTrigger" title="Tap to trigger surge">RGC36</span> — Rotating Grid Cypher - 36</h1>
         <span class="version-badge">v1.6</span>
       </div>
       <span>5-Rotor Polyalphabetic Mechanical Grid Engine</span>
@@ -574,6 +593,246 @@
   <script>
     "use strict";
 
+    // =========================================================================
+    // 0. ANIMATED HONEYCOMB BACKGROUND & HEADER LOGO SURGE
+    // =========================================================================
+    (function initHoneycombBackground() {
+      const bgCanvas = document.getElementById("bgCanvas");
+      const bgCtx = bgCanvas.getContext("2d");
+      const brandLogo = document.getElementById("brandLogoTrigger");
+
+      const BOOT_DURATION_MS = 2200;
+      let width = 0;
+      let height = 0;
+      let centerX = 0;
+      let centerY = 0;
+
+      const bgState = {
+        baseHue: 198,
+        isBooting: true,
+        bootStart: performance.now(),
+        surgeActive: false,
+        surgeStart: 0,
+        surgeDuration: 1200,
+        surgeStartHue: 195,
+        surgeEndHue: 325
+      };
+
+      function updateBrandLogoColor(now) {
+        if (!brandLogo) return;
+        const slowCycleHue = (bgState.baseHue + now * 0.006) % 360;
+        const secondHue = (slowCycleHue + 55) % 360;
+        const thirdHue = (slowCycleHue + 110) % 360;
+
+        brandLogo.style.backgroundImage = `linear-gradient(95deg, hsl(${slowCycleHue.toFixed(1)}, 95%, 68%), hsl(${secondHue.toFixed(1)}, 95%, 70%), hsl(${thirdHue.toFixed(1)}, 95%, 72%))`;
+        brandLogo.style.webkitBackgroundClip = "text";
+        brandLogo.style.backgroundClip = "text";
+        brandLogo.style.color = "transparent";
+        brandLogo.style.filter = `drop-shadow(0 0 12px hsla(${slowCycleHue.toFixed(1)}, 100%, 62%, 0.38))`;
+      }
+
+      function triggerSurgeWave(duration = 1200, hueSpan = 135) {
+        const startHue = (bgState.baseHue + 22) % 360;
+        const endHue = (startHue + hueSpan) % 360;
+        bgState.baseHue = endHue;
+        bgState.surgeActive = true;
+        bgState.surgeStart = performance.now();
+        bgState.surgeDuration = duration;
+        bgState.surgeStartHue = startHue;
+        bgState.surgeEndHue = endHue;
+      }
+
+      window.RGC36Background = {
+        triggerSurge: () => triggerSurgeWave(1200, 135)
+      };
+
+      const hexCells = [];
+      let hexRadius = 38;
+
+      class HexCell {
+        constructor(col, row, x, y, normY) {
+          this.col = col;
+          this.row = row;
+          this.x = x;
+          this.y = y;
+          this.normY = normY;
+          this.revealProgress = 0;
+          const wave = this.normY * 0.65 + (Math.sin(this.col * 0.7 + this.row * 0.4) * 0.5 + 0.5) * 0.25;
+          this.bootDelay = Math.max(0, Math.min(0.85, wave));
+          this.surgeIntensity = 0;
+          this.surgeHue = bgState.baseHue;
+        }
+
+        getVertices(radius, offsetX = 0, offsetY = 0) {
+          const pts = [];
+          for (let i = 0; i < 6; i++) {
+            const angle = (Math.PI / 3) * i - Math.PI / 2;
+            pts.push({
+              x: this.x + offsetX + Math.cos(angle) * radius,
+              y: this.y + offsetY + Math.sin(angle) * radius
+            });
+          }
+          return pts;
+        }
+
+        update(bootT, surgeProgress) {
+          if (bgState.isBooting) {
+            const localT = Math.max(0, (bootT - this.bootDelay * 0.55) / 0.45);
+            this.revealProgress = Math.min(1, 1 - Math.pow(1 - localT, 3));
+          } else {
+            this.revealProgress = 1;
+          }
+
+          if (bgState.surgeActive) {
+            const waveFront = -0.25 + surgeProgress * 1.5;
+            const bandWidth = 0.26;
+            const dist = Math.abs(this.normY - waveFront);
+
+            if (dist < bandWidth) {
+              const falloff = 1 - dist / bandWidth;
+              const smooth = falloff * falloff * (3 - 2 * falloff);
+              if (smooth > this.surgeIntensity) {
+                this.surgeIntensity = smooth;
+              }
+              const tSweep = Math.max(0, Math.min(1, this.normY));
+              this.surgeHue = bgState.surgeStartHue + (bgState.surgeEndHue - bgState.surgeStartHue) * tSweep;
+            }
+          }
+
+          this.surgeIntensity *= 0.91;
+        }
+
+        draw(now, baseHue) {
+          if (this.revealProgress <= 0.01) return;
+
+          const tSec = now * 0.001;
+          const breathe = Math.sin(tSec * 1.4 + this.row * 0.6 + this.col * 0.4) * 0.015;
+          const activeR = hexRadius * (0.94 + breathe) * (0.5 + 0.5 * this.revealProgress);
+
+          const driftOut = (1 - this.revealProgress) * 28;
+          const dx = (this.x - centerX) * 0.08 * (1 - this.revealProgress);
+          const dy = (this.y - centerY) * 0.08 * (1 - this.revealProgress) - driftOut;
+
+          const verts = this.getVertices(activeR, dx, dy);
+
+          const hasSurge = this.surgeIntensity > 0.02;
+          const activeHue = hasSurge ? this.surgeHue : (baseHue + this.col * 6 + this.row * 4) % 360;
+
+          if (hasSurge) {
+            bgCtx.fillStyle = `hsla(${activeHue}, 100%, 58%, ${this.surgeIntensity * 0.16 * this.revealProgress})`;
+            bgCtx.beginPath();
+            verts.forEach((v, i) => (i === 0 ? bgCtx.moveTo(v.x, v.y) : bgCtx.lineTo(v.x, v.y)));
+            bgCtx.closePath();
+            bgCtx.fill();
+          }
+
+          const baseAlpha = 0.16 * this.revealProgress;
+          const surgeAlpha = this.surgeIntensity * 0.88 * this.revealProgress;
+          const strokeAlpha = Math.min(0.98, baseAlpha + surgeAlpha);
+          const lightness = hasSurge ? 60 + this.surgeIntensity * 26 : 65;
+
+          bgCtx.save();
+          if (hasSurge && this.surgeIntensity > 0.25) {
+            bgCtx.shadowBlur = 15 * this.surgeIntensity;
+            bgCtx.shadowColor = `hsla(${activeHue}, 100%, 65%, ${this.surgeIntensity * 0.88})`;
+          }
+          bgCtx.strokeStyle = `hsla(${activeHue}, 95%, ${lightness}%, ${strokeAlpha})`;
+          bgCtx.lineWidth = hasSurge ? 1.2 + this.surgeIntensity * 2.1 : 1.0;
+
+          bgCtx.beginPath();
+          verts.forEach((v, i) => (i === 0 ? bgCtx.moveTo(v.x, v.y) : bgCtx.lineTo(v.x, v.y)));
+          bgCtx.closePath();
+          bgCtx.stroke();
+
+          if (hasSurge && this.surgeIntensity > 0.45) {
+            bgCtx.fillStyle = `hsla(${(activeHue + 36) % 360}, 100%, 85%, ${this.surgeIntensity * 0.75})`;
+            bgCtx.beginPath();
+            bgCtx.arc(this.x + dx, this.y + dy, 1.9 * this.surgeIntensity, 0, Math.PI * 2);
+            bgCtx.fill();
+          }
+          bgCtx.restore();
+        }
+      }
+
+      function buildHoneycombLattice() {
+        hexCells.length = 0;
+        const minDim = Math.min(width, height);
+        hexRadius = Math.max(28, Math.min(46, minDim * 0.056));
+
+        const horizSpacing = Math.sqrt(3) * hexRadius;
+        const vertSpacing = 1.5 * hexRadius;
+
+        const cols = Math.ceil(width / horizSpacing) + 3;
+        const rows = Math.ceil(height / vertSpacing) + 3;
+
+        const startX = centerX - ((cols - 1) * horizSpacing) / 2;
+        const startY = centerY - ((rows - 1) * vertSpacing) / 2;
+
+        for (let r = 0; r < rows; r++) {
+          const rowOffsetX = r % 2 === 1 ? horizSpacing * 0.5 : 0;
+          for (let c = 0; c < cols; c++) {
+            const x = startX + c * horizSpacing + rowOffsetX;
+            const y = startY + r * vertSpacing;
+            const normY = Math.max(0, Math.min(1, y / Math.max(1, height)));
+            hexCells.push(new HexCell(c, r, x, y, normY));
+          }
+        }
+      }
+
+      function resizeBg() {
+        width = bgCanvas.width = window.innerWidth;
+        height = bgCanvas.height = window.innerHeight;
+        centerX = width / 2;
+        centerY = height / 2;
+        buildHoneycombLattice();
+      }
+
+      window.addEventListener("resize", resizeBg);
+      resizeBg();
+
+      if (brandLogo) {
+        brandLogo.addEventListener("click", () => triggerSurgeWave(1200, 135));
+      }
+
+      function animateBg(now) {
+        bgCtx.globalCompositeOperation = "source-over";
+        bgCtx.fillStyle = "rgba(2, 4, 10, 0.42)";
+        bgCtx.fillRect(0, 0, width, height);
+
+        updateBrandLogoColor(now);
+
+        let bootT = 1;
+        if (bgState.isBooting) {
+          const elapsed = now - bgState.bootStart;
+          if (elapsed >= BOOT_DURATION_MS) {
+            bgState.isBooting = false;
+            triggerSurgeWave(1100, 120);
+          } else {
+            bootT = elapsed / BOOT_DURATION_MS;
+          }
+        }
+
+        let surgeProgress = 0;
+        if (bgState.surgeActive) {
+          const sElapsed = now - bgState.surgeStart;
+          if (sElapsed >= bgState.surgeDuration) {
+            bgState.surgeActive = false;
+          } else {
+            surgeProgress = sElapsed / bgState.surgeDuration;
+          }
+        }
+
+        for (let i = 0; i < hexCells.length; i++) {
+          hexCells[i].update(bootT, surgeProgress);
+          hexCells[i].draw(now, bgState.baseHue);
+        }
+
+        requestAnimationFrame(animateBg);
+      }
+
+      requestAnimationFrame(animateBg);
+    })();
+
     const APP_VERSION = "v1.6";
 
     // =========================================================================
@@ -729,17 +988,21 @@
 
     function sanitizeRichTextAndMarkers(rawInput) {
       return String(rawInput || "")
+        // Strip zero-width, BOM, soft-hyphen, and non-breaking spaces first
         .replace(/\r\n?/g, "\n")
         .replace(/\u00A0/g, " ")
         .replace(/[\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, "")
+        // Normalize curly quotes and typographic dashes
         .replace(/[\u201C\u201D\u201E\u201F]/g, "\"")
         .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
         .replace(/[\u2013\u2014\u2015\u2212]/g, "-")
+        // Normalize checkbox glyphs & bracket/paren variants to "( )" or "(X)"
         .replace(/^([ \t]*)(?:☐|\[\s*\])(?=\s|$)/gm, "$1( )")
         .replace(/^([ \t]*)(?:☑|☒|\[[xX]\])(?=\s|$)/gm, "$1(X)")
         .replace(/\(\s*([xX]?)\s*\)/g, (_, mark) =>
           mark ? `(X)` : `( )`
         )
+        // Normalize bullet glyphs to "- " so existing "-" ("H") encoding preserves them
         .replace(/^([ \t]*)[•∙▪▫◦‣⁃]\s*/gm, "$1- ");
     }
 
@@ -771,6 +1034,7 @@
       while (i < unified.length) {
         const ch = unified[i];
 
+        // Page / Section break: standalone "---" line or form-feed "\f"
         if (ch === "\f") {
           events.push({ index: cleanChars.length, type: "F" });
           pushSeparatorSpace();
@@ -791,6 +1055,7 @@
           continue;
         }
 
+        // Paragraph break (\n\n+) vs Single Line break (\n)
         if (ch === "\n") {
           let nlCount = 0;
           while (i < unified.length && unified[i] === "\n") {
@@ -862,6 +1127,7 @@
         pos += 2 + len;
       }
 
+      // Pass 1: Apply structural breaks (B, G, F) and punctuation insertions in reverse index order
       for (let i = events.length - 1; i >= 0; i--) {
         const ev = events[i];
         if (ev.type === "U") continue;
@@ -890,6 +1156,8 @@
         }
       }
 
+      // Pass 2: Apply uppercase ("U") flags against the post-insertion character array
+      // Shift by any insertions at indices strictly less than ev.index
       for (let i = 0; i < events.length; i++) {
         const ev = events[i];
         if (ev.type !== "U") continue;
@@ -912,6 +1180,8 @@
       return chars.join("");
     }
 
+    // Whole-Word Z...Z Rule:
+    // Any space-separated word containing one or more digits is wrapped as a single whole token in Z...Z.
     function wrapNumbersWholeWord(text) {
       return text
         .split(" ")
@@ -943,6 +1213,7 @@
       const baseGrid = buildKeyedAlphabet(keyword);
       const initialMap = getInitialMap(baseGrid);
 
+      // Step 1: Sanitize rich text/hidden chars & extract formatting log (Y...Y)
       let workingText = "";
       let sanitizedPreview = "";
       let yBlock = "";
@@ -967,8 +1238,10 @@
         throw new Error("Input contains no encodable alphanumeric characters.");
       }
 
+      // Step 2: Whole-Word Z...Z wrap on any word containing digits
       const zWrappedText = wrapNumbersWholeWord(workingText);
 
+      // Step 3: Build space-separated sections: <body words> + [Y...Y] + <X...X>
       const sections = zWrappedText.split(" ").filter(Boolean);
       if (yBlock) {
         sections.push(yBlock);
@@ -989,6 +1262,7 @@
 
       const stagedWithSpaces = sections.join(" ");
 
+      // Step 4: Replace every space in stagedWithSpaces with the cycling single-digit delimiter
       const streamTokens = [];
       const delimiterList = [];
 
@@ -1013,6 +1287,7 @@
         }
       }
 
+      // Step 5: Encrypt stream using 5-rotor mechanics
       const originModulo = mod4OneBased(charToTAI(streamTokens[0].ch));
       const originHintChar = HINT_LETTERS[originModulo - 1];
 
@@ -1310,8 +1585,10 @@
         throw new Error("Could not verify trailing X...X padding buffer. Check keyword or ciphertext.");
       }
 
+      // 1. Pop verified X...X padding buffer token
       const xBlock = tokens.pop();
 
+      // 2. Pop Y...Y formatting log token if present
       let yPayload = "";
       let yFullBlock = "(None)";
       const maybeY = tokens[tokens.length - 1];
@@ -1320,8 +1597,10 @@
         yPayload = yFullBlock.slice(1, -1);
       }
 
+      // 3. Unwrap whole-word Z...Z tokens on remaining body words
       const zUnwrappedText = tokens.map(unwrapNumberToken).join(" ");
 
+      // 4. Restore case, symbols, and line/paragraph breaks
       const reconstructed = useYWrapper && yPayload
         ? restoreFormatting(zUnwrappedText, yPayload)
         : zUnwrappedText.toLowerCase();
@@ -1765,6 +2044,10 @@
         document.getElementById("encDbgStages").textContent = res.debugData.stages;
         document.getElementById("encDbgTrace").textContent = res.debugData.trace;
 
+        if (window.RGC36Background) {
+          window.RGC36Background.triggerSurge();
+        }
+
         setStatus(
           "encodeStatus",
           `Encoded successfully (${res.ciphertext.length} chars, ${res.ciphertext.length / 36} block${res.ciphertext.length === 36 ? "" : "s"}).`
@@ -1811,6 +2094,10 @@
         document.getElementById("decDbgSeed").textContent = res.debugData.seed;
         document.getElementById("decDbgPeel").textContent = res.debugData.peel;
         document.getElementById("decDbgTrace").textContent = res.debugData.trace;
+
+        if (window.RGC36Background) {
+          window.RGC36Background.triggerSurge();
+        }
 
         setStatus("decodeStatus", "Decoded successfully.");
       } catch (err) {
@@ -1918,84 +2205,6 @@
     });
 
     syncReferenceToKeyword(true);
-
-    // =========================================================================
-    // 7. ANIMATED HONEYCOMB BACKGROUND CANVAS
-    // =========================================================================
-    (() => {
-      const bgCanvas = document.getElementById("bgCanvas");
-      const bgCtx = bgCanvas.getContext("2d");
-
-      let w = 0;
-      let h = 0;
-      let radius = 38;
-      let hexes = [];
-
-      function buildHexes() {
-        hexes = [];
-        radius = Math.max(28, Math.min(44, Math.min(w, h) * 0.052));
-        const dx = Math.sqrt(3) * radius;
-        const dy = 1.5 * radius;
-        const cols = Math.ceil(w / dx) + 2;
-        const rows = Math.ceil(h / dy) + 2;
-
-        for (let r = -1; r < rows; r++) {
-          const offsetX = r % 2 === 0 ? 0 : dx * 0.5;
-          for (let c = -1; c < cols; c++) {
-            const cx = c * dx + offsetX;
-            const cy = r * dy;
-            hexes.push({
-              cx,
-              cy,
-              phase: (r * 0.45 + c * 0.35) % (Math.PI * 2)
-            });
-          }
-        }
-      }
-
-      function resizeBg() {
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        w = window.innerWidth;
-        h = window.innerHeight;
-        bgCanvas.width = Math.round(w * dpr);
-        bgCanvas.height = Math.round(h * dpr);
-        bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        buildHexes();
-      }
-
-      function drawHex(cx, cy, r) {
-        bgCtx.beginPath();
-        for (let i = 0; i < 6; i++) {
-          const ang = (Math.PI / 3) * i - Math.PI / 2;
-          const px = cx + Math.cos(ang) * r;
-          const py = cy + Math.sin(ang) * r;
-          if (i === 0) bgCtx.moveTo(px, py);
-          else bgCtx.lineTo(px, py);
-        }
-        bgCtx.closePath();
-      }
-
-      function renderBg(now) {
-        const t = now * 0.0012;
-        bgCtx.clearRect(0, 0, w, h);
-        bgCtx.lineWidth = 1;
-
-        for (let i = 0; i < hexes.length; i++) {
-          const hx = hexes[i];
-          const pulse = 0.5 + 0.5 * Math.sin(t + hx.phase);
-          const alpha = 0.045 + pulse * 0.055;
-          drawHex(hx.cx, hx.cy, radius * 0.94);
-          bgCtx.strokeStyle = `rgba(129, 161, 193, ${alpha.toFixed(3)})`;
-          bgCtx.stroke();
-        }
-
-        requestAnimationFrame(renderBg);
-      }
-
-      window.addEventListener("resize", resizeBg);
-      resizeBg();
-      requestAnimationFrame(renderBg);
-    })();
   </script>
 </body>
 </html>
