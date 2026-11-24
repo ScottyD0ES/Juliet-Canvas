@@ -1,0 +1,1607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MORSE // SIGNAL TRANSCEIVER</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #070a0f;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+</style>
+</head>
+<body>
+<canvas id="appCanvas"></canvas>
+
+<script>
+(() => {
+  'use strict';
+
+  // ============================================================================
+  // 1. MORSE CODE DICTIONARY & REVERSE LOOKUP
+  // ============================================================================
+  const CHAR_TO_MORSE = {
+    'A': '.-',    'B': '-...',  'C': '-.-.',  'D': '-..',   'E': '.',
+    'F': '..-.',  'G': '--.',   'H': '....',  'I': '..',    'J': '.---',
+    'K': '-.-',   'L': '.-..',  'M': '--',    'N': '-.',    'O': '---',
+    'P': '.--.',  'Q': '--.-',  'R': '.-.',   'S': '...',   'T': '-',
+    'U': '..-',   'V': '...-',  'W': '.--',   'X': '-..-',  'Y': '-.--',
+    'Z': '--..',
+    '0': '-----', '1': '.----', '2': '..---', '3': '...--', '4': '....-',
+    '5': '.....', '6': '-....', '7': '--...', '8': '---..', '9': '----.',
+    '.': '.-.-.-', ',': '--..--', '?': '..--..', '/': '-..-.', '-': '-....-',
+    '!': '-.-.--', '@': '.--.-.', '=': '-...-'
+  };
+
+  const MORSE_TO_CHAR = {};
+  for (const [char, code] of Object.entries(CHAR_TO_MORSE)) {
+    MORSE_TO_CHAR[code] = char;
+  }
+
+  const ALPHABET_KEYS = Object.keys(CHAR_TO_MORSE);
+
+  // ============================================================================
+  // 2. CANVAS & APPLICATION STATE
+  // ============================================================================
+  const canvas = document.getElementById('appCanvas');
+  const ctx = canvas.getContext('2d');
+
+  // Hidden video element for optical camera capture
+  const videoEl = document.createElement('video');
+  videoEl.playsInline = true;
+  videoEl.muted = true;
+
+  // Offscreen small canvas for fast pixel brightness sampling
+  const sampleCanvas = document.createElement('canvas');
+  sampleCanvas.width = 32;
+  sampleCanvas.height = 32;
+  const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
+
+  const state = {
+    width: window.innerWidth,
+    height: window.innerHeight,
+    dpr: Math.min(window.devicePixelRatio || 1, 2),
+    time: 0,
+    lastFrameTime: performance.now(),
+
+    // Navigation & Modes
+    mode: 'TRANSMIT', // 'TRANSMIT' | 'RECEIVE'
+    rxSource: 'CAMERA', // 'CAMERA' | 'MIC'
+
+    // Timing & Speed
+    wpm: 14, // 5 to 30 WPM
+    get dotMs() { return 1200 / this.wpm; },
+
+    // Transmitter State
+    inputText: 'HELLO WORLD',
+    inputFocused: true,
+    cursorBlink: 0,
+    isPlayingText: false,
+    playQueue: [],
+    playTimer: 0,
+    playIndex: -1,
+    activeSymbol: '',
+    activeChar: '',
+
+    // Manual Tap Key State
+    isKeyDown: false,
+    keyDownTime: 0,
+    lastKeyUpTime: 0,
+    tapBuffer: '',
+    tapDecodedText: '',
+    tapLetterCommitted: true,
+    tapWordCommitted: true,
+
+    // Audio Engine & Recording
+    audioCtx: null,
+    oscillator: null,
+    gainNode: null,
+    destNode: null,
+    mediaRecorder: null,
+    recordedChunks: [],
+    isRecording: false,
+    recordStartTime: 0,
+    toneActive: false,
+
+    // Receiver State (Camera & Mic)
+    rxActive: false,
+    rxStream: null,
+    rxAnalyser: null,
+    rxFreqData: null,
+    rxLevel: 0,          // 0.0 to 1.0 normalized signal
+    rxThreshold: 0.45,   // 0.05 to 0.95 user adjustable
+    rxHistory: new Array(160).fill(0),
+    rxSignalHigh: false,
+    rxStateChangeTime: 0,
+    rxBuffer: '',
+    rxDecodedText: '',
+    rxLetterCommitted: true,
+    rxWordCommitted: true,
+    rxStatusMsg: 'IDLE - CLICK START RECEIVER',
+    rxDetectedHz: 0,
+
+    // Interactive Pointer & Drag State
+    pointer: { x: -1000, y: -1000, down: false },
+    activeSlider: null, // 'WPM' | 'THRESHOLD'
+    hoveredId: null,
+
+    // Reactive Visual Effects
+    ripples: [],
+    sparks: [],
+    scanlineY: -1,
+    bgEnergy: 0,
+    accentHue: 190 // Cyan default
+  };
+
+  // ============================================================================
+  // 3. WEB AUDIO SYNTHESIS & RECORDING ENGINE
+  // ============================================================================
+  function initAudio() {
+    if (!state.audioCtx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      state.audioCtx = new AudioCtx();
+
+      state.oscillator = state.audioCtx.createOscillator();
+      state.oscillator.type = 'sine';
+      state.oscillator.frequency.setValueAtTime(650, state.audioCtx.currentTime);
+
+      state.gainNode = state.audioCtx.createGain();
+      state.gainNode.gain.setValueAtTime(0, state.audioCtx.currentTime);
+
+      state.destNode = state.audioCtx.createMediaStreamDestination();
+
+      state.oscillator.connect(state.gainNode);
+      state.gainNode.connect(state.audioCtx.destination);
+      state.gainNode.connect(state.destNode);
+
+      state.oscillator.start();
+    }
+    if (state.audioCtx.state === 'suspended') {
+      state.audioCtx.resume();
+    }
+  }
+
+  function setTone(on) {
+    initAudio();
+    if (state.toneActive === on) return;
+    state.toneActive = on;
+    const now = state.audioCtx.currentTime;
+    state.gainNode.gain.cancelScheduledValues(now);
+    state.gainNode.gain.setTargetAtTime(on ? 0.35 : 0.0, now, 0.008);
+    if (on) {
+      state.bgEnergy = Math.min(1, state.bgEnergy + 0.55);
+    }
+  }
+
+  function toggleRecording() {
+    initAudio();
+    if (!state.isRecording) {
+      state.recordedChunks = [];
+      const mimeTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg;codecs=opus'
+      ];
+      let selectedMime = '';
+      for (const m of mimeTypes) {
+        if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) {
+          selectedMime = m;
+          break;
+        }
+      }
+      try {
+        state.mediaRecorder = selectedMime
+          ? new MediaRecorder(state.destNode.stream, { mimeType: selectedMime })
+          : new MediaRecorder(state.destNode.stream);
+
+        state.mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            state.recordedChunks.push(e.data);
+          }
+        };
+
+        state.mediaRecorder.onstop = () => {
+          const blob = new Blob(state.recordedChunks, { type: selectedMime || 'audio/webm' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+          a.href = url;
+          a.download = `morse-transmission-${stamp}.webm`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(url), 2000);
+        };
+
+        state.mediaRecorder.start(100);
+        state.isRecording = true;
+        state.recordStartTime = performance.now();
+        triggerScanline();
+      } catch (err) {
+        console.error('Recording failed:', err);
+      }
+    } else {
+      state.isRecording = false;
+      if (state.mediaRecorder && state.mediaRecorder.state !== 'inactive') {
+        state.mediaRecorder.stop();
+      }
+      triggerScanline();
+    }
+  }
+
+  // ============================================================================
+  // 4. TRANSMITTER PLAYBACK & MANUAL TAP LOGIC
+  // ============================================================================
+  function buildPlayQueue(text) {
+    const queue = [];
+    const dot = state.dotMs;
+    const clean = text.toUpperCase().trim();
+
+    for (let i = 0; i < clean.length; i++) {
+      const ch = clean[i];
+      if (ch === ' ') {
+        queue.push({ on: false, duration: dot * 7, char: ' ', symbol: 'SPC' });
+        continue;
+      }
+      const code = CHAR_TO_MORSE[ch];
+      if (!code) continue;
+
+      for (let j = 0; j < code.length; j++) {
+        const sym = code[j];
+        queue.push({
+          on: true,
+          duration: sym === '.' ? dot : dot * 3,
+          char: ch,
+          symbol: sym
+        });
+        if (j < code.length - 1) {
+          queue.push({ on: false, duration: dot, char: ch, symbol: '' });
+        }
+      }
+      if (i < clean.length - 1 && clean[i + 1] !== ' ') {
+        queue.push({ on: false, duration: dot * 3, char: ch, symbol: '' });
+      }
+    }
+    return queue;
+  }
+
+  function startTextPlayback() {
+    if (state.isPlayingText) {
+      stopTextPlayback();
+      return;
+    }
+    const q = buildPlayQueue(state.inputText);
+    if (q.length === 0) return;
+    initAudio();
+    state.playQueue = q;
+    state.playIndex = 0;
+    state.playTimer = q[0].duration;
+    state.isPlayingText = true;
+    applyPlayStep(q[0]);
+  }
+
+  function stopTextPlayback() {
+    state.isPlayingText = false;
+    state.playQueue = [];
+    state.playIndex = -1;
+    state.activeSymbol = '';
+    state.activeChar = '';
+    setTone(false);
+  }
+
+  function applyPlayStep(step) {
+    setTone(step.on);
+    state.activeChar = step.char;
+    state.activeSymbol = step.symbol;
+    if (step.on) {
+      const cx = state.width * 0.5;
+      const cy = state.height * 0.32;
+      spawnRipple(cx, cy, step.symbol === '-' ? 1.5 : 0.85);
+    }
+  }
+
+  function pressTelegraphKey(x, y) {
+    if (state.isKeyDown) return;
+    if (state.isPlayingText) stopTextPlayback();
+    state.isKeyDown = true;
+    state.keyDownTime = performance.now();
+    setTone(true);
+    spawnRipple(x || state.width * 0.28, y || state.height * 0.65, 1.0);
+  }
+
+  function releaseTelegraphKey() {
+    if (!state.isKeyDown) return;
+    state.isKeyDown = false;
+    setTone(false);
+
+    const now = performance.now();
+    const heldMs = now - state.keyDownTime;
+    const symbol = heldMs >= state.dotMs * 2.0 ? '-' : '.';
+
+    state.tapBuffer += symbol;
+    state.lastKeyUpTime = now;
+    state.tapLetterCommitted = false;
+    state.tapWordCommitted = false;
+    state.activeChar = MORSE_TO_CHAR[state.tapBuffer] || '';
+
+    if (symbol === '-') {
+      spawnRipple(state.width * 0.28, state.height * 0.65, 1.45);
+    }
+  }
+
+  function updateManualTapDecoder(now) {
+    if (state.isKeyDown || state.lastKeyUpTime === 0) return;
+    const silence = now - state.lastKeyUpTime;
+    const dot = state.dotMs;
+
+    if (!state.tapLetterCommitted && silence >= dot * 2.3) {
+      const decoded = MORSE_TO_CHAR[state.tapBuffer] || '?';
+      state.tapDecodedText += decoded;
+      state.activeChar = decoded;
+      state.tapBuffer = '';
+      state.tapLetterCommitted = true;
+      spawnSparks(state.width * 0.28, state.height * 0.50, 8);
+    }
+
+    if (state.tapLetterCommitted && !state.tapWordCommitted && silence >= dot * 5.8) {
+      if (state.tapDecodedText.length > 0 && !state.tapDecodedText.endsWith(' ')) {
+        state.tapDecodedText += ' ';
+      }
+      state.tapWordCommitted = true;
+      state.activeChar = '';
+    }
+  }
+
+  // ============================================================================
+  // 5. RECEIVER ENGINE (CAMERA OPTICAL & MIC ACOUSTIC DECODING)
+  // ============================================================================
+  async function startReceiver() {
+    stopReceiver();
+    try {
+      if (state.rxSource === 'CAMERA') {
+        state.rxStatusMsg = 'REQUESTING CAMERA...';
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
+          audio: false
+        });
+        state.rxStream = stream;
+        videoEl.srcObject = stream;
+        await videoEl.play();
+        state.rxActive = true;
+        state.rxStatusMsg = 'OPTICAL SENSOR ONLINE - AIM LIGHT AT RETICLE';
+      } else {
+        state.rxStatusMsg = 'REQUESTING MICROPHONE...';
+        initAudio();
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false
+          },
+          video: false
+        });
+        state.rxStream = stream;
+        const src = state.audioCtx.createMediaStreamSource(stream);
+        state.rxAnalyser = state.audioCtx.createAnalyser();
+        state.rxAnalyser.fftSize = 1024;
+        state.rxAnalyser.smoothingTimeConstant = 0.25;
+        src.connect(state.rxAnalyser);
+        state.rxFreqData = new Uint8Array(state.rxAnalyser.frequencyBinCount);
+        state.rxActive = true;
+        state.rxStatusMsg = 'ACOUSTIC SENSOR ONLINE - LISTENING (300-1400 HZ)';
+      }
+      state.rxSignalHigh = false;
+      state.rxStateChangeTime = performance.now();
+      state.rxLetterCommitted = true;
+      state.rxWordCommitted = true;
+      triggerScanline();
+    } catch (err) {
+      state.rxActive = false;
+      state.rxStatusMsg = `ACCESS ERROR: ${err.name || 'PERMISSION DENIED'}`;
+    }
+  }
+
+  function stopReceiver() {
+    if (state.rxStream) {
+      state.rxStream.getTracks().forEach(t => t.stop());
+      state.rxStream = null;
+    }
+    videoEl.srcObject = null;
+    state.rxAnalyser = null;
+    state.rxActive = false;
+    state.rxLevel = 0;
+    state.rxSignalHigh = false;
+    state.rxStatusMsg = 'IDLE - CLICK START RECEIVER';
+  }
+
+  function processReceiverSignal(now) {
+    if (!state.rxActive) {
+      state.rxLevel *= 0.85;
+      state.rxHistory.push(state.rxLevel);
+      state.rxHistory.shift();
+      return;
+    }
+
+    if (state.rxSource === 'CAMERA') {
+      if (videoEl.readyState >= 2) {
+        const vw = videoEl.videoWidth || 640;
+        const vh = videoEl.videoHeight || 480;
+        const cropSize = Math.min(vw, vh) * 0.22;
+        const sx = (vw - cropSize) * 0.5;
+        const sy = (vh - cropSize) * 0.5;
+
+        sampleCtx.drawImage(videoEl, sx, sy, cropSize, cropSize, 0, 0, 32, 32);
+        const pixels = sampleCtx.getImageData(0, 0, 32, 32).data;
+        let lumSum = 0;
+        for (let i = 0; i < pixels.length; i += 4) {
+          // Perceived brightness
+          lumSum += (0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2]);
+        }
+        const avgLum = lumSum / (32 * 32 * 255);
+        state.rxLevel = avgLum;
+      }
+    } else if (state.rxSource === 'MIC' && state.rxAnalyser) {
+      state.rxAnalyser.getByteFrequencyData(state.rxFreqData);
+      const sampleRate = state.audioCtx.sampleRate;
+      const binSize = sampleRate / state.rxAnalyser.fftSize;
+
+      // Scan Morse tonal range: 300Hz to 1400Hz
+      const minBin = Math.floor(300 / binSize);
+      const maxBin = Math.min(state.rxFreqData.length - 1, Math.ceil(1400 / binSize));
+
+      let peakVal = 0;
+      let peakBin = minBin;
+      let sumVal = 0;
+      let count = 0;
+
+      for (let b = minBin; b <= maxBin; b++) {
+        const val = state.rxFreqData[b];
+        sumVal += val;
+        count++;
+        if (val > peakVal) {
+          peakVal = val;
+          peakBin = b;
+        }
+      }
+
+      const avgNoise = count > 0 ? sumVal / count : 0;
+      // Emphasize tonal prominence over broadband noise
+      const prominence = Math.max(0, peakVal - avgNoise * 0.45);
+      state.rxLevel = Math.min(1, prominence / 210);
+      state.rxDetectedHz = Math.round(peakBin * binSize);
+    }
+
+    state.rxHistory.push(state.rxLevel);
+    state.rxHistory.shift();
+
+    // Hysteresis threshold comparison to prevent jitter
+    const highThresh = state.rxThreshold;
+    const lowThresh = Math.max(0.02, state.rxThreshold - 0.05);
+    const isHigh = state.rxSignalHigh
+      ? state.rxLevel >= lowThresh
+      : state.rxLevel >= highThresh;
+
+    const dot = state.dotMs;
+
+    if (isHigh !== state.rxSignalHigh) {
+      const elapsed = now - state.rxStateChangeTime;
+      state.rxStateChangeTime = now;
+
+      if (state.rxSignalHigh && !isHigh) {
+        // Signal just turned OFF -> classify ON pulse
+        if (elapsed >= dot * 0.35) { // ignore tiny micro-glitches
+          const sym = elapsed >= dot * 2.0 ? '-' : '.';
+          state.rxBuffer += sym;
+          state.rxLetterCommitted = false;
+          state.rxWordCommitted = false;
+          spawnRipple(state.width * 0.5, state.height * 0.46, sym === '-' ? 1.35 : 0.8);
+        }
+      }
+      state.rxSignalHigh = isHigh;
+    }
+
+    if (state.rxSignalHigh) {
+      state.bgEnergy = Math.min(1, state.bgEnergy + 0.08);
+    } else {
+      const silence = now - state.rxStateChangeTime;
+      if (!state.rxLetterCommitted && state.rxBuffer.length > 0 && silence >= dot * 2.3) {
+        const ch = MORSE_TO_CHAR[state.rxBuffer] || '?';
+        state.rxDecodedText += ch;
+        state.rxBuffer = '';
+        state.rxLetterCommitted = true;
+        spawnSparks(state.width * 0.5, state.height * 0.72, 10);
+      }
+      if (state.rxLetterCommitted && !state.rxWordCommitted && silence >= dot * 5.8) {
+        if (state.rxDecodedText.length > 0 && !state.rxDecodedText.endsWith(' ')) {
+          state.rxDecodedText += ' ';
+        }
+        state.rxWordCommitted = true;
+      }
+    }
+  }
+
+  // ============================================================================
+  // 6. REACTIVE VISUAL EFFECTS ENGINE
+  // ============================================================================
+  function spawnRipple(x, y, scale = 1.0) {
+    state.ripples.push({
+      x, y,
+      radius: 12,
+      maxRadius: Math.max(state.width, state.height) * 0.45 * scale,
+      alpha: 0.65,
+      speed: 360 + scale * 120,
+      lineWidth: 1.5 + scale * 1.5
+    });
+  }
+
+  function spawnSparks(x, y, count = 8) {
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+      const speed = 60 + Math.random() * 140;
+      state.sparks.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 1.0,
+        decay: 1.8 + Math.random() * 1.2
+      });
+    }
+  }
+
+  function triggerScanline() {
+    state.scanlineY = 0;
+    state.bgEnergy = Math.min(1, state.bgEnergy + 0.6);
+  }
+
+  function getAccentColor(alpha = 1, lightness = 58) {
+    return `hsla(${Math.round(state.accentHue)}, 92%, ${lightness}%, ${alpha})`;
+  }
+
+  function drawReactiveBackground(dt) {
+    const w = state.width;
+    const h = state.height;
+
+    // Target Hue based on state
+    let targetHue = state.mode === 'TRANSMIT' ? 192 : 155; // Cyan vs Emerald
+    if (state.isRecording) targetHue = 352; // Alert Crimson when recording
+    state.accentHue += (targetHue - state.accentHue) * Math.min(1, dt * 6);
+
+    // Decay background energy
+    state.bgEnergy = Math.max(0, state.bgEnergy - dt * 1.8);
+
+    // Deep obsidian base gradient
+    const bgGrad = ctx.createRadialGradient(
+      w * 0.5, h * 0.45, 40,
+      w * 0.5, h * 0.5, Math.max(w, h) * 0.85
+    );
+    bgGrad.addColorStop(0, '#0d141f');
+    bgGrad.addColorStop(1, '#05070b');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, w, h);
+
+    // Ambient energy pulse wash
+    if (state.bgEnergy > 0.01) {
+      ctx.fillStyle = getAccentColor(state.bgEnergy * 0.09, 50);
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    // Tactical Grid with pointer magnetic illumination
+    const gridSize = 44;
+    const offsetX = (state.time * 8) % gridSize;
+    const offsetY = (state.time * 4) % gridSize;
+
+    ctx.lineWidth = 1;
+    for (let gx = offsetX - gridSize; gx < w + gridSize; gx += gridSize) {
+      const distX = Math.abs(gx - state.pointer.x);
+      const proximity = Math.max(0, 1 - distX / 220);
+      const alpha = 0.045 + proximity * 0.12 + state.bgEnergy * 0.06;
+      ctx.strokeStyle = getAccentColor(alpha, 55);
+      ctx.beginPath();
+      ctx.moveTo(gx, 0);
+      ctx.lineTo(gx, h);
+      ctx.stroke();
+    }
+
+    for (let gy = offsetY - gridSize; gy < h + gridSize; gy += gridSize) {
+      const distY = Math.abs(gy - state.pointer.y);
+      const proximity = Math.max(0, 1 - distY / 220);
+      const alpha = 0.045 + proximity * 0.12 + state.bgEnergy * 0.06;
+      ctx.strokeStyle = getAccentColor(alpha, 55);
+      ctx.beginPath();
+      ctx.moveTo(0, gy);
+      ctx.lineTo(w, gy);
+      ctx.stroke();
+    }
+
+    // Pointer radial field glow
+    if (state.pointer.x > 0 && state.pointer.y > 0) {
+      const pGrad = ctx.createRadialGradient(
+        state.pointer.x, state.pointer.y, 0,
+        state.pointer.x, state.pointer.y, 190
+      );
+      pGrad.addColorStop(0, getAccentColor(0.14, 60));
+      pGrad.addColorStop(1, getAccentColor(0, 60));
+      ctx.fillStyle = pGrad;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    // Background Carrier Horizon Wave
+    ctx.beginPath();
+    const waveAmp = (state.toneActive || state.rxSignalHigh)
+      ? 36 + state.bgEnergy * 28
+      : 6 + state.rxLevel * 45;
+    const waveFreq = state.toneActive ? 0.045 : 0.015;
+    for (let x = 0; x <= w; x += 12) {
+      const env = Math.sin((x / w) * Math.PI);
+      const y = h * 0.5 + Math.sin(x * waveFreq + state.time * 12) * waveAmp * env;
+      if (x === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = getAccentColor(0.18 + state.bgEnergy * 0.25, 62);
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Expanding Signal Ripples
+    for (let i = state.ripples.length - 1; i >= 0; i--) {
+      const r = state.ripples[i];
+      r.radius += r.speed * dt;
+      r.alpha -= dt * 0.85;
+      if (r.alpha <= 0 || r.radius >= r.maxRadius) {
+        state.ripples.splice(i, 1);
+        continue;
+      }
+      ctx.beginPath();
+      ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+      ctx.strokeStyle = getAccentColor(r.alpha, 65);
+      ctx.lineWidth = r.lineWidth;
+      ctx.stroke();
+    }
+
+    // Data Sparks
+    for (let i = state.sparks.length - 1; i >= 0; i--) {
+      const s = state.sparks[i];
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      s.life -= s.decay * dt;
+      if (s.life <= 0) {
+        state.sparks.splice(i, 1);
+        continue;
+      }
+      ctx.fillStyle = getAccentColor(s.life, 75);
+      ctx.fillRect(s.x - 2, s.y - 2, 4, 4);
+    }
+
+    // Mode Transition Sweep Scanline
+    if (state.scanlineY >= 0) {
+      state.scanlineY += h * 2.4 * dt;
+      const scanGrad = ctx.createLinearGradient(0, state.scanlineY - 40, 0, state.scanlineY + 4);
+      scanGrad.addColorStop(0, getAccentColor(0, 65));
+      scanGrad.addColorStop(1, getAccentColor(0.45, 70));
+      ctx.fillStyle = scanGrad;
+      ctx.fillRect(0, state.scanlineY - 40, w, 44);
+      if (state.scanlineY > h + 50) {
+        state.scanlineY = -1;
+      }
+    }
+  }
+
+  // ============================================================================
+  // 7. CANVAS UI PRIMITIVES & HIT-BOX REGISTRY
+  // ============================================================================
+  let uiHitBoxes = [];
+
+  function registerHitBox(id, x, y, w, h, action) {
+    uiHitBoxes.push({ id, x, y, w, h, action });
+  }
+
+  function drawGlassPanel(x, y, w, h, title = '', highlight = false) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(11, 17, 27, 0.80)';
+    ctx.strokeStyle = highlight ? getAccentColor(0.85, 62) : getAccentColor(0.28, 55);
+    ctx.lineWidth = highlight ? 1.75 : 1;
+
+    roundRectPath(x, y, w, h, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    // Subtle corner brackets
+    const b = 8;
+    ctx.strokeStyle = getAccentColor(0.75, 65);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x, y + b); ctx.lineTo(x, y); ctx.lineTo(x + b, y);
+    ctx.moveTo(x + w - b, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + b);
+    ctx.stroke();
+
+    if (title) {
+      ctx.fillStyle = getAccentColor(0.85, 68);
+      ctx.font = 'bold 11px monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(title, x + 12, y + 10);
+    }
+    ctx.restore();
+  }
+
+  function drawButton(id, x, y, w, h, label, options = {}) {
+    const {
+      active = false,
+      danger = false,
+      sublabel = '',
+      action = null
+    } = options;
+
+    registerHitBox(id, x, y, w, h, action);
+    const hovered = state.hoveredId === id;
+
+    ctx.save();
+    let fill = 'rgba(18, 28, 43, 0.88)';
+    let stroke = getAccentColor(hovered ? 0.9 : 0.38, 60);
+    let textCol = '#e2e8f0';
+
+    if (danger && active) {
+      fill = 'rgba(220, 38, 38, 0.35)';
+      stroke = '#f87171';
+      textCol = '#fecaca';
+    } else if (active) {
+      fill = getAccentColor(0.24, 52);
+      stroke = getAccentColor(0.95, 65);
+      textCol = '#ffffff';
+    } else if (hovered) {
+      fill = getAccentColor(0.14, 50);
+    }
+
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = active || hovered ? 1.75 : 1;
+    roundRectPath(x, y, w, h, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = textCol;
+    ctx.font = `bold ${h > 44 ? 14 : 12}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, x + w * 0.5, sublabel ? y + h * 0.38 : y + h * 0.5);
+
+    if (sublabel) {
+      ctx.fillStyle = getAccentColor(0.8, 70);
+      ctx.font = '10px monospace';
+      ctx.fillText(sublabel, x + w * 0.5, y + h * 0.72);
+    }
+    ctx.restore();
+  }
+
+  function roundRectPath(x, y, w, h, r) {
+    const radius = Math.min(r, w * 0.5, h * 0.5);
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.arcTo(x + w, y, x + w, y + h, radius);
+    ctx.arcTo(x + w, y + h, x, y + h, radius);
+    ctx.arcTo(x, y + h, x, y, radius);
+    ctx.arcTo(x, y, x + w, y, radius);
+    ctx.closePath();
+  }
+
+  function wrapTextLines(text, maxWidth, font) {
+    ctx.font = font;
+    const raw = text || '';
+    const lines = [];
+    let current = '';
+    for (let i = 0; i < raw.length; i++) {
+      const test = current + raw[i];
+      if (ctx.measureText(test).width > maxWidth && current.length > 0) {
+        lines.push(current);
+        current = raw[i];
+      } else {
+        current = test;
+      }
+    }
+    lines.push(current);
+    return lines;
+  }
+
+  // ============================================================================
+  // 8. SCREEN LAYOUT RENDERERS
+  // ============================================================================
+  function renderTopBar() {
+    const w = state.width;
+    const pad = 14;
+    const barH = 54;
+
+    drawGlassPanel(pad, pad, w - pad * 2, barH);
+
+    // Title & Status
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 15px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('MORSE // TRANSCEIVER', pad + 16, pad + barH * 0.5);
+
+    // Mode Tabs
+    const tabW = Math.min(150, (w - 380) * 0.5);
+    const actualTabW = Math.max(105, tabW);
+    const centerStart = Math.max(pad + 215, w * 0.5 - actualTabW - 6);
+
+    drawButton('TAB_TRANSMIT', centerStart, pad + 9, actualTabW, 36, 'TRANSMITTER', {
+      active: state.mode === 'TRANSMIT',
+      action: () => {
+        if (state.mode !== 'TRANSMIT') {
+          state.mode = 'TRANSMIT';
+          triggerScanline();
+        }
+      }
+    });
+
+    drawButton('TAB_RECEIVE', centerStart + actualTabW + 10, pad + 9, actualTabW, 36, 'RECEIVER', {
+      active: state.mode === 'RECEIVE',
+      action: () => {
+        if (state.mode !== 'RECEIVE') {
+          stopTextPlayback();
+          state.mode = 'RECEIVE';
+          triggerScanline();
+        }
+      }
+    });
+
+    // WPM Speed Slider on right side of Top Bar (if space permits)
+    if (w > 640) {
+      const sliderW = 140;
+      const sx = w - pad - sliderW - 18;
+      const sy = pad + 27;
+
+      ctx.fillStyle = getAccentColor(0.9, 70);
+      ctx.font = 'bold 11px monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(`SPEED: ${state.wpm} WPM`, sx - 12, sy);
+
+      // Track
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      roundRectPath(sx, sy - 3, sliderW, 6, 3);
+      ctx.fill();
+
+      const ratio = (state.wpm - 5) / 25;
+      ctx.fillStyle = getAccentColor(0.85, 60);
+      roundRectPath(sx, sy - 3, sliderW * ratio, 6, 3);
+      ctx.fill();
+
+      // Knob
+      const kx = sx + sliderW * ratio;
+      ctx.beginPath();
+      ctx.arc(kx, sy, 8, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+
+      registerHitBox('SLIDER_WPM', sx - 10, pad + 8, sliderW + 20, 38, null);
+    }
+  }
+
+  function renderTransmitterView() {
+    const w = state.width;
+    const h = state.height;
+    const pad = 14;
+    const topY = 80;
+    const contentH = h - topY - pad;
+
+    // ------------------------------------------------------------------------
+    // TOP SECTION: TEXT-TO-MORSE GENERATOR & AUDIO RECORDER
+    // ------------------------------------------------------------------------
+    const topPanelH = Math.min(205, contentH * 0.38);
+    drawGlassPanel(pad, topY, w - pad * 2, topPanelH, '1 // TEXT-TO-MORSE GENERATOR & AUDIO EXPORT', state.inputFocused);
+
+    // Text Input Box
+    const inputX = pad + 14;
+    const inputY = topY + 32;
+    const controlsW = Math.min(310, w * 0.36);
+    const inputW = w - pad * 2 - controlsW - 36;
+    const inputH = 54;
+
+    registerHitBox('TEXT_INPUT_BOX', inputX, inputY, inputW, inputH, () => {
+      state.inputFocused = true;
+    });
+
+    ctx.fillStyle = 'rgba(5, 9, 15, 0.85)';
+    ctx.strokeStyle = state.inputFocused ? getAccentColor(0.95, 62) : 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 1.5;
+    roundRectPath(inputX, inputY, inputW, inputH, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    // Render typed text + blinking cursor
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(inputX + 8, inputY + 4, inputW - 16, inputH - 8);
+    ctx.clip();
+
+    ctx.font = 'bold 18px monospace';
+    ctx.fillStyle = '#f8fafc';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    const displayStr = state.inputText;
+    const textWidth = ctx.measureText(displayStr).width;
+    const scrollOffset = textWidth > inputW - 32 ? (inputW - 32) - textWidth : 0;
+    const tx = inputX + 12 + scrollOffset;
+    const ty = inputY + inputH * 0.5;
+    ctx.fillText(displayStr, tx, ty);
+
+    if (state.inputFocused && Math.floor(state.time * 2.2) % 2 === 0) {
+      ctx.fillStyle = getAccentColor(0.95, 65);
+      ctx.fillRect(tx + textWidth + 3, ty - 11, 2.5, 22);
+    }
+    ctx.restore();
+
+    // Playback & Record Buttons
+    const btnAreaX = inputX + inputW + 12;
+    const halfBtnW = (controlsW - 8) * 0.5;
+
+    drawButton(
+      'BTN_PLAY_TEXT',
+      btnAreaX, inputY, halfBtnW, inputH,
+      state.isPlayingText ? 'STOP' : 'PLAY MORSE',
+      {
+        active: state.isPlayingText,
+        sublabel: `${state.wpm} WPM`,
+        action: startTextPlayback
+      }
+    );
+
+    const recSecs = state.isRecording ? ((performance.now() - state.recordStartTime) / 1000).toFixed(1) + 's' : 'WEBM FILE';
+    drawButton(
+      'BTN_RECORD',
+      btnAreaX + halfBtnW + 8, inputY, halfBtnW, inputH,
+      state.isRecording ? 'STOP & SAVE' : 'REC AUDIO',
+      {
+        active: state.isRecording,
+        danger: true,
+        sublabel: recSecs,
+        action: toggleRecording
+      }
+    );
+
+    // Generated Morse Code Preview Strip
+    const previewY = inputY + inputH + 12;
+    const previewH = topPanelH - (inputH + 54);
+    ctx.fillStyle = 'rgba(6, 11, 18, 0.75)';
+    roundRectPath(inputX, previewY, w - pad * 2 - 28, previewH, 6);
+    ctx.fill();
+
+    // Build formatted Morse preview with active highlight
+    const cleanChars = state.inputText.toUpperCase().split('');
+    let cursorX = inputX + 12;
+    const cursorY = previewY + previewH * 0.5;
+    ctx.font = 'bold 16px monospace';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+
+    for (let i = 0; i < cleanChars.length; i++) {
+      const ch = cleanChars[i];
+      const code = ch === ' ' ? '/' : (CHAR_TO_MORSE[ch] || '');
+      if (!code) continue;
+      const chunk = `${code} `;
+      const cw = ctx.measureText(chunk).width;
+      if (cursorX + cw > w - pad - 24) break;
+
+      const isCurrent = state.isPlayingText && state.activeChar === ch;
+      ctx.fillStyle = isCurrent ? '#ffffff' : getAccentColor(0.88, 66);
+      ctx.fillText(chunk, cursorX, cursorY);
+      cursorX += cw;
+    }
+
+    // ------------------------------------------------------------------------
+    // BOTTOM SECTION: SPLIT LEFT (TAP KEY) & RIGHT (ALPHABET REFERENCE)
+    // ------------------------------------------------------------------------
+    const botY = topY + topPanelH + 12;
+    const botH = h - botY - pad;
+    const splitX = Math.min(w * 0.48, 460);
+
+    // LEFT PANEL: MANUAL TELEGRAPH TAP-TO-BEEP KEY
+    drawGlassPanel(pad, botY, splitX - pad, botH, '2 // MANUAL TELEGRAPH KEY (CLICK OR SPACEBAR)', state.isKeyDown);
+
+    const keyPanelW = splitX - pad;
+    const decodedBoxY = botY + 34;
+    const decodedBoxH = Math.min(78, botH * 0.28);
+
+    // Decoded Tap Readout
+    ctx.fillStyle = 'rgba(5, 9, 15, 0.85)';
+    roundRectPath(pad + 14, decodedBoxY, keyPanelW - 28, decodedBoxH, 6);
+    ctx.fill();
+
+    ctx.fillStyle = getAccentColor(0.75, 65);
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(`BUFFER: ${state.tapBuffer || '---'}`, pad + 24, decodedBoxY + 18);
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 17px monospace';
+    const recentTap = state.tapDecodedText.slice(-24);
+    ctx.fillText(recentTap || 'TAP KEY TO ENCODE...', pad + 24, decodedBoxY + decodedBoxH - 16);
+
+    // Clear Tap Readout Button
+    drawButton('BTN_CLEAR_TAP', pad + keyPanelW - 76, decodedBoxY + 8, 54, 24, 'CLEAR', {
+      action: () => {
+        state.tapBuffer = '';
+        state.tapDecodedText = '';
+        state.activeChar = '';
+      }
+    });
+
+    // Interactive Tactile Telegraph Key Pad
+    const tapPadY = decodedBoxY + decodedBoxH + 14;
+    const tapPadH = botH - (decodedBoxH + 62);
+    const tapPadX = pad + 14;
+    const tapPadW = keyPanelW - 28;
+
+    registerHitBox('TELEGRAPH_KEY', tapPadX, tapPadY, tapPadW, tapPadH, null);
+
+    // Draw Key Base & Plunger
+    ctx.save();
+    const keyGrad = ctx.createRadialGradient(
+      tapPadX + tapPadW * 0.5, tapPadY + tapPadH * 0.5, 10,
+      tapPadX + tapPadW * 0.5, tapPadY + tapPadH * 0.5, Math.max(tapPadW, tapPadH) * 0.65
+    );
+    if (state.isKeyDown) {
+      keyGrad.addColorStop(0, getAccentColor(0.45, 58));
+      keyGrad.addColorStop(1, getAccentColor(0.14, 45));
+    } else {
+      keyGrad.addColorStop(0, 'rgba(24, 38, 58, 0.9)');
+      keyGrad.addColorStop(1, 'rgba(11, 18, 28, 0.95)');
+    }
+
+    ctx.fillStyle = keyGrad;
+    ctx.strokeStyle = state.isKeyDown ? '#ffffff' : getAccentColor(0.65, 60);
+    ctx.lineWidth = state.isKeyDown ? 2.5 : 1.5;
+    roundRectPath(tapPadX, tapPadY, tapPadW, tapPadH, 12);
+    ctx.fill();
+    ctx.stroke();
+
+    // Live Dot/Dash Hold Gauge inside Key
+    if (state.isKeyDown) {
+      const held = performance.now() - state.keyDownTime;
+      const dashThreshold = state.dotMs * 2.0;
+      const progress = Math.min(1, held / (dashThreshold * 1.4));
+      const isDash = held >= dashThreshold;
+
+      const barW = tapPadW - 48;
+      const barX = tapPadX + 24;
+      const barY = tapPadY + tapPadH - 24;
+
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      roundRectPath(barX, barY, barW, 8, 4);
+      ctx.fill();
+
+      ctx.fillStyle = isDash ? '#fbbf24' : getAccentColor(0.95, 65);
+      roundRectPath(barX, barY, barW * progress, 8, 4);
+      ctx.fill();
+
+      // Dash threshold marker
+      const markerX = barX + barW * (1 / 1.4);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(markerX - 1, barY - 3, 2, 14);
+    }
+
+    ctx.fillStyle = state.isKeyDown ? '#ffffff' : '#cbd5e1';
+    ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const keyLabel = state.isKeyDown
+      ? (performance.now() - state.keyDownTime >= state.dotMs * 2.0 ? 'TRANSMITTING: DASH ( — )' : 'TRANSMITTING: DOT ( • )')
+      : 'HOLD TO TAP MORSE';
+    ctx.fillText(keyLabel, tapPadX + tapPadW * 0.5, tapPadY + tapPadH * 0.44);
+
+    ctx.fillStyle = getAccentColor(0.75, 68);
+    ctx.font = '11px monospace';
+    ctx.fillText(`DOT < ${Math.round(state.dotMs * 2)}ms   |   DASH ≥ ${Math.round(state.dotMs * 2)}ms`, tapPadX + tapPadW * 0.5, tapPadY + tapPadH * 0.62);
+    ctx.restore();
+
+    // RIGHT PANEL: INTERACTIVE ALPHABET KEY GRID
+    const rightX = splitX + 12;
+    const rightW = w - rightX - pad;
+    drawGlassPanel(rightX, botY, rightW, botH, '3 // MORSE ALPHABET KEY (CLICK ANY CHAR TO SEND)');
+
+    const gridTop = botY + 34;
+    const gridH = botH - 46;
+    const gridLeft = rightX + 12;
+    const gridW = rightW - 24;
+
+    const cols = rightW > 520 ? 6 : 5;
+    const rows = Math.ceil(ALPHABET_KEYS.length / cols);
+    const cellGap = 6;
+    const cellW = (gridW - cellGap * (cols - 1)) / cols;
+    const cellH = (gridH - cellGap * (rows - 1)) / rows;
+
+    for (let i = 0; i < ALPHABET_KEYS.length; i++) {
+      const ch = ALPHABET_KEYS[i];
+      const code = CHAR_TO_MORSE[ch];
+      const c = i % cols;
+      const r = Math.floor(i / cols);
+      const cx = gridLeft + c * (cellW + cellGap);
+      const cy = gridTop + r * (cellH + cellGap);
+
+      const isLit = state.activeChar === ch;
+      const id = `KEY_CHAR_${ch}`;
+      registerHitBox(id, cx, cy, cellW, cellH, () => {
+        state.inputText += ch;
+        // Play single character immediately
+        stopTextPlayback();
+        state.playQueue = buildPlayQueue(ch);
+        state.playIndex = 0;
+        state.playTimer = state.playQueue[0].duration;
+        state.isPlayingText = true;
+        applyPlayStep(state.playQueue[0]);
+      });
+
+      const hovered = state.hoveredId === id;
+      ctx.fillStyle = isLit
+        ? getAccentColor(0.38, 55)
+        : hovered ? getAccentColor(0.16, 52) : 'rgba(15, 23, 36, 0.85)';
+      ctx.strokeStyle = isLit ? '#ffffff' : getAccentColor(hovered ? 0.75 : 0.25, 58);
+      ctx.lineWidth = isLit ? 1.5 : 1;
+      roundRectPath(cx, cy, cellW, cellH, 5);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = isLit ? '#ffffff' : '#f1f5f9';
+      ctx.font = `bold ${Math.min(15, cellH * 0.42)}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(ch, cx + cellW * 0.5, cy + cellH * 0.36);
+
+      ctx.fillStyle = isLit ? '#fef08a' : getAccentColor(0.9, 68);
+      ctx.font = `bold ${Math.min(12, cellH * 0.32)}px monospace`;
+      ctx.fillText(code, cx + cellW * 0.5, cy + cellH * 0.72);
+    }
+  }
+
+  function renderReceiverView() {
+    const w = state.width;
+    const h = state.height;
+    const pad = 14;
+    const topY = 80;
+    const contentH = h - topY - pad;
+
+    // ------------------------------------------------------------------------
+    // TOP CONTROL BAR: CAMERA VS MIC SELECTOR & START/STOP
+    // ------------------------------------------------------------------------
+    const ctrlH = 62;
+    drawGlassPanel(pad, topY, w - pad * 2, ctrlH);
+
+    drawButton('BTN_SRC_CAM', pad + 12, topY + 11, 145, 40, 'OPTICAL (CAMERA)', {
+      active: state.rxSource === 'CAMERA',
+      action: () => {
+        if (state.rxSource !== 'CAMERA') {
+          const wasActive = state.rxActive;
+          stopReceiver();
+          state.rxSource = 'CAMERA';
+          if (wasActive) startReceiver();
+        }
+      }
+    });
+
+    drawButton('BTN_SRC_MIC', pad + 167, topY + 11, 145, 40, 'ACOUSTIC (MIC)', {
+      active: state.rxSource === 'MIC',
+      action: () => {
+        if (state.rxSource !== 'MIC') {
+          const wasActive = state.rxActive;
+          stopReceiver();
+          state.rxSource = 'MIC';
+          if (wasActive) startReceiver();
+        }
+      }
+    });
+
+    drawButton('BTN_RX_TOGGLE', w - pad - 172, topY + 11, 160, 40,
+      state.rxActive ? 'STOP SENSOR' : 'START SENSOR',
+      {
+        active: state.rxActive,
+        danger: state.rxActive,
+        action: () => {
+          if (state.rxActive) stopReceiver();
+          else startReceiver();
+        }
+      }
+    );
+
+    if (w > 720) {
+      ctx.fillStyle = getAccentColor(0.85, 68);
+      ctx.font = '12px monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(state.rxStatusMsg, pad + 330, topY + ctrlH * 0.5);
+    }
+
+    // ------------------------------------------------------------------------
+    // MIDDLE SPLIT: SENSOR VIEWPORT (LEFT) & SIGNAL THRESHOLD GRAPH (RIGHT)
+    // ------------------------------------------------------------------------
+    const midY = topY + ctrlH + 12;
+    const midH = Math.min(270, contentH * 0.48);
+    const splitX = Math.min(w * 0.45, 440);
+
+    // LEFT: LIVE SENSOR FEED (CAMERA RETICLE OR ACOUSTIC SPECTRUM)
+    drawGlassPanel(
+      pad, midY, splitX - pad, midH,
+      state.rxSource === 'CAMERA' ? 'OPTICAL RETICLE FEED' : 'ACOUSTIC FREQUENCY MONITOR',
+      state.rxSignalHigh
+    );
+
+    const viewX = pad + 14;
+    const viewY = midY + 32;
+    const viewW = splitX - pad - 28;
+    const viewH = midH - 44;
+
+    ctx.save();
+    roundRectPath(viewX, viewY, viewW, viewH, 6);
+    ctx.clip();
+
+    ctx.fillStyle = '#04070c';
+    ctx.fillRect(viewX, viewY, viewW, viewH);
+
+    if (state.rxSource === 'CAMERA') {
+      if (state.rxActive && videoEl.readyState >= 2) {
+        // Aspect-fit cover draw
+        const vw = videoEl.videoWidth || 640;
+        const vh = videoEl.videoHeight || 480;
+        const scale = Math.max(viewW / vw, viewH / vh);
+        const dw = vw * scale;
+        const dh = vh * scale;
+        ctx.drawImage(videoEl, viewX + (viewW - dw) * 0.5, viewY + (viewH - dh) * 0.5, dw, dh);
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.font = '12px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('CAMERA STANDBY', viewX + viewW * 0.5, viewY + viewH * 0.5);
+      }
+
+      // Center Optical Target Reticle
+      const cx = viewX + viewW * 0.5;
+      const cy = viewY + viewH * 0.5;
+      const box = Math.min(viewW, viewH) * 0.28;
+
+      ctx.strokeStyle = state.rxSignalHigh ? '#fbbf24' : getAccentColor(0.9, 65);
+      ctx.lineWidth = state.rxSignalHigh ? 3 : 1.5;
+      ctx.strokeRect(cx - box * 0.5, cy - box * 0.5, box, box);
+
+      // Crosshair lines
+      ctx.beginPath();
+      ctx.moveTo(cx - box * 0.8, cy); ctx.lineTo(cx - box * 0.5, cy);
+      ctx.moveTo(cx + box * 0.5, cy); ctx.lineTo(cx + box * 0.8, cy);
+      ctx.moveTo(cx, cy - box * 0.8); ctx.lineTo(cx, cy - box * 0.5);
+      ctx.moveTo(cx, cy + box * 0.5); ctx.lineTo(cx, cy + box * 0.8);
+      ctx.stroke();
+    } else {
+      // Acoustic FFT Spectrum Bars
+      if (state.rxActive && state.rxFreqData) {
+        const bars = 48;
+        const barW = viewW / bars;
+        for (let i = 0; i < bars; i++) {
+          const bin = Math.floor(8 + i * 1.4);
+          const val = (state.rxFreqData[bin] || 0) / 255;
+          const bh = val * (viewH - 28);
+          ctx.fillStyle = state.rxSignalHigh ? '#fbbf24' : getAccentColor(0.75, 58);
+          ctx.fillRect(viewX + i * barW + 1, viewY + viewH - bh, barW - 2, bh);
+        }
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = 'bold 12px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(`PEAK CARRIER: ${state.rxDetectedHz} HZ`, viewX + 10, viewY + 18);
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.font = '12px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('MICROPHONE STANDBY', viewX + viewW * 0.5, viewY + viewH * 0.5);
+      }
+    }
+    ctx.restore();
+
+    // RIGHT: LIVE SIGNAL OSCILLOSCOPE & DRAGGABLE THRESHOLD
+    const scopeX = splitX + 12;
+    const scopeW = w - scopeX - pad;
+    drawGlassPanel(scopeX, midY, scopeW, midH, 'SIGNAL LEVEL & THRESHOLD (DRAG LINE TO CALIBRATE)', state.rxSignalHigh);
+
+    const plotX = scopeX + 16;
+    const plotY = midY + 34;
+    const plotW = scopeW - 32;
+    const plotH = midH - 48;
+
+    registerHitBox('SLIDER_THRESHOLD', plotX, plotY, plotW, plotH, null);
+
+    ctx.fillStyle = 'rgba(4, 8, 14, 0.88)';
+    roundRectPath(plotX, plotY, plotW, plotH, 6);
+    ctx.fill();
+
+    // Draw signal history waveform
+    ctx.beginPath();
+    for (let i = 0; i < state.rxHistory.length; i++) {
+      const px = plotX + (i / (state.rxHistory.length - 1)) * plotW;
+      const py = plotY + plotH - state.rxHistory[i] * plotH;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.strokeStyle = state.rxSignalHigh ? '#fbbf24' : getAccentColor(0.9, 62);
+    ctx.lineWidth = 2.2;
+    ctx.stroke();
+
+    // Draggable Threshold Line
+    const threshY = plotY + plotH - state.rxThreshold * plotH;
+    ctx.save();
+    ctx.setLineDash([6, 4]);
+    ctx.strokeStyle = '#f87171';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(plotX, threshY);
+    ctx.lineTo(plotX + plotW, threshY);
+    ctx.stroke();
+    ctx.restore();
+
+    // Threshold Label Badge
+    ctx.fillStyle = '#f87171';
+    ctx.font = 'bold 11px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(`TRIGGER: ${Math.round(state.rxThreshold * 100)}%`, plotX + plotW - 8, Math.max(plotY + 14, threshY - 6));
+
+    // State indicator pill
+    ctx.fillStyle = state.rxSignalHigh ? '#fbbf24' : 'rgba(255,255,255,0.4)';
+    ctx.textAlign = 'left';
+    ctx.fillText(state.rxSignalHigh ? '● SIGNAL HIGH (TONE/LIGHT ON)' : '○ SIGNAL LOW', plotX + 10, plotY + 16);
+
+    // ------------------------------------------------------------------------
+    // BOTTOM PANEL: LIVE DECIPHERED MORSE TRANSLATOR OUTPUT
+    // ------------------------------------------------------------------------
+    const outY = midY + midH + 12;
+    const outH = h - outY - pad;
+    drawGlassPanel(pad, outY, w - pad * 2, outH, 'DECIPHERED MESSAGE OUTPUT');
+
+    // Clear button
+    drawButton('BTN_CLEAR_RX', w - pad - 96, outY + 8, 82, 26, 'CLEAR', {
+      action: () => {
+        state.rxBuffer = '';
+        state.rxDecodedText = '';
+      }
+    });
+
+    // Current incoming symbol buffer
+    ctx.fillStyle = getAccentColor(0.9, 68);
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(`INCOMING SYMBOLS: ${state.rxBuffer || '[WAITING]'}`, pad + 16, outY + 38);
+
+    // Decoded Text Area
+    const textBoxX = pad + 16;
+    const textBoxY = outY + 64;
+    const textBoxW = w - pad * 2 - 32;
+    const textBoxH = outH - 78;
+
+    ctx.fillStyle = 'rgba(5, 9, 15, 0.85)';
+    roundRectPath(textBoxX, textBoxY, textBoxW, textBoxH, 6);
+    ctx.fill();
+
+    const lines = wrapTextLines(
+      state.rxDecodedText || 'Deciphered text will appear here automatically as signals are detected...',
+      textBoxW - 24,
+      'bold 18px monospace'
+    );
+
+    ctx.fillStyle = state.rxDecodedText ? '#f8fafc' : 'rgba(255,255,255,0.3)';
+    ctx.font = 'bold 18px monospace';
+    const maxVisibleLines = Math.max(1, Math.floor((textBoxH - 16) / 24));
+    const visibleLines = lines.slice(-maxVisibleLines);
+    for (let i = 0; i < visibleLines.length; i++) {
+      ctx.fillText(visibleLines[i], textBoxX + 12, textBoxY + 12 + i * 24);
+    }
+  }
+
+  // ============================================================================
+  // 9. MAIN ANIMATION & SIMULATION LOOP
+  // ============================================================================
+  function update(now) {
+    const dt = Math.min(0.05, (now - state.lastFrameTime) / 1000);
+    state.lastFrameTime = now;
+    state.time += dt;
+
+    // Update automated Text-to-Morse playback queue
+    if (state.isPlayingText && state.playQueue.length > 0) {
+      state.playTimer -= dt * 1000;
+      if (state.playTimer <= 0) {
+        state.playIndex++;
+        if (state.playIndex >= state.playQueue.length) {
+          stopTextPlayback();
+        } else {
+          const nextStep = state.playQueue[state.playIndex];
+          state.playTimer = nextStep.duration;
+          applyPlayStep(nextStep);
+        }
+      }
+    }
+
+    // Update manual telegraph key decoding
+    updateManualTapDecoder(now);
+
+    // Update receiver optical/acoustic sensor
+    if (state.mode === 'RECEIVE') {
+      processReceiverSignal(now);
+    }
+  }
+
+  function render() {
+    const dt = 0.016;
+    uiHitBoxes = [];
+
+    ctx.save();
+    ctx.scale(state.dpr, state.dpr);
+
+    drawReactiveBackground(dt);
+    renderTopBar();
+
+    if (state.mode === 'TRANSMIT') {
+      renderTransmitterView();
+    } else {
+      renderReceiverView();
+    }
+
+    ctx.restore();
+  }
+
+  function loop(now) {
+    update(now);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  // ============================================================================
+  // 10. INPUT & EVENT LISTENERS
+  // ============================================================================
+  function handleResize() {
+    state.width = window.innerWidth;
+    state.height = window.innerHeight;
+    state.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.floor(state.width * state.dpr);
+    canvas.height = Math.floor(state.height * state.dpr);
+  }
+
+  function findHitBox(x, y) {
+    for (let i = uiHitBoxes.length - 1; i >= 0; i--) {
+      const b = uiHitBoxes[i];
+      if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
+        return b;
+      }
+    }
+    return null;
+  }
+
+  function updateSliderFromPointer(x, y) {
+    if (state.activeSlider === 'WPM') {
+      const box = uiHitBoxes.find(b => b.id === 'SLIDER_WPM');
+      if (box) {
+        const ratio = Math.max(0, Math.min(1, (x - (box.x + 10)) / (box.w - 20)));
+        state.wpm = Math.round(5 + ratio * 25);
+      }
+    } else if (state.activeSlider === 'THRESHOLD') {
+      const box = uiHitBoxes.find(b => b.id === 'SLIDER_THRESHOLD');
+      if (box) {
+        const ratio = 1 - Math.max(0.05, Math.min(0.95, (y - box.y) / box.h));
+        state.rxThreshold = ratio;
+      }
+    }
+  }
+
+  window.addEventListener('resize', handleResize);
+
+  canvas.addEventListener('pointermove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    state.pointer.x = x;
+    state.pointer.y = y;
+
+    if (state.activeSlider) {
+      updateSliderFromPointer(x, y);
+      return;
+    }
+
+    const hit = findHitBox(x, y);
+    state.hoveredId = hit ? hit.id : null;
+    canvas.style.cursor = hit ? 'pointer' : 'default';
+  });
+
+  canvas.addEventListener('pointerdown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    state.pointer.x = x;
+    state.pointer.y = y;
+    state.pointer.down = true;
+
+    const hit = findHitBox(x, y);
+    if (!hit) {
+      state.inputFocused = false;
+      return;
+    }
+
+    if (hit.id !== 'TEXT_INPUT_BOX') {
+      state.inputFocused = false;
+    }
+
+    if (hit.id === 'SLIDER_WPM') {
+      state.activeSlider = 'WPM';
+      updateSliderFromPointer(x, y);
+    } else if (hit.id === 'SLIDER_THRESHOLD') {
+      state.activeSlider = 'THRESHOLD';
+      updateSliderFromPointer(x, y);
+    } else if (hit.id === 'TELEGRAPH_KEY') {
+      pressTelegraphKey(x, y);
+    } else if (hit.action) {
+      hit.action();
+    }
+  });
+
+  window.addEventListener('pointerup', () => {
+    state.pointer.down = false;
+    state.activeSlider = null;
+    if (state.isKeyDown) {
+      releaseTelegraphKey();
+    }
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (state.mode !== 'TRANSMIT') return;
+
+    // Spacebar acts as Telegraph Key when text input is NOT focused
+    if (e.code === 'Space' && !state.inputFocused) {
+      e.preventDefault();
+      if (!e.repeat) pressTelegraphKey();
+      return;
+    }
+
+    if (state.inputFocused) {
+      if (e.key === 'Backspace') {
+        e.preventDefault();
+        state.inputText = state.inputText.slice(0, -1);
+        spawnSparks(state.width * 0.25, 130, 4);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        startTextPlayback();
+      } else if (e.key === 'Escape') {
+        state.inputFocused = false;
+      } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+        const upper = e.key.toUpperCase();
+        if (upper === ' ' || CHAR_TO_MORSE[upper]) {
+          e.preventDefault();
+          state.inputText += upper;
+          spawnSparks(state.width * 0.35, 130, 5);
+        }
+      }
+    }
+  });
+
+  window.addEventListener('keyup', (e) => {
+    if (e.code === 'Space' && state.isKeyDown) {
+      e.preventDefault();
+      releaseTelegraphKey();
+    }
+  });
+
+  // Boot
+  handleResize();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
