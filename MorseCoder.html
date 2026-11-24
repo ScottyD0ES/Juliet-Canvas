@@ -16,6 +16,7 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
+    touch-action: none;
     background-color: #070a0f;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   }
@@ -23,10 +24,24 @@
     display: block;
     width: 100%;
     height: 100%;
+    touch-action: none;
+  }
+  /* Hidden native input to trigger mobile virtual keyboards cleanly */
+  #mobileInputProxy {
+    position: fixed;
+    top: -100px;
+    left: 0;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    border: none;
+    outline: none;
+    font-size: 16px; /* prevents iOS Safari auto-zoom */
   }
 </style>
 </head>
 <body>
+<input id="mobileInputProxy" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" />
 <canvas id="appCanvas"></canvas>
 
 <script>
@@ -61,13 +76,12 @@
   // ============================================================================
   const canvas = document.getElementById('appCanvas');
   const ctx = canvas.getContext('2d');
+  const mobileInput = document.getElementById('mobileInputProxy');
 
-  // Hidden video element for optical camera capture
   const videoEl = document.createElement('video');
   videoEl.playsInline = true;
   videoEl.muted = true;
 
-  // Offscreen small canvas for fast pixel brightness sampling
   const sampleCanvas = document.createElement('canvas');
   sampleCanvas.width = 32;
   sampleCanvas.height = 32;
@@ -77,21 +91,22 @@
     width: window.innerWidth,
     height: window.innerHeight,
     dpr: Math.min(window.devicePixelRatio || 1, 2),
+    get isCompact() { return this.width < 720; },
     time: 0,
     lastFrameTime: performance.now(),
 
-    // Navigation & Modes
-    mode: 'TRANSMIT', // 'TRANSMIT' | 'RECEIVE'
-    rxSource: 'CAMERA', // 'CAMERA' | 'MIC'
+    // Navigation & Sub-tabs
+    mode: 'TRANSMIT',      // 'TRANSMIT' | 'RECEIVE'
+    txMobileTab: 'KEY',    // 'KEY' | 'ALPHABET' (used on compact portrait screens)
+    rxSource: 'CAMERA',    // 'CAMERA' | 'MIC'
 
     // Timing & Speed
-    wpm: 14, // 5 to 30 WPM
+    wpm: 14,
     get dotMs() { return 1200 / this.wpm; },
 
     // Transmitter State
     inputText: 'HELLO WORLD',
-    inputFocused: true,
-    cursorBlink: 0,
+    inputFocused: false,
     isPlayingText: false,
     playQueue: [],
     playTimer: 0,
@@ -124,8 +139,8 @@
     rxStream: null,
     rxAnalyser: null,
     rxFreqData: null,
-    rxLevel: 0,          // 0.0 to 1.0 normalized signal
-    rxThreshold: 0.45,   // 0.05 to 0.95 user adjustable
+    rxLevel: 0,
+    rxThreshold: 0.45,
     rxHistory: new Array(160).fill(0),
     rxSignalHigh: false,
     rxStateChangeTime: 0,
@@ -133,7 +148,7 @@
     rxDecodedText: '',
     rxLetterCommitted: true,
     rxWordCommitted: true,
-    rxStatusMsg: 'IDLE - CLICK START RECEIVER',
+    rxStatusMsg: 'IDLE - TAP START SENSOR',
     rxDetectedHz: 0,
 
     // Interactive Pointer & Drag State
@@ -146,8 +161,10 @@
     sparks: [],
     scanlineY: -1,
     bgEnergy: 0,
-    accentHue: 190 // Cyan default
+    accentHue: 190
   };
+
+  mobileInput.value = state.inputText;
 
   // ============================================================================
   // 3. WEB AUDIO SYNTHESIS & RECORDING ENGINE
@@ -248,6 +265,18 @@
   // ============================================================================
   // 4. TRANSMITTER PLAYBACK & MANUAL TAP LOGIC
   // ============================================================================
+  function syncInputText(newText) {
+    const filtered = newText
+      .toUpperCase()
+      .split('')
+      .filter(ch => ch === ' ' || CHAR_TO_MORSE[ch])
+      .join('');
+    state.inputText = filtered;
+    if (mobileInput.value !== filtered) {
+      mobileInput.value = filtered;
+    }
+  }
+
   function buildPlayQueue(text) {
     const queue = [];
     const dot = state.dotMs;
@@ -311,8 +340,8 @@
     state.activeSymbol = step.symbol;
     if (step.on) {
       const cx = state.width * 0.5;
-      const cy = state.height * 0.32;
-      spawnRipple(cx, cy, step.symbol === '-' ? 1.5 : 0.85);
+      const cy = state.height * 0.28;
+      spawnRipple(cx, cy, step.symbol === '-' ? 1.45 : 0.85);
     }
   }
 
@@ -322,7 +351,7 @@
     state.isKeyDown = true;
     state.keyDownTime = performance.now();
     setTone(true);
-    spawnRipple(x || state.width * 0.28, y || state.height * 0.65, 1.0);
+    spawnRipple(x || state.width * 0.5, y || state.height * 0.72, 1.0);
   }
 
   function releaseTelegraphKey() {
@@ -341,7 +370,7 @@
     state.activeChar = MORSE_TO_CHAR[state.tapBuffer] || '';
 
     if (symbol === '-') {
-      spawnRipple(state.width * 0.28, state.height * 0.65, 1.45);
+      spawnRipple(state.width * 0.5, state.height * 0.72, 1.45);
     }
   }
 
@@ -356,7 +385,7 @@
       state.activeChar = decoded;
       state.tapBuffer = '';
       state.tapLetterCommitted = true;
-      spawnSparks(state.width * 0.28, state.height * 0.50, 8);
+      spawnSparks(state.width * 0.5, state.height * 0.52, 8);
     }
 
     if (state.tapLetterCommitted && !state.tapWordCommitted && silence >= dot * 5.8) {
@@ -384,7 +413,7 @@
         videoEl.srcObject = stream;
         await videoEl.play();
         state.rxActive = true;
-        state.rxStatusMsg = 'OPTICAL SENSOR ONLINE - AIM LIGHT AT RETICLE';
+        state.rxStatusMsg = 'OPTICAL ONLINE - AIM LIGHT AT RETICLE';
       } else {
         state.rxStatusMsg = 'REQUESTING MICROPHONE...';
         initAudio();
@@ -404,7 +433,7 @@
         src.connect(state.rxAnalyser);
         state.rxFreqData = new Uint8Array(state.rxAnalyser.frequencyBinCount);
         state.rxActive = true;
-        state.rxStatusMsg = 'ACOUSTIC SENSOR ONLINE - LISTENING (300-1400 HZ)';
+        state.rxStatusMsg = 'MIC ONLINE - LISTENING (300-1400 HZ)';
       }
       state.rxSignalHigh = false;
       state.rxStateChangeTime = performance.now();
@@ -413,7 +442,7 @@
       triggerScanline();
     } catch (err) {
       state.rxActive = false;
-      state.rxStatusMsg = `ACCESS ERROR: ${err.name || 'PERMISSION DENIED'}`;
+      state.rxStatusMsg = `ERROR: ${err.name || 'PERMISSION DENIED'}`;
     }
   }
 
@@ -427,7 +456,7 @@
     state.rxActive = false;
     state.rxLevel = 0;
     state.rxSignalHigh = false;
-    state.rxStatusMsg = 'IDLE - CLICK START RECEIVER';
+    state.rxStatusMsg = 'IDLE - TAP START SENSOR';
   }
 
   function processReceiverSignal(now) {
@@ -450,18 +479,15 @@
         const pixels = sampleCtx.getImageData(0, 0, 32, 32).data;
         let lumSum = 0;
         for (let i = 0; i < pixels.length; i += 4) {
-          // Perceived brightness
           lumSum += (0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2]);
         }
-        const avgLum = lumSum / (32 * 32 * 255);
-        state.rxLevel = avgLum;
+        state.rxLevel = lumSum / (32 * 32 * 255);
       }
     } else if (state.rxSource === 'MIC' && state.rxAnalyser) {
       state.rxAnalyser.getByteFrequencyData(state.rxFreqData);
       const sampleRate = state.audioCtx.sampleRate;
       const binSize = sampleRate / state.rxAnalyser.fftSize;
 
-      // Scan Morse tonal range: 300Hz to 1400Hz
       const minBin = Math.floor(300 / binSize);
       const maxBin = Math.min(state.rxFreqData.length - 1, Math.ceil(1400 / binSize));
 
@@ -481,7 +507,6 @@
       }
 
       const avgNoise = count > 0 ? sumVal / count : 0;
-      // Emphasize tonal prominence over broadband noise
       const prominence = Math.max(0, peakVal - avgNoise * 0.45);
       state.rxLevel = Math.min(1, prominence / 210);
       state.rxDetectedHz = Math.round(peakBin * binSize);
@@ -490,7 +515,6 @@
     state.rxHistory.push(state.rxLevel);
     state.rxHistory.shift();
 
-    // Hysteresis threshold comparison to prevent jitter
     const highThresh = state.rxThreshold;
     const lowThresh = Math.max(0.02, state.rxThreshold - 0.05);
     const isHigh = state.rxSignalHigh
@@ -504,13 +528,12 @@
       state.rxStateChangeTime = now;
 
       if (state.rxSignalHigh && !isHigh) {
-        // Signal just turned OFF -> classify ON pulse
-        if (elapsed >= dot * 0.35) { // ignore tiny micro-glitches
+        if (elapsed >= dot * 0.35) {
           const sym = elapsed >= dot * 2.0 ? '-' : '.';
           state.rxBuffer += sym;
           state.rxLetterCommitted = false;
           state.rxWordCommitted = false;
-          spawnRipple(state.width * 0.5, state.height * 0.46, sym === '-' ? 1.35 : 0.8);
+          spawnRipple(state.width * 0.5, state.height * 0.45, sym === '-' ? 1.35 : 0.8);
         }
       }
       state.rxSignalHigh = isHigh;
@@ -577,15 +600,12 @@
     const w = state.width;
     const h = state.height;
 
-    // Target Hue based on state
-    let targetHue = state.mode === 'TRANSMIT' ? 192 : 155; // Cyan vs Emerald
-    if (state.isRecording) targetHue = 352; // Alert Crimson when recording
+    let targetHue = state.mode === 'TRANSMIT' ? 192 : 155;
+    if (state.isRecording) targetHue = 352;
     state.accentHue += (targetHue - state.accentHue) * Math.min(1, dt * 6);
 
-    // Decay background energy
     state.bgEnergy = Math.max(0, state.bgEnergy - dt * 1.8);
 
-    // Deep obsidian base gradient
     const bgGrad = ctx.createRadialGradient(
       w * 0.5, h * 0.45, 40,
       w * 0.5, h * 0.5, Math.max(w, h) * 0.85
@@ -595,13 +615,11 @@
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, w, h);
 
-    // Ambient energy pulse wash
     if (state.bgEnergy > 0.01) {
       ctx.fillStyle = getAccentColor(state.bgEnergy * 0.09, 50);
       ctx.fillRect(0, 0, w, h);
     }
 
-    // Tactical Grid with pointer magnetic illumination
     const gridSize = 44;
     const offsetX = (state.time * 8) % gridSize;
     const offsetY = (state.time * 4) % gridSize;
@@ -629,7 +647,6 @@
       ctx.stroke();
     }
 
-    // Pointer radial field glow
     if (state.pointer.x > 0 && state.pointer.y > 0) {
       const pGrad = ctx.createRadialGradient(
         state.pointer.x, state.pointer.y, 0,
@@ -641,7 +658,6 @@
       ctx.fillRect(0, 0, w, h);
     }
 
-    // Background Carrier Horizon Wave
     ctx.beginPath();
     const waveAmp = (state.toneActive || state.rxSignalHigh)
       ? 36 + state.bgEnergy * 28
@@ -657,7 +673,6 @@
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Expanding Signal Ripples
     for (let i = state.ripples.length - 1; i >= 0; i--) {
       const r = state.ripples[i];
       r.radius += r.speed * dt;
@@ -673,7 +688,6 @@
       ctx.stroke();
     }
 
-    // Data Sparks
     for (let i = state.sparks.length - 1; i >= 0; i--) {
       const s = state.sparks[i];
       s.x += s.vx * dt;
@@ -687,7 +701,6 @@
       ctx.fillRect(s.x - 2, s.y - 2, 4, 4);
     }
 
-    // Mode Transition Sweep Scanline
     if (state.scanlineY >= 0) {
       state.scanlineY += h * 2.4 * dt;
       const scanGrad = ctx.createLinearGradient(0, state.scanlineY - 40, 0, state.scanlineY + 4);
@@ -702,7 +715,7 @@
   }
 
   // ============================================================================
-  // 7. CANVAS UI PRIMITIVES & HIT-BOX REGISTRY
+  // 7. CANVAS UI PRIMITIVES & WORD-SAFE WRAPPING
   // ============================================================================
   let uiHitBoxes = [];
 
@@ -712,7 +725,7 @@
 
   function drawGlassPanel(x, y, w, h, title = '', highlight = false) {
     ctx.save();
-    ctx.fillStyle = 'rgba(11, 17, 27, 0.80)';
+    ctx.fillStyle = 'rgba(11, 17, 27, 0.82)';
     ctx.strokeStyle = highlight ? getAccentColor(0.85, 62) : getAccentColor(0.28, 55);
     ctx.lineWidth = highlight ? 1.75 : 1;
 
@@ -720,7 +733,6 @@
     ctx.fill();
     ctx.stroke();
 
-    // Subtle corner brackets
     const b = 8;
     ctx.strokeStyle = getAccentColor(0.75, 65);
     ctx.lineWidth = 2;
@@ -730,11 +742,17 @@
     ctx.stroke();
 
     if (title) {
-      ctx.fillStyle = getAccentColor(0.85, 68);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x + 10, y + 4, w - 20, 22);
+      ctx.clip();
+
+      ctx.fillStyle = getAccentColor(0.88, 68);
       ctx.font = 'bold 11px monospace';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-      ctx.fillText(title, x + 12, y + 10);
+      ctx.fillText(title, x + 12, y + 9);
+      ctx.restore();
     }
     ctx.restore();
   }
@@ -751,7 +769,7 @@
     const hovered = state.hoveredId === id;
 
     ctx.save();
-    let fill = 'rgba(18, 28, 43, 0.88)';
+    let fill = 'rgba(18, 28, 43, 0.90)';
     let stroke = getAccentColor(hovered ? 0.9 : 0.38, 60);
     let textCol = '#e2e8f0';
 
@@ -774,14 +792,15 @@
     ctx.fill();
     ctx.stroke();
 
+    const fontSize = w < 105 ? 11 : (h > 42 ? 13 : 12);
     ctx.fillStyle = textCol;
-    ctx.font = `bold ${h > 44 ? 14 : 12}px monospace`;
+    ctx.font = `bold ${fontSize}px monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(label, x + w * 0.5, sublabel ? y + h * 0.38 : y + h * 0.5);
+    ctx.fillText(label, x + w * 0.5, sublabel ? y + h * 0.37 : y + h * 0.5);
 
     if (sublabel) {
-      ctx.fillStyle = getAccentColor(0.8, 70);
+      ctx.fillStyle = getAccentColor(0.85, 70);
       ctx.font = '10px monospace';
       ctx.fillText(sublabel, x + w * 0.5, y + h * 0.72);
     }
@@ -802,66 +821,143 @@
   function wrapTextLines(text, maxWidth, font) {
     ctx.font = font;
     const raw = text || '';
+    const words = raw.split(' ');
     const lines = [];
     let current = '';
-    for (let i = 0; i < raw.length; i++) {
-      const test = current + raw[i];
-      if (ctx.measureText(test).width > maxWidth && current.length > 0) {
-        lines.push(current);
-        current = raw[i];
-      } else {
+
+    for (let wIdx = 0; wIdx < words.length; wIdx++) {
+      const word = words[wIdx];
+      const test = current ? `${current} ${word}` : word;
+      if (ctx.measureText(test).width <= maxWidth) {
         current = test;
+      } else {
+        if (current) {
+          lines.push(current);
+          current = '';
+        }
+        // If single word exceeds maxWidth, break cleanly by character
+        if (ctx.measureText(word).width > maxWidth) {
+          let chunk = '';
+          for (let c = 0; c < word.length; c++) {
+            if (ctx.measureText(chunk + word[c]).width > maxWidth && chunk.length > 0) {
+              lines.push(chunk);
+              chunk = word[c];
+            } else {
+              chunk += word[c];
+            }
+          }
+          current = chunk;
+        } else {
+          current = word;
+        }
       }
     }
-    lines.push(current);
+    if (current || lines.length === 0) lines.push(current);
     return lines;
   }
 
+  function drawWpmSlider(sx, sy, sliderW, hitH) {
+    ctx.fillStyle = 'rgba(255,255,255,0.14)';
+    roundRectPath(sx, sy - 3, sliderW, 6, 3);
+    ctx.fill();
+
+    const ratio = (state.wpm - 5) / 25;
+    ctx.fillStyle = getAccentColor(0.88, 60);
+    roundRectPath(sx, sy - 3, sliderW * ratio, 6, 3);
+    ctx.fill();
+
+    const kx = sx + sliderW * ratio;
+    ctx.beginPath();
+    ctx.arc(kx, sy, 9, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+
+    registerHitBox('SLIDER_WPM', sx - 12, sy - hitH * 0.5, sliderW + 24, hitH, null);
+  }
+
   // ============================================================================
-  // 8. SCREEN LAYOUT RENDERERS
+  // 8. RESPONSIVE SCREEN LAYOUT RENDERERS
   // ============================================================================
   function renderTopBar() {
     const w = state.width;
-    const pad = 14;
-    const barH = 54;
+    const pad = 12;
+    const compact = state.isCompact;
+    const barH = compact ? 86 : 54;
 
     drawGlassPanel(pad, pad, w - pad * 2, barH);
 
-    // Title & Status
-    ctx.fillStyle = '#f8fafc';
-    ctx.font = 'bold 15px monospace';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('MORSE // TRANSCEIVER', pad + 16, pad + barH * 0.5);
+    if (compact) {
+      // ROW 1: Compact Brand Title + TX / RX Tabs
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 14px monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('MORSE // TRX', pad + 12, pad + 24);
 
-    // Mode Tabs
-    const tabW = Math.min(150, (w - 380) * 0.5);
-    const actualTabW = Math.max(105, tabW);
-    const centerStart = Math.max(pad + 215, w * 0.5 - actualTabW - 6);
-
-    drawButton('TAB_TRANSMIT', centerStart, pad + 9, actualTabW, 36, 'TRANSMITTER', {
-      active: state.mode === 'TRANSMIT',
-      action: () => {
-        if (state.mode !== 'TRANSMIT') {
-          state.mode = 'TRANSMIT';
-          triggerScanline();
+      const tabW = 92;
+      const rightEdge = w - pad - 10;
+      drawButton('TAB_RECEIVE', rightEdge - tabW, pad + 8, tabW, 32, 'RECEIVER', {
+        active: state.mode === 'RECEIVE',
+        action: () => {
+          if (state.mode !== 'RECEIVE') {
+            stopTextPlayback();
+            state.mode = 'RECEIVE';
+            triggerScanline();
+          }
         }
-      }
-    });
-
-    drawButton('TAB_RECEIVE', centerStart + actualTabW + 10, pad + 9, actualTabW, 36, 'RECEIVER', {
-      active: state.mode === 'RECEIVE',
-      action: () => {
-        if (state.mode !== 'RECEIVE') {
-          stopTextPlayback();
-          state.mode = 'RECEIVE';
-          triggerScanline();
+      });
+      drawButton('TAB_TRANSMIT', rightEdge - tabW * 2 - 8, pad + 8, tabW, 32, 'TRANSMIT', {
+        active: state.mode === 'TRANSMIT',
+        action: () => {
+          if (state.mode !== 'TRANSMIT') {
+            state.mode = 'TRANSMIT';
+            triggerScanline();
+          }
         }
-      }
-    });
+      });
 
-    // WPM Speed Slider on right side of Top Bar (if space permits)
-    if (w > 640) {
+      // ROW 2: Touch-Friendly WPM Speed Slider
+      const row2Y = pad + 64;
+      ctx.fillStyle = getAccentColor(0.92, 70);
+      ctx.font = 'bold 11px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(`SPEED: ${state.wpm} WPM`, pad + 12, row2Y);
+
+      const sliderX = pad + 124;
+      const sliderW = w - pad - sliderX - 18;
+      drawWpmSlider(sliderX, row2Y, sliderW, 32);
+    } else {
+      // DESKTOP / TABLET SINGLE-ROW TOP BAR
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 15px monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('MORSE // TRANSCEIVER', pad + 16, pad + barH * 0.5);
+
+      const tabW = 135;
+      const centerStart = Math.max(pad + 215, w * 0.5 - tabW - 6);
+
+      drawButton('TAB_TRANSMIT', centerStart, pad + 9, tabW, 36, 'TRANSMITTER', {
+        active: state.mode === 'TRANSMIT',
+        action: () => {
+          if (state.mode !== 'TRANSMIT') {
+            state.mode = 'TRANSMIT';
+            triggerScanline();
+          }
+        }
+      });
+
+      drawButton('TAB_RECEIVE', centerStart + tabW + 10, pad + 9, tabW, 36, 'RECEIVER', {
+        active: state.mode === 'RECEIVE',
+        action: () => {
+          if (state.mode !== 'RECEIVE') {
+            stopTextPlayback();
+            state.mode = 'RECEIVE';
+            triggerScanline();
+          }
+        }
+      });
+
       const sliderW = 140;
       const sx = w - pad - sliderW - 18;
       const sy = pad + 27;
@@ -871,121 +967,179 @@
       ctx.textAlign = 'right';
       ctx.fillText(`SPEED: ${state.wpm} WPM`, sx - 12, sy);
 
-      // Track
-      ctx.fillStyle = 'rgba(255,255,255,0.12)';
-      roundRectPath(sx, sy - 3, sliderW, 6, 3);
-      ctx.fill();
-
-      const ratio = (state.wpm - 5) / 25;
-      ctx.fillStyle = getAccentColor(0.85, 60);
-      roundRectPath(sx, sy - 3, sliderW * ratio, 6, 3);
-      ctx.fill();
-
-      // Knob
-      const kx = sx + sliderW * ratio;
-      ctx.beginPath();
-      ctx.arc(kx, sy, 8, 0, Math.PI * 2);
-      ctx.fillStyle = '#ffffff';
-      ctx.fill();
-
-      registerHitBox('SLIDER_WPM', sx - 10, pad + 8, sliderW + 20, 38, null);
+      drawWpmSlider(sx, sy, sliderW, 38);
     }
+
+    return pad + barH + 10;
   }
 
-  function renderTransmitterView() {
+  function renderTransmitterView(topY) {
     const w = state.width;
     const h = state.height;
-    const pad = 14;
-    const topY = 80;
+    const pad = 12;
+    const compact = state.isCompact;
     const contentH = h - topY - pad;
 
     // ------------------------------------------------------------------------
-    // TOP SECTION: TEXT-TO-MORSE GENERATOR & AUDIO RECORDER
+    // TOP SECTION: TEXT-TO-MORSE GENERATOR & AUDIO EXPORT
     // ------------------------------------------------------------------------
-    const topPanelH = Math.min(205, contentH * 0.38);
-    drawGlassPanel(pad, topY, w - pad * 2, topPanelH, '1 // TEXT-TO-MORSE GENERATOR & AUDIO EXPORT', state.inputFocused);
+    const topPanelH = compact ? Math.min(208, contentH * 0.42) : Math.min(198, contentH * 0.37);
+    drawGlassPanel(
+      pad, topY, w - pad * 2, topPanelH,
+      compact ? '1 // TEXT TO MORSE & EXPORT' : '1 // TEXT-TO-MORSE GENERATOR & AUDIO EXPORT',
+      state.inputFocused
+    );
 
-    // Text Input Box
-    const inputX = pad + 14;
-    const inputY = topY + 32;
-    const controlsW = Math.min(310, w * 0.36);
-    const inputW = w - pad * 2 - controlsW - 36;
-    const inputH = 54;
+    const innerX = pad + 12;
+    const innerW = w - pad * 2 - 24;
 
-    registerHitBox('TEXT_INPUT_BOX', inputX, inputY, inputW, inputH, () => {
-      state.inputFocused = true;
-    });
+    if (compact) {
+      // Stacked mobile layout: Input box on top, Play + Record buttons below, Morse strip at bottom
+      const inputY = topY + 28;
+      const inputH = 44;
 
-    ctx.fillStyle = 'rgba(5, 9, 15, 0.85)';
-    ctx.strokeStyle = state.inputFocused ? getAccentColor(0.95, 62) : 'rgba(255,255,255,0.2)';
+      registerHitBox('TEXT_INPUT_BOX', innerX, inputY, innerW, inputH, () => {
+        state.inputFocused = true;
+        mobileInput.focus();
+      });
+
+      drawTextInputField(innerX, inputY, innerW, inputH);
+
+      const btnY = inputY + inputH + 8;
+      const btnH = 42;
+      const halfW = (innerW - 8) * 0.5;
+
+      drawButton('BTN_PLAY_TEXT', innerX, btnY, halfW, btnH,
+        state.isPlayingText ? 'STOP' : 'PLAY MORSE',
+        { active: state.isPlayingText, sublabel: `${state.wpm} WPM`, action: startTextPlayback }
+      );
+
+      const recSecs = state.isRecording ? ((performance.now() - state.recordStartTime) / 1000).toFixed(1) + 's' : 'WEBM FILE';
+      drawButton('BTN_RECORD', innerX + halfW + 8, btnY, halfW, btnH,
+        state.isRecording ? 'STOP & SAVE' : 'REC AUDIO',
+        { active: state.isRecording, danger: true, sublabel: recSecs, action: toggleRecording }
+      );
+
+      const prevY = btnY + btnH + 8;
+      const prevH = Math.max(36, topPanelH - (prevY - topY) - 10);
+      drawMorsePreviewStrip(innerX, prevY, innerW, prevH);
+    } else {
+      // Desktop side-by-side input + buttons
+      const inputY = topY + 32;
+      const controlsW = Math.min(310, w * 0.36);
+      const inputW = innerW - controlsW - 12;
+      const inputH = 52;
+
+      registerHitBox('TEXT_INPUT_BOX', innerX, inputY, inputW, inputH, () => {
+        state.inputFocused = true;
+        mobileInput.focus();
+      });
+
+      drawTextInputField(innerX, inputY, inputW, inputH);
+
+      const btnAreaX = innerX + inputW + 12;
+      const halfBtnW = (controlsW - 8) * 0.5;
+
+      drawButton('BTN_PLAY_TEXT', btnAreaX, inputY, halfBtnW, inputH,
+        state.isPlayingText ? 'STOP' : 'PLAY MORSE',
+        { active: state.isPlayingText, sublabel: `${state.wpm} WPM`, action: startTextPlayback }
+      );
+
+      const recSecs = state.isRecording ? ((performance.now() - state.recordStartTime) / 1000).toFixed(1) + 's' : 'WEBM FILE';
+      drawButton('BTN_RECORD', btnAreaX + halfBtnW + 8, inputY, halfBtnW, inputH,
+        state.isRecording ? 'STOP & SAVE' : 'REC AUDIO',
+        { active: state.isRecording, danger: true, sublabel: recSecs, action: toggleRecording }
+      );
+
+      const prevY = inputY + inputH + 12;
+      const prevH = topPanelH - (inputH + 54);
+      drawMorsePreviewStrip(innerX, prevY, innerW, prevH);
+    }
+
+    // ------------------------------------------------------------------------
+    // BOTTOM SECTION: TELEGRAPH KEY & ALPHABET GRID
+    // ------------------------------------------------------------------------
+    const botY = topY + topPanelH + 10;
+    const botH = h - botY - pad;
+
+    if (compact) {
+      // Mobile Tabbed Switcher between Telegraph Key and Alphabet Grid so both have full width
+      const tabBarH = 36;
+      const halfTabW = (w - pad * 2 - 8) * 0.5;
+
+      drawButton('BTN_TX_SUB_KEY', pad, botY, halfTabW, tabBarH, '2 // TELEGRAPH KEY', {
+        active: state.txMobileTab === 'KEY',
+        action: () => { state.txMobileTab = 'KEY'; }
+      });
+
+      drawButton('BTN_TX_SUB_ALPHA', pad + halfTabW + 8, botY, halfTabW, tabBarH, '3 // ALPHABET KEY', {
+        active: state.txMobileTab === 'ALPHABET',
+        action: () => { state.txMobileTab = 'ALPHABET'; }
+      });
+
+      const subPanelY = botY + tabBarH + 8;
+      const subPanelH = botH - tabBarH - 8;
+
+      if (state.txMobileTab === 'KEY') {
+        renderTelegraphKeyPanel(pad, subPanelY, w - pad * 2, subPanelH, 'HOLD PAD TO BEEP & ENCODE');
+      } else {
+        renderAlphabetGridPanel(pad, subPanelY, w - pad * 2, subPanelH, 'TAP CHAR TO SEND & APPEND');
+      }
+    } else {
+      // Desktop side-by-side split
+      const splitX = Math.min(w * 0.48, 460);
+      renderTelegraphKeyPanel(pad, botY, splitX - pad, botH, '2 // MANUAL TELEGRAPH KEY (CLICK OR SPACE)');
+      const rightX = splitX + 12;
+      renderAlphabetGridPanel(rightX, botY, w - rightX - pad, botH, '3 // MORSE ALPHABET KEY (CLICK TO SEND)');
+    }
+  }
+
+  function drawTextInputField(x, y, w, h) {
+    ctx.fillStyle = 'rgba(5, 9, 15, 0.88)';
+    ctx.strokeStyle = state.inputFocused ? getAccentColor(0.95, 62) : 'rgba(255,255,255,0.22)';
     ctx.lineWidth = 1.5;
-    roundRectPath(inputX, inputY, inputW, inputH, 6);
+    roundRectPath(x, y, w, h, 6);
     ctx.fill();
     ctx.stroke();
 
-    // Render typed text + blinking cursor
     ctx.save();
     ctx.beginPath();
-    ctx.rect(inputX + 8, inputY + 4, inputW - 16, inputH - 8);
+    ctx.rect(x + 8, y + 4, w - 16, h - 8);
     ctx.clip();
 
-    ctx.font = 'bold 18px monospace';
-    ctx.fillStyle = '#f8fafc';
+    ctx.font = `bold ${state.isCompact ? 16 : 18}px monospace`;
+    ctx.fillStyle = state.inputText ? '#f8fafc' : 'rgba(255,255,255,0.35)';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    const displayStr = state.inputText;
-    const textWidth = ctx.measureText(displayStr).width;
-    const scrollOffset = textWidth > inputW - 32 ? (inputW - 32) - textWidth : 0;
-    const tx = inputX + 12 + scrollOffset;
-    const ty = inputY + inputH * 0.5;
+
+    const displayStr = state.inputText || 'TAP TO TYPE TEXT...';
+    const textWidth = ctx.measureText(state.inputText).width;
+    const scrollOffset = textWidth > w - 32 ? (w - 32) - textWidth : 0;
+    const tx = x + 12 + scrollOffset;
+    const ty = y + h * 0.5;
     ctx.fillText(displayStr, tx, ty);
 
     if (state.inputFocused && Math.floor(state.time * 2.2) % 2 === 0) {
       ctx.fillStyle = getAccentColor(0.95, 65);
-      ctx.fillRect(tx + textWidth + 3, ty - 11, 2.5, 22);
+      ctx.fillRect(tx + textWidth + 3, ty - 10, 2.5, 20);
     }
     ctx.restore();
+  }
 
-    // Playback & Record Buttons
-    const btnAreaX = inputX + inputW + 12;
-    const halfBtnW = (controlsW - 8) * 0.5;
-
-    drawButton(
-      'BTN_PLAY_TEXT',
-      btnAreaX, inputY, halfBtnW, inputH,
-      state.isPlayingText ? 'STOP' : 'PLAY MORSE',
-      {
-        active: state.isPlayingText,
-        sublabel: `${state.wpm} WPM`,
-        action: startTextPlayback
-      }
-    );
-
-    const recSecs = state.isRecording ? ((performance.now() - state.recordStartTime) / 1000).toFixed(1) + 's' : 'WEBM FILE';
-    drawButton(
-      'BTN_RECORD',
-      btnAreaX + halfBtnW + 8, inputY, halfBtnW, inputH,
-      state.isRecording ? 'STOP & SAVE' : 'REC AUDIO',
-      {
-        active: state.isRecording,
-        danger: true,
-        sublabel: recSecs,
-        action: toggleRecording
-      }
-    );
-
-    // Generated Morse Code Preview Strip
-    const previewY = inputY + inputH + 12;
-    const previewH = topPanelH - (inputH + 54);
-    ctx.fillStyle = 'rgba(6, 11, 18, 0.75)';
-    roundRectPath(inputX, previewY, w - pad * 2 - 28, previewH, 6);
+  function drawMorsePreviewStrip(x, y, w, h) {
+    ctx.fillStyle = 'rgba(6, 11, 18, 0.78)';
+    roundRectPath(x, y, w, h, 6);
     ctx.fill();
 
-    // Build formatted Morse preview with active highlight
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x + 6, y + 2, w - 12, h - 4);
+    ctx.clip();
+
     const cleanChars = state.inputText.toUpperCase().split('');
-    let cursorX = inputX + 12;
-    const cursorY = previewY + previewH * 0.5;
-    ctx.font = 'bold 16px monospace';
+    let cursorX = x + 12;
+    const cursorY = y + h * 0.5;
+    ctx.font = `bold ${state.isCompact ? 14 : 16}px monospace`;
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';
 
@@ -995,45 +1149,38 @@
       if (!code) continue;
       const chunk = `${code} `;
       const cw = ctx.measureText(chunk).width;
-      if (cursorX + cw > w - pad - 24) break;
+      if (cursorX + cw > x + w - 12) break;
 
       const isCurrent = state.isPlayingText && state.activeChar === ch;
-      ctx.fillStyle = isCurrent ? '#ffffff' : getAccentColor(0.88, 66);
+      ctx.fillStyle = isCurrent ? '#ffffff' : getAccentColor(0.9, 66);
       ctx.fillText(chunk, cursorX, cursorY);
       cursorX += cw;
     }
+    ctx.restore();
+  }
 
-    // ------------------------------------------------------------------------
-    // BOTTOM SECTION: SPLIT LEFT (TAP KEY) & RIGHT (ALPHABET REFERENCE)
-    // ------------------------------------------------------------------------
-    const botY = topY + topPanelH + 12;
-    const botH = h - botY - pad;
-    const splitX = Math.min(w * 0.48, 460);
+  function renderTelegraphKeyPanel(x, y, w, h, title) {
+    drawGlassPanel(x, y, w, h, title, state.isKeyDown);
 
-    // LEFT PANEL: MANUAL TELEGRAPH TAP-TO-BEEP KEY
-    drawGlassPanel(pad, botY, splitX - pad, botH, '2 // MANUAL TELEGRAPH KEY (CLICK OR SPACEBAR)', state.isKeyDown);
+    const decodedBoxY = y + 30;
+    const decodedBoxH = Math.min(68, h * 0.30);
 
-    const keyPanelW = splitX - pad;
-    const decodedBoxY = botY + 34;
-    const decodedBoxH = Math.min(78, botH * 0.28);
-
-    // Decoded Tap Readout
-    ctx.fillStyle = 'rgba(5, 9, 15, 0.85)';
-    roundRectPath(pad + 14, decodedBoxY, keyPanelW - 28, decodedBoxH, 6);
+    ctx.fillStyle = 'rgba(5, 9, 15, 0.88)';
+    roundRectPath(x + 12, decodedBoxY, w - 24, decodedBoxH, 6);
     ctx.fill();
 
-    ctx.fillStyle = getAccentColor(0.75, 65);
+    ctx.fillStyle = getAccentColor(0.78, 65);
     ctx.font = '11px monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(`BUFFER: ${state.tapBuffer || '---'}`, pad + 24, decodedBoxY + 18);
+    ctx.textBaseline = 'top';
+    ctx.fillText(`BUFFER: ${state.tapBuffer || '---'}`, x + 22, decodedBoxY + 10);
 
     ctx.fillStyle = '#f8fafc';
-    ctx.font = 'bold 17px monospace';
-    const recentTap = state.tapDecodedText.slice(-24);
-    ctx.fillText(recentTap || 'TAP KEY TO ENCODE...', pad + 24, decodedBoxY + decodedBoxH - 16);
+    ctx.font = `bold ${state.isCompact ? 15 : 17}px monospace`;
+    const recentTap = state.tapDecodedText.slice(-22);
+    ctx.fillText(recentTap || 'TAP KEY TO ENCODE...', x + 22, decodedBoxY + decodedBoxH - 24);
 
-    // Clear Tap Readout Button
-    drawButton('BTN_CLEAR_TAP', pad + keyPanelW - 76, decodedBoxY + 8, 54, 24, 'CLEAR', {
+    drawButton('BTN_CLEAR_TAP', x + w - 72, decodedBoxY + 7, 52, 24, 'CLEAR', {
       action: () => {
         state.tapBuffer = '';
         state.tapDecodedText = '';
@@ -1041,15 +1188,13 @@
       }
     });
 
-    // Interactive Tactile Telegraph Key Pad
-    const tapPadY = decodedBoxY + decodedBoxH + 14;
-    const tapPadH = botH - (decodedBoxH + 62);
-    const tapPadX = pad + 14;
-    const tapPadW = keyPanelW - 28;
+    const tapPadY = decodedBoxY + decodedBoxH + 10;
+    const tapPadH = h - (decodedBoxH + 50);
+    const tapPadX = x + 12;
+    const tapPadW = w - 24;
 
     registerHitBox('TELEGRAPH_KEY', tapPadX, tapPadY, tapPadW, tapPadH, null);
 
-    // Draw Key Base & Plunger
     ctx.save();
     const keyGrad = ctx.createRadialGradient(
       tapPadX + tapPadW * 0.5, tapPadY + tapPadH * 0.5, 10,
@@ -1059,8 +1204,8 @@
       keyGrad.addColorStop(0, getAccentColor(0.45, 58));
       keyGrad.addColorStop(1, getAccentColor(0.14, 45));
     } else {
-      keyGrad.addColorStop(0, 'rgba(24, 38, 58, 0.9)');
-      keyGrad.addColorStop(1, 'rgba(11, 18, 28, 0.95)');
+      keyGrad.addColorStop(0, 'rgba(24, 38, 58, 0.92)');
+      keyGrad.addColorStop(1, 'rgba(11, 18, 28, 0.96)');
     }
 
     ctx.fillStyle = keyGrad;
@@ -1070,18 +1215,17 @@
     ctx.fill();
     ctx.stroke();
 
-    // Live Dot/Dash Hold Gauge inside Key
     if (state.isKeyDown) {
       const held = performance.now() - state.keyDownTime;
       const dashThreshold = state.dotMs * 2.0;
       const progress = Math.min(1, held / (dashThreshold * 1.4));
       const isDash = held >= dashThreshold;
 
-      const barW = tapPadW - 48;
-      const barX = tapPadX + 24;
-      const barY = tapPadY + tapPadH - 24;
+      const barW = tapPadW - 40;
+      const barX = tapPadX + 20;
+      const barY = tapPadY + tapPadH - 22;
 
-      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
       roundRectPath(barX, barY, barW, 8, 4);
       ctx.fill();
 
@@ -1089,39 +1233,37 @@
       roundRectPath(barX, barY, barW * progress, 8, 4);
       ctx.fill();
 
-      // Dash threshold marker
       const markerX = barX + barW * (1 / 1.4);
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(markerX - 1, barY - 3, 2, 14);
     }
 
     ctx.fillStyle = state.isKeyDown ? '#ffffff' : '#cbd5e1';
-    ctx.font = 'bold 16px monospace';
+    ctx.font = 'bold 15px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const keyLabel = state.isKeyDown
-      ? (performance.now() - state.keyDownTime >= state.dotMs * 2.0 ? 'TRANSMITTING: DASH ( — )' : 'TRANSMITTING: DOT ( • )')
+      ? (performance.now() - state.keyDownTime >= state.dotMs * 2.0 ? 'DASH ( — )' : 'DOT ( • )')
       : 'HOLD TO TAP MORSE';
-    ctx.fillText(keyLabel, tapPadX + tapPadW * 0.5, tapPadY + tapPadH * 0.44);
+    ctx.fillText(keyLabel, tapPadX + tapPadW * 0.5, tapPadY + tapPadH * 0.42);
 
-    ctx.fillStyle = getAccentColor(0.75, 68);
+    ctx.fillStyle = getAccentColor(0.78, 68);
     ctx.font = '11px monospace';
-    ctx.fillText(`DOT < ${Math.round(state.dotMs * 2)}ms   |   DASH ≥ ${Math.round(state.dotMs * 2)}ms`, tapPadX + tapPadW * 0.5, tapPadY + tapPadH * 0.62);
+    ctx.fillText(`DOT < ${Math.round(state.dotMs * 2)}ms  |  DASH ≥ ${Math.round(state.dotMs * 2)}ms`, tapPadX + tapPadW * 0.5, tapPadY + tapPadH * 0.62);
     ctx.restore();
+  }
 
-    // RIGHT PANEL: INTERACTIVE ALPHABET KEY GRID
-    const rightX = splitX + 12;
-    const rightW = w - rightX - pad;
-    drawGlassPanel(rightX, botY, rightW, botH, '3 // MORSE ALPHABET KEY (CLICK ANY CHAR TO SEND)');
+  function renderAlphabetGridPanel(x, y, w, h, title) {
+    drawGlassPanel(x, y, w, h, title);
 
-    const gridTop = botY + 34;
-    const gridH = botH - 46;
-    const gridLeft = rightX + 12;
-    const gridW = rightW - 24;
+    const gridTop = y + 30;
+    const gridH = h - 40;
+    const gridLeft = x + 10;
+    const gridW = w - 20;
 
-    const cols = rightW > 520 ? 6 : 5;
+    const cols = w > 500 ? 7 : 6;
     const rows = Math.ceil(ALPHABET_KEYS.length / cols);
-    const cellGap = 6;
+    const cellGap = 5;
     const cellW = (gridW - cellGap * (cols - 1)) / cols;
     const cellH = (gridH - cellGap * (rows - 1)) / rows;
 
@@ -1136,8 +1278,7 @@
       const isLit = state.activeChar === ch;
       const id = `KEY_CHAR_${ch}`;
       registerHitBox(id, cx, cy, cellW, cellH, () => {
-        state.inputText += ch;
-        // Play single character immediately
+        syncInputText(state.inputText + ch);
         stopTextPlayback();
         state.playQueue = buildPlayQueue(ch);
         state.playIndex = 0;
@@ -1149,7 +1290,7 @@
       const hovered = state.hoveredId === id;
       ctx.fillStyle = isLit
         ? getAccentColor(0.38, 55)
-        : hovered ? getAccentColor(0.16, 52) : 'rgba(15, 23, 36, 0.85)';
+        : hovered ? getAccentColor(0.16, 52) : 'rgba(15, 23, 36, 0.88)';
       ctx.strokeStyle = isLit ? '#ffffff' : getAccentColor(hovered ? 0.75 : 0.25, 58);
       ctx.lineWidth = isLit ? 1.5 : 1;
       roundRectPath(cx, cy, cellW, cellH, 5);
@@ -1157,92 +1298,137 @@
       ctx.stroke();
 
       ctx.fillStyle = isLit ? '#ffffff' : '#f1f5f9';
-      ctx.font = `bold ${Math.min(15, cellH * 0.42)}px monospace`;
+      ctx.font = `bold ${Math.min(14, cellH * 0.42)}px monospace`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(ch, cx + cellW * 0.5, cy + cellH * 0.36);
+      ctx.fillText(ch, cx + cellW * 0.5, cy + cellH * 0.35);
 
       ctx.fillStyle = isLit ? '#fef08a' : getAccentColor(0.9, 68);
-      ctx.font = `bold ${Math.min(12, cellH * 0.32)}px monospace`;
+      ctx.font = `bold ${Math.min(11, cellH * 0.30)}px monospace`;
       ctx.fillText(code, cx + cellW * 0.5, cy + cellH * 0.72);
     }
   }
 
-  function renderReceiverView() {
+  function renderReceiverView(topY) {
     const w = state.width;
     const h = state.height;
-    const pad = 14;
-    const topY = 80;
+    const pad = 12;
+    const compact = state.isCompact;
     const contentH = h - topY - pad;
 
     // ------------------------------------------------------------------------
-    // TOP CONTROL BAR: CAMERA VS MIC SELECTOR & START/STOP
+    // TOP CONTROL BAR: CAMERA VS MIC & START/STOP (NO OVERLAP ON MOBILE)
     // ------------------------------------------------------------------------
-    const ctrlH = 62;
+    const ctrlH = compact ? 96 : 60;
     drawGlassPanel(pad, topY, w - pad * 2, ctrlH);
 
-    drawButton('BTN_SRC_CAM', pad + 12, topY + 11, 145, 40, 'OPTICAL (CAMERA)', {
-      active: state.rxSource === 'CAMERA',
-      action: () => {
-        if (state.rxSource !== 'CAMERA') {
-          const wasActive = state.rxActive;
-          stopReceiver();
-          state.rxSource = 'CAMERA';
-          if (wasActive) startReceiver();
-        }
-      }
-    });
+    if (compact) {
+      const innerW = w - pad * 2 - 20;
+      const halfW = (innerW - 8) * 0.5;
 
-    drawButton('BTN_SRC_MIC', pad + 167, topY + 11, 145, 40, 'ACOUSTIC (MIC)', {
-      active: state.rxSource === 'MIC',
-      action: () => {
-        if (state.rxSource !== 'MIC') {
-          const wasActive = state.rxActive;
-          stopReceiver();
-          state.rxSource = 'MIC';
-          if (wasActive) startReceiver();
-        }
-      }
-    });
-
-    drawButton('BTN_RX_TOGGLE', w - pad - 172, topY + 11, 160, 40,
-      state.rxActive ? 'STOP SENSOR' : 'START SENSOR',
-      {
-        active: state.rxActive,
-        danger: state.rxActive,
+      drawButton('BTN_SRC_CAM', pad + 10, topY + 8, halfW, 34, 'OPTICAL (CAM)', {
+        active: state.rxSource === 'CAMERA',
         action: () => {
-          if (state.rxActive) stopReceiver();
-          else startReceiver();
+          if (state.rxSource !== 'CAMERA') {
+            const wasActive = state.rxActive;
+            stopReceiver();
+            state.rxSource = 'CAMERA';
+            if (wasActive) startReceiver();
+          }
         }
-      }
-    );
+      });
 
-    if (w > 720) {
+      drawButton('BTN_SRC_MIC', pad + 10 + halfW + 8, topY + 8, halfW, 34, 'ACOUSTIC (MIC)', {
+        active: state.rxSource === 'MIC',
+        action: () => {
+          if (state.rxSource !== 'MIC') {
+            const wasActive = state.rxActive;
+            stopReceiver();
+            state.rxSource = 'MIC';
+            if (wasActive) startReceiver();
+          }
+        }
+      });
+
+      const startBtnW = 132;
+      drawButton('BTN_RX_TOGGLE', w - pad - startBtnW - 10, topY + 50, startBtnW, 36,
+        state.rxActive ? 'STOP SENSOR' : 'START SENSOR',
+        {
+          active: state.rxActive,
+          danger: state.rxActive,
+          action: () => { if (state.rxActive) stopReceiver(); else startReceiver(); }
+        }
+      );
+
+      // Status text beside Start button
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(pad + 12, topY + 50, w - pad * 2 - startBtnW - 28, 36);
+      ctx.clip();
+      ctx.fillStyle = getAccentColor(0.88, 68);
+      ctx.font = 'bold 11px monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(state.rxStatusMsg, pad + 12, topY + 68);
+      ctx.restore();
+    } else {
+      drawButton('BTN_SRC_CAM', pad + 12, topY + 10, 145, 40, 'OPTICAL (CAMERA)', {
+        active: state.rxSource === 'CAMERA',
+        action: () => {
+          if (state.rxSource !== 'CAMERA') {
+            const wasActive = state.rxActive;
+            stopReceiver();
+            state.rxSource = 'CAMERA';
+            if (wasActive) startReceiver();
+          }
+        }
+      });
+
+      drawButton('BTN_SRC_MIC', pad + 167, topY + 10, 145, 40, 'ACOUSTIC (MIC)', {
+        active: state.rxSource === 'MIC',
+        action: () => {
+          if (state.rxSource !== 'MIC') {
+            const wasActive = state.rxActive;
+            stopReceiver();
+            state.rxSource = 'MIC';
+            if (wasActive) startReceiver();
+          }
+        }
+      });
+
+      drawButton('BTN_RX_TOGGLE', w - pad - 168, topY + 10, 156, 40,
+        state.rxActive ? 'STOP SENSOR' : 'START SENSOR',
+        {
+          active: state.rxActive,
+          danger: state.rxActive,
+          action: () => { if (state.rxActive) stopReceiver(); else startReceiver(); }
+        }
+      );
+
       ctx.fillStyle = getAccentColor(0.85, 68);
       ctx.font = '12px monospace';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillText(state.rxStatusMsg, pad + 330, topY + ctrlH * 0.5);
+      ctx.fillText(state.rxStatusMsg, pad + 328, topY + ctrlH * 0.5);
     }
 
     // ------------------------------------------------------------------------
-    // MIDDLE SPLIT: SENSOR VIEWPORT (LEFT) & SIGNAL THRESHOLD GRAPH (RIGHT)
+    // MIDDLE SPLIT: SENSOR FEED & THRESHOLD SCOPE
     // ------------------------------------------------------------------------
-    const midY = topY + ctrlH + 12;
-    const midH = Math.min(270, contentH * 0.48);
-    const splitX = Math.min(w * 0.45, 440);
+    const midY = topY + ctrlH + 10;
+    const midH = Math.min(255, contentH * 0.44);
+    const splitX = compact ? w * 0.46 : Math.min(w * 0.45, 440);
 
-    // LEFT: LIVE SENSOR FEED (CAMERA RETICLE OR ACOUSTIC SPECTRUM)
     drawGlassPanel(
       pad, midY, splitX - pad, midH,
-      state.rxSource === 'CAMERA' ? 'OPTICAL RETICLE FEED' : 'ACOUSTIC FREQUENCY MONITOR',
+      state.rxSource === 'CAMERA' ? 'OPTICAL RETICLE' : 'AUDIO SPECTRUM',
       state.rxSignalHigh
     );
 
-    const viewX = pad + 14;
-    const viewY = midY + 32;
-    const viewW = splitX - pad - 28;
-    const viewH = midH - 44;
+    const viewX = pad + 10;
+    const viewY = midY + 28;
+    const viewW = splitX - pad - 20;
+    const viewH = midH - 38;
 
     ctx.save();
     roundRectPath(viewX, viewY, viewW, viewH, 6);
@@ -1253,7 +1439,6 @@
 
     if (state.rxSource === 'CAMERA') {
       if (state.rxActive && videoEl.readyState >= 2) {
-        // Aspect-fit cover draw
         const vw = videoEl.videoWidth || 640;
         const vh = videoEl.videoHeight || 480;
         const scale = Math.max(viewW / vw, viewH / vh);
@@ -1261,23 +1446,21 @@
         const dh = vh * scale;
         ctx.drawImage(videoEl, viewX + (viewW - dw) * 0.5, viewY + (viewH - dh) * 0.5, dw, dh);
       } else {
-        ctx.fillStyle = 'rgba(255,255,255,0.35)';
-        ctx.font = '12px monospace';
+        ctx.fillStyle = 'rgba(255,255,255,0.38)';
+        ctx.font = '11px monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('CAMERA STANDBY', viewX + viewW * 0.5, viewY + viewH * 0.5);
+        ctx.fillText('CAM STANDBY', viewX + viewW * 0.5, viewY + viewH * 0.5);
       }
 
-      // Center Optical Target Reticle
       const cx = viewX + viewW * 0.5;
       const cy = viewY + viewH * 0.5;
-      const box = Math.min(viewW, viewH) * 0.28;
+      const box = Math.min(viewW, viewH) * 0.30;
 
       ctx.strokeStyle = state.rxSignalHigh ? '#fbbf24' : getAccentColor(0.9, 65);
       ctx.lineWidth = state.rxSignalHigh ? 3 : 1.5;
       ctx.strokeRect(cx - box * 0.5, cy - box * 0.5, box, box);
 
-      // Crosshair lines
       ctx.beginPath();
       ctx.moveTo(cx - box * 0.8, cy); ctx.lineTo(cx - box * 0.5, cy);
       ctx.moveTo(cx + box * 0.5, cy); ctx.lineTo(cx + box * 0.8, cy);
@@ -1285,40 +1468,43 @@
       ctx.moveTo(cx, cy + box * 0.5); ctx.lineTo(cx, cy + box * 0.8);
       ctx.stroke();
     } else {
-      // Acoustic FFT Spectrum Bars
       if (state.rxActive && state.rxFreqData) {
-        const bars = 48;
+        const bars = compact ? 28 : 48;
         const barW = viewW / bars;
         for (let i = 0; i < bars; i++) {
-          const bin = Math.floor(8 + i * 1.4);
+          const bin = Math.floor(8 + i * (compact ? 2.4 : 1.4));
           const val = (state.rxFreqData[bin] || 0) / 255;
-          const bh = val * (viewH - 28);
+          const bh = val * (viewH - 26);
           ctx.fillStyle = state.rxSignalHigh ? '#fbbf24' : getAccentColor(0.75, 58);
           ctx.fillRect(viewX + i * barW + 1, viewY + viewH - bh, barW - 2, bh);
         }
         ctx.fillStyle = '#e2e8f0';
-        ctx.font = 'bold 12px monospace';
+        ctx.font = 'bold 11px monospace';
         ctx.textAlign = 'left';
-        ctx.fillText(`PEAK CARRIER: ${state.rxDetectedHz} HZ`, viewX + 10, viewY + 18);
+        ctx.fillText(`${state.rxDetectedHz} HZ`, viewX + 8, viewY + 14);
       } else {
-        ctx.fillStyle = 'rgba(255,255,255,0.35)';
-        ctx.font = '12px monospace';
+        ctx.fillStyle = 'rgba(255,255,255,0.38)';
+        ctx.font = '11px monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('MICROPHONE STANDBY', viewX + viewW * 0.5, viewY + viewH * 0.5);
+        ctx.fillText('MIC STANDBY', viewX + viewW * 0.5, viewY + viewH * 0.5);
       }
     }
     ctx.restore();
 
-    // RIGHT: LIVE SIGNAL OSCILLOSCOPE & DRAGGABLE THRESHOLD
-    const scopeX = splitX + 12;
+    // RIGHT: THRESHOLD SCOPE
+    const scopeX = splitX + 10;
     const scopeW = w - scopeX - pad;
-    drawGlassPanel(scopeX, midY, scopeW, midH, 'SIGNAL LEVEL & THRESHOLD (DRAG LINE TO CALIBRATE)', state.rxSignalHigh);
+    drawGlassPanel(
+      scopeX, midY, scopeW, midH,
+      compact ? 'DRAG THRESHOLD' : 'SIGNAL LEVEL & THRESHOLD (DRAG LINE)',
+      state.rxSignalHigh
+    );
 
-    const plotX = scopeX + 16;
-    const plotY = midY + 34;
-    const plotW = scopeW - 32;
-    const plotH = midH - 48;
+    const plotX = scopeX + 10;
+    const plotY = midY + 28;
+    const plotW = scopeW - 20;
+    const plotH = midH - 38;
 
     registerHitBox('SLIDER_THRESHOLD', plotX, plotY, plotW, plotH, null);
 
@@ -1326,7 +1512,6 @@
     roundRectPath(plotX, plotY, plotW, plotH, 6);
     ctx.fill();
 
-    // Draw signal history waveform
     ctx.beginPath();
     for (let i = 0; i < state.rxHistory.length; i++) {
       const px = plotX + (i / (state.rxHistory.length - 1)) * plotW;
@@ -1338,7 +1523,6 @@
     ctx.lineWidth = 2.2;
     ctx.stroke();
 
-    // Draggable Threshold Line
     const threshY = plotY + plotH - state.rxThreshold * plotH;
     ctx.save();
     ctx.setLineDash([6, 4]);
@@ -1350,61 +1534,58 @@
     ctx.stroke();
     ctx.restore();
 
-    // Threshold Label Badge
     ctx.fillStyle = '#f87171';
-    ctx.font = 'bold 11px monospace';
+    ctx.font = 'bold 10px monospace';
     ctx.textAlign = 'right';
-    ctx.fillText(`TRIGGER: ${Math.round(state.rxThreshold * 100)}%`, plotX + plotW - 8, Math.max(plotY + 14, threshY - 6));
+    ctx.fillText(`TRIG: ${Math.round(state.rxThreshold * 100)}%`, plotX + plotW - 6, Math.max(plotY + 12, threshY - 5));
 
-    // State indicator pill
-    ctx.fillStyle = state.rxSignalHigh ? '#fbbf24' : 'rgba(255,255,255,0.4)';
+    ctx.fillStyle = state.rxSignalHigh ? '#fbbf24' : 'rgba(255,255,255,0.45)';
     ctx.textAlign = 'left';
-    ctx.fillText(state.rxSignalHigh ? '● SIGNAL HIGH (TONE/LIGHT ON)' : '○ SIGNAL LOW', plotX + 10, plotY + 16);
+    ctx.fillText(state.rxSignalHigh ? '● HIGH' : '○ LOW', plotX + 8, plotY + 14);
 
     // ------------------------------------------------------------------------
-    // BOTTOM PANEL: LIVE DECIPHERED MORSE TRANSLATOR OUTPUT
+    // BOTTOM PANEL: DECIPHERED MESSAGE OUTPUT (WORD-SAFE WRAPPING)
     // ------------------------------------------------------------------------
-    const outY = midY + midH + 12;
+    const outY = midY + midH + 10;
     const outH = h - outY - pad;
     drawGlassPanel(pad, outY, w - pad * 2, outH, 'DECIPHERED MESSAGE OUTPUT');
 
-    // Clear button
-    drawButton('BTN_CLEAR_RX', w - pad - 96, outY + 8, 82, 26, 'CLEAR', {
+    drawButton('BTN_CLEAR_RX', w - pad - 84, outY + 7, 72, 24, 'CLEAR', {
       action: () => {
         state.rxBuffer = '';
         state.rxDecodedText = '';
       }
     });
 
-    // Current incoming symbol buffer
     ctx.fillStyle = getAccentColor(0.9, 68);
-    ctx.font = 'bold 14px monospace';
+    ctx.font = 'bold 13px monospace';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText(`INCOMING SYMBOLS: ${state.rxBuffer || '[WAITING]'}`, pad + 16, outY + 38);
+    ctx.fillText(`SYMBOLS: ${state.rxBuffer || '[WAITING]'}`, pad + 14, outY + 34);
 
-    // Decoded Text Area
-    const textBoxX = pad + 16;
-    const textBoxY = outY + 64;
-    const textBoxW = w - pad * 2 - 32;
-    const textBoxH = outH - 78;
+    const textBoxX = pad + 14;
+    const textBoxY = outY + 56;
+    const textBoxW = w - pad * 2 - 28;
+    const textBoxH = outH - 68;
 
-    ctx.fillStyle = 'rgba(5, 9, 15, 0.85)';
+    ctx.fillStyle = 'rgba(5, 9, 15, 0.88)';
     roundRectPath(textBoxX, textBoxY, textBoxW, textBoxH, 6);
     ctx.fill();
 
+    const outFont = `bold ${compact ? 15 : 18}px monospace`;
+    const lineHeight = compact ? 21 : 24;
     const lines = wrapTextLines(
       state.rxDecodedText || 'Deciphered text will appear here automatically as signals are detected...',
-      textBoxW - 24,
-      'bold 18px monospace'
+      textBoxW - 22,
+      outFont
     );
 
-    ctx.fillStyle = state.rxDecodedText ? '#f8fafc' : 'rgba(255,255,255,0.3)';
-    ctx.font = 'bold 18px monospace';
-    const maxVisibleLines = Math.max(1, Math.floor((textBoxH - 16) / 24));
+    ctx.fillStyle = state.rxDecodedText ? '#f8fafc' : 'rgba(255,255,255,0.32)';
+    ctx.font = outFont;
+    const maxVisibleLines = Math.max(1, Math.floor((textBoxH - 14) / lineHeight));
     const visibleLines = lines.slice(-maxVisibleLines);
     for (let i = 0; i < visibleLines.length; i++) {
-      ctx.fillText(visibleLines[i], textBoxX + 12, textBoxY + 12 + i * 24);
+      ctx.fillText(visibleLines[i], textBoxX + 11, textBoxY + 10 + i * lineHeight);
     }
   }
 
@@ -1416,7 +1597,6 @@
     state.lastFrameTime = now;
     state.time += dt;
 
-    // Update automated Text-to-Morse playback queue
     if (state.isPlayingText && state.playQueue.length > 0) {
       state.playTimer -= dt * 1000;
       if (state.playTimer <= 0) {
@@ -1431,10 +1611,8 @@
       }
     }
 
-    // Update manual telegraph key decoding
     updateManualTapDecoder(now);
 
-    // Update receiver optical/acoustic sensor
     if (state.mode === 'RECEIVE') {
       processReceiverSignal(now);
     }
@@ -1448,12 +1626,12 @@
     ctx.scale(state.dpr, state.dpr);
 
     drawReactiveBackground(dt);
-    renderTopBar();
+    const nextY = renderTopBar();
 
     if (state.mode === 'TRANSMIT') {
-      renderTransmitterView();
+      renderTransmitterView(nextY);
     } else {
-      renderReceiverView();
+      renderReceiverView(nextY);
     }
 
     ctx.restore();
@@ -1466,7 +1644,7 @@
   }
 
   // ============================================================================
-  // 10. INPUT & EVENT LISTENERS
+  // 10. INPUT, TOUCH & MOBILE KEYBOARD LISTENERS
   // ============================================================================
   function handleResize() {
     state.width = window.innerWidth;
@@ -1490,7 +1668,7 @@
     if (state.activeSlider === 'WPM') {
       const box = uiHitBoxes.find(b => b.id === 'SLIDER_WPM');
       if (box) {
-        const ratio = Math.max(0, Math.min(1, (x - (box.x + 10)) / (box.w - 20)));
+        const ratio = Math.max(0, Math.min(1, (x - (box.x + 12)) / (box.w - 24)));
         state.wpm = Math.round(5 + ratio * 25);
       }
     } else if (state.activeSlider === 'THRESHOLD') {
@@ -1503,6 +1681,25 @@
   }
 
   window.addEventListener('resize', handleResize);
+
+  // Sync hidden native input for mobile virtual keyboards
+  mobileInput.addEventListener('input', (e) => {
+    syncInputText(e.target.value);
+    spawnSparks(state.width * 0.4, 150, 5);
+  });
+
+  mobileInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      mobileInput.blur();
+      state.inputFocused = false;
+      startTextPlayback();
+    }
+  });
+
+  mobileInput.addEventListener('blur', () => {
+    state.inputFocused = false;
+  });
 
   canvas.addEventListener('pointermove', (e) => {
     const rect = canvas.getBoundingClientRect();
@@ -1532,11 +1729,13 @@
     const hit = findHitBox(x, y);
     if (!hit) {
       state.inputFocused = false;
+      mobileInput.blur();
       return;
     }
 
     if (hit.id !== 'TEXT_INPUT_BOX') {
       state.inputFocused = false;
+      mobileInput.blur();
     }
 
     if (hit.id === 'SLIDER_WPM') {
@@ -1560,10 +1759,20 @@
     }
   });
 
+  window.addEventListener('pointercancel', () => {
+    state.pointer.down = false;
+    state.activeSlider = null;
+    if (state.isKeyDown) {
+      releaseTelegraphKey();
+    }
+  });
+
   window.addEventListener('keydown', (e) => {
     if (state.mode !== 'TRANSMIT') return;
 
-    // Spacebar acts as Telegraph Key when text input is NOT focused
+    // Avoid double-handling when mobileInput proxy is focused
+    if (document.activeElement === mobileInput) return;
+
     if (e.code === 'Space' && !state.inputFocused) {
       e.preventDefault();
       if (!e.repeat) pressTelegraphKey();
@@ -1573,7 +1782,7 @@
     if (state.inputFocused) {
       if (e.key === 'Backspace') {
         e.preventDefault();
-        state.inputText = state.inputText.slice(0, -1);
+        syncInputText(state.inputText.slice(0, -1));
         spawnSparks(state.width * 0.25, 130, 4);
       } else if (e.key === 'Enter') {
         e.preventDefault();
@@ -1584,7 +1793,7 @@
         const upper = e.key.toUpperCase();
         if (upper === ' ' || CHAR_TO_MORSE[upper]) {
           e.preventDefault();
-          state.inputText += upper;
+          syncInputText(state.inputText + upper);
           spawnSparks(state.width * 0.35, 130, 5);
         }
       }
