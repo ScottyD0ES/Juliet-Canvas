@@ -2,21 +2,24 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Tally Counter App</title>
     <style>
         * {
             box-sizing: border-box;
             user-select: none;
             -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            touch-action: manipulation;
         }
 
         body, html {
             margin: 0;
             padding: 0;
             width: 100%;
-            height: 100%;
+            height: 100dvh;
             overflow: hidden;
+            overscroll-behavior: none;
             background-color: #020617;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             color: #ffffff;
@@ -26,19 +29,19 @@
         #app {
             position: relative;
             width: 100%;
-            height: 100%;
+            height: 100dvh;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             align-items: center;
-            padding: 40px 20px;
+            padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
             pointer-events: none;
             z-index: 10;
         }
 
         /* Upper Middle Counter & Subtotal */
         .counter-container {
-            margin-top: 24px;
+            margin-top: clamp(16px, 4vh, 44px);
             text-align: center;
             z-index: 10;
             display: flex;
@@ -47,13 +50,13 @@
         }
 
         #subtotal-text {
-            font-size: 2.3rem;
+            font-size: clamp(1.5rem, 4.5vw, 2.5rem);
             font-weight: 400;
             letter-spacing: 1px;
-            margin: 0 0 18px 0;
+            margin: 0 0 clamp(8px, 2vh, 18px) 0;
             color: rgba(255, 255, 255, 0.9);
             text-shadow: 0 0 20px rgba(0, 0, 0, 0.9);
-            min-height: 2.7rem;
+            min-height: 1.2em;
             opacity: 0;
             transform: translateY(-6px);
             transition: opacity 0.25s ease, transform 0.25s ease;
@@ -65,7 +68,7 @@
         }
 
         #counter-text {
-            font-size: 8rem;
+            font-size: clamp(4.75rem, 18vw, 9.5rem);
             font-weight: 300;
             letter-spacing: 2px;
             margin: 0;
@@ -76,9 +79,9 @@
         /* Left Rail: Add List (+) & Edge-Docked List Tabs */
         .left-rail {
             position: absolute;
-            top: 90px;
+            top: clamp(64px, 12vh, 110px);
             left: 0;
-            bottom: 85px;
+            bottom: clamp(60px, 11vh, 95px);
             display: flex;
             flex-direction: column;
             align-items: flex-start;
@@ -87,15 +90,15 @@
         }
 
         .add-list-btn {
-            margin-left: 18px;
-            margin-bottom: 18px;
-            width: 38px;
-            height: 38px;
+            margin-left: clamp(12px, 3vw, 22px);
+            margin-bottom: clamp(12px, 2vh, 18px);
+            width: clamp(34px, 8vw, 42px);
+            height: clamp(34px, 8vw, 42px);
             border-radius: 50%;
             background: #ffffff;
             color: #020617;
             border: none;
-            font-size: 1.75rem;
+            font-size: clamp(1.4rem, 4vw, 1.85rem);
             font-weight: 600;
             line-height: 1;
             display: flex;
@@ -114,13 +117,14 @@
         .lists-scroll-container {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: clamp(8px, 1.5vh, 12px);
             overflow-y: auto;
             overflow-x: visible;
             padding: 6px 14px 14px 0;
             max-height: 100%;
             pointer-events: auto;
             scrollbar-width: none;
+            touch-action: pan-y;
         }
 
         .lists-scroll-container::-webkit-scrollbar {
@@ -129,9 +133,9 @@
 
         .list-tab {
             position: relative;
-            min-width: 92px;
-            max-width: 135px;
-            padding: 8px 14px 10px 10px;
+            min-width: clamp(82px, 22vw, 115px);
+            max-width: clamp(120px, 32vw, 165px);
+            padding: clamp(6px, 1.2vh, 10px) clamp(10px, 3vw, 16px) clamp(8px, 1.4vh, 12px) 10px;
             border-radius: 0 14px 14px 0;
             color: #ffffff;
             cursor: pointer;
@@ -156,13 +160,13 @@
 
         .delete-single-list-btn {
             display: none;
-            width: 16px;
-            height: 16px;
+            width: 18px;
+            height: 18px;
             border-radius: 50%;
             background: #ef4444;
             color: #ffffff;
             border: none;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 700;
             line-height: 1;
             align-items: center;
@@ -177,7 +181,7 @@
         }
 
         .list-tab-name {
-            font-size: 0.78rem;
+            font-size: clamp(0.75rem, 2.2vw, 0.9rem);
             font-weight: 500;
             color: rgba(255, 255, 255, 0.88);
             white-space: nowrap;
@@ -186,22 +190,23 @@
             cursor: text;
         }
 
+        /* 16px minimum prevents Safari auto-zoom on input focus */
         .list-tab-name-input {
-            width: 78px;
-            background: rgba(0, 0, 0, 0.45);
-            border: 1px solid rgba(255, 255, 255, 0.7);
-            border-radius: 5px;
+            width: clamp(76px, 20vw, 110px);
+            background: rgba(0, 0, 0, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.75);
+            border-radius: 6px;
             color: #ffffff;
-            font-size: 0.78rem;
+            font-size: 16px;
             font-family: inherit;
-            padding: 1px 4px;
+            padding: 2px 5px;
             outline: none;
             user-select: text;
             -webkit-user-select: text;
         }
 
         .list-tab-count {
-            font-size: 1.75rem;
+            font-size: clamp(1.35rem, 4.5vw, 1.9rem);
             font-weight: 400;
             text-align: right;
             line-height: 1.1;
@@ -212,15 +217,15 @@
         .reset-btn {
             position: absolute;
             top: 50%;
-            right: 25px;
+            right: clamp(16px, 4vw, 32px);
             transform: translateY(-50%);
             background: rgba(0, 0, 0, 0.4);
             backdrop-filter: blur(5px);
             -webkit-backdrop-filter: blur(5px);
             color: #ffffff;
             border: 2px solid #ffffff;
-            padding: 12px 18px;
-            font-size: 0.85rem;
+            padding: clamp(10px, 1.8vh, 14px) clamp(14px, 3.5vw, 22px);
+            font-size: clamp(0.8rem, 2.2vw, 0.95rem);
             font-weight: 600;
             border-radius: 16px;
             cursor: pointer;
@@ -258,7 +263,7 @@
         }
 
         .drawer-grabber {
-            width: 54px;
+            width: clamp(50px, 13vw, 64px);
             height: 34px;
             background: rgba(100, 116, 139, 0.65);
             backdrop-filter: blur(10px);
@@ -290,13 +295,13 @@
 
         .drawer-sheet {
             width: 100%;
-            height: 310px;
-            max-height: 46vh;
+            max-width: 640px;
+            height: clamp(250px, 42dvh, 360px);
             background: rgba(100, 116, 139, 0.65);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
             border-radius: 24px 24px 0 0;
-            padding: 18px 22px calc(18px + env(safe-area-inset-bottom));
+            padding: 18px clamp(18px, 5vw, 28px) calc(18px + env(safe-area-inset-bottom));
             display: flex;
             flex-direction: column;
             pointer-events: auto;
@@ -324,13 +329,14 @@
             color: rgba(255, 255, 255, 0.9);
         }
 
+        /* 16px+ font-size prevents iOS input zoom */
         .multiplier-input {
             background: #020617;
             border: 1.5px solid #ffffff;
             color: #ffffff;
-            width: 112px;
+            width: clamp(96px, 26vw, 124px);
             height: 44px;
-            font-size: 1.25rem;
+            font-size: 1.15rem;
             font-weight: 500;
             border-radius: 12px;
             text-align: center;
@@ -345,7 +351,7 @@
             border: 1.5px solid #ffffff;
             border-radius: 14px;
             padding: 8px 16px;
-            font-size: 0.78rem;
+            font-size: 0.8rem;
             font-weight: 600;
             line-height: 1.2;
             text-align: center;
@@ -370,6 +376,7 @@
             padding-right: 6px;
             display: flex;
             flex-direction: column;
+            touch-action: pan-y;
         }
 
         .history-scroll::-webkit-scrollbar {
@@ -391,7 +398,7 @@
             align-items: center;
             padding: 10px 4px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.22);
-            font-size: 1.05rem;
+            font-size: clamp(0.95rem, 2.8vw, 1.1rem);
             font-weight: 400;
         }
 
@@ -413,14 +420,13 @@
             text-align: center;
             color: rgba(255, 255, 255, 0.55);
             font-size: 0.85rem;
-            margin-top: 28px;
+            margin-top: 24px;
         }
 
         /* Canvas covering full screen */
         canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
+            position: fixed;
+            inset: 0;
             width: 100%;
             height: 100%;
             z-index: 1;
@@ -468,6 +474,28 @@
     <canvas id="canvas"></canvas>
 
     <script>
+        // Prevent Safari pinch-to-zoom & multi-touch gestures
+        document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+        document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
+        document.addEventListener('gestureend', (e) => e.preventDefault(), { passive: false });
+        document.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        // Prevent desktop Ctrl/Cmd + wheel or keyboard zoom
+        window.addEventListener('wheel', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && ['+', '-', '=', '0'].includes(e.key)) {
+                e.preventDefault();
+            }
+        });
+
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         const counterText = document.getElementById('counter-text');
@@ -483,7 +511,7 @@
         const drawerSheet = document.getElementById('drawerSheet');
 
         let count = 0;
-        let selectedDelta = 0; // Tracks net change applied while a list tab is selected
+        let selectedDelta = 0;
         let lists = []; // { id, name, count, color }
         let selectedListId = null;
         let nextListNumber = 1;
@@ -513,10 +541,17 @@
         }
 
         function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         }
         window.addEventListener('resize', resizeCanvas);
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', resizeCanvas);
+        }
         resizeCanvas();
 
         function flashScreen(type) {
@@ -541,7 +576,6 @@
 
             if (lists.length > 0) {
                 const listsSum = lists.reduce((sum, item) => sum + item.count, 0);
-                // When no previous list is selected, include any active unbanked count in the live total
                 const total = selectedListId !== null ? listsSum : listsSum + count;
                 subtotalText.textContent = total.toLocaleString();
                 subtotalText.classList.add('visible');
@@ -578,7 +612,6 @@
                 nameSpan.textContent = list.name;
                 nameSpan.title = 'Tap name to rename';
 
-                // Tap directly on the list name to rename inline
                 nameSpan.addEventListener('pointerdown', (e) => e.stopPropagation());
                 nameSpan.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -641,12 +674,10 @@
 
         function toggleSelectList(id) {
             if (selectedListId === id) {
-                // Deselecting returns to fresh unbanked counting
                 selectedListId = null;
                 selectedDelta = 0;
                 count = 0;
             } else {
-                // If there was an unbanked count != 0 before selecting an existing list, bank it first
                 if (selectedListId === null && count !== 0) {
                     lists.push({
                         id: Date.now() + Math.random(),
@@ -656,7 +687,7 @@
                     });
                 }
                 selectedListId = id;
-                selectedDelta = 0; // Main counter starts at 0 for this list selection
+                selectedDelta = 0;
                 count = 0;
             }
             renderLists();
@@ -728,8 +759,8 @@
                 this.reset();
             }
             reset() {
-                this.x = Math.random() * canvas.width;
-                this.y = Math.random() * canvas.height;
+                this.x = Math.random() * window.innerWidth;
+                this.y = Math.random() * window.innerHeight;
                 this.baseSize = Math.random() * 2 + 1;
                 this.size = this.baseSize;
                 this.speedX = (Math.random() - 0.5) * 0.4;
@@ -747,14 +778,16 @@
                     return;
                 }
 
+                const w = window.innerWidth;
+                const h = window.innerHeight;
                 this.x += this.speedX;
                 this.y += this.speedY;
                 this.hueOffset = (this.hueOffset + 0.2) % 360;
 
-                if (this.x < 0) this.x = canvas.width;
-                if (this.x > canvas.width) this.x = 0;
-                if (this.y < 0) this.y = canvas.height;
-                if (this.y > canvas.height) this.y = 0;
+                if (this.x < 0) this.x = w;
+                if (this.x > w) this.x = 0;
+                if (this.y < 0) this.y = h;
+                if (this.y > h) this.y = 0;
             }
             draw() {
                 if (this.alpha <= 0.001) return;
@@ -811,11 +844,13 @@
         }
 
         function animateBackground() {
-            let bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            let bgGrad = ctx.createLinearGradient(0, 0, 0, h);
             bgGrad.addColorStop(0, '#020617');
             bgGrad.addColorStop(1, '#0f172a');
             ctx.fillStyle = bgGrad;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillRect(0, 0, w, h);
 
             for (let i = ripples.length - 1; i >= 0; i--) {
                 ripples[i].update();
@@ -832,7 +867,7 @@
 
             if (flashAlpha > 0) {
                 ctx.fillStyle = `rgba(${flashColor}, ${flashAlpha})`;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillRect(0, 0, w, h);
                 flashAlpha -= 0.02;
             }
 
@@ -846,18 +881,21 @@
         let pointerMoved = false;
 
         canvas.addEventListener('pointerdown', (e) => {
+            if (!e.isPrimary) return;
             startX = e.clientX;
             startY = e.clientY;
             pointerMoved = false;
         });
 
         canvas.addEventListener('pointermove', (e) => {
+            if (!e.isPrimary) return;
             if (Math.hypot(e.clientX - startX, e.clientY - startY) > 20) {
                 pointerMoved = true;
             }
         });
 
         canvas.addEventListener('pointerup', (e) => {
+            if (!e.isPrimary) return;
             ripples.push(new Ripple(e.clientX, e.clientY));
             let multiplier = parseFloat(multiplierInput.value) || 1;
             let delta = pointerMoved ? -multiplier : multiplier;
@@ -889,7 +927,6 @@
             e.stopPropagation();
 
             if (selectedListId !== null) {
-                // Finish adding to selected list and start a fresh 0 counter
                 selectedListId = null;
                 selectedDelta = 0;
                 count = 0;
@@ -897,7 +934,6 @@
                 return;
             }
 
-            // Bank current count into a new list and reset active counter to 0
             lists.push({
                 id: Date.now() + Math.random(),
                 name: `List ${nextListNumber++}`,
@@ -916,7 +952,6 @@
         resetBtn.addEventListener('click', (e) => {
             e.stopPropagation();
 
-            // Determine what value to log to history before zeroing
             const listsSum = lists.reduce((sum, item) => sum + item.count, 0);
             const valueToLog = selectedListId !== null
                 ? selectedDelta
