@@ -483,6 +483,7 @@
         const drawerSheet = document.getElementById('drawerSheet');
 
         let count = 0;
+        let selectedDelta = 0; // Tracks net change applied while a list tab is selected
         let lists = []; // { id, name, count, color }
         let selectedListId = null;
         let nextListNumber = 1;
@@ -535,12 +536,13 @@
         }
 
         function updateDisplay() {
-            counterText.textContent = count.toLocaleString();
+            const displayedMainCount = selectedListId !== null ? selectedDelta : count;
+            counterText.textContent = displayedMainCount.toLocaleString();
 
             if (lists.length > 0) {
                 const listsSum = lists.reduce((sum, item) => sum + item.count, 0);
                 // When no previous list is selected, include any active unbanked count in the live total
-                const total = selectedListId ? listsSum : listsSum + count;
+                const total = selectedListId !== null ? listsSum : listsSum + count;
                 subtotalText.textContent = total.toLocaleString();
                 subtotalText.classList.add('visible');
                 deleteListsBtn.disabled = false;
@@ -641,9 +643,10 @@
             if (selectedListId === id) {
                 // Deselecting returns to fresh unbanked counting
                 selectedListId = null;
+                selectedDelta = 0;
                 count = 0;
             } else {
-                // If there was an unbanked count > 0 before selecting an existing list, bank it first
+                // If there was an unbanked count != 0 before selecting an existing list, bank it first
                 if (selectedListId === null && count !== 0) {
                     lists.push({
                         id: Date.now() + Math.random(),
@@ -653,7 +656,8 @@
                     });
                 }
                 selectedListId = id;
-                count = 0; // Main counter stays 0 as an additive scratchpad
+                selectedDelta = 0; // Main counter starts at 0 for this list selection
+                count = 0;
             }
             renderLists();
         }
@@ -662,6 +666,7 @@
             lists = lists.filter(item => item.id !== id);
             if (selectedListId === id) {
                 selectedListId = null;
+                selectedDelta = 0;
                 count = 0;
             }
             if (lists.length === 0) {
@@ -866,10 +871,10 @@
             }
 
             if (selectedListId !== null) {
-                // When a previous list is selected, center counter stays at 0 and taps add directly to that list
                 const targetList = lists.find(l => l.id === selectedListId);
                 if (targetList) {
                     targetList.count += delta;
+                    selectedDelta += delta;
                     renderLists();
                 }
             } else {
@@ -886,6 +891,7 @@
             if (selectedListId !== null) {
                 // Finish adding to selected list and start a fresh 0 counter
                 selectedListId = null;
+                selectedDelta = 0;
                 count = 0;
                 renderLists();
                 return;
@@ -900,6 +906,7 @@
             });
 
             count = 0;
+            selectedDelta = 0;
             renderLists();
             listsContainer.scrollTop = listsContainer.scrollHeight;
         });
@@ -911,9 +918,9 @@
 
             // Determine what value to log to history before zeroing
             const listsSum = lists.reduce((sum, item) => sum + item.count, 0);
-            const valueToLog = lists.length > 0
-                ? (selectedListId ? listsSum : listsSum + count)
-                : count;
+            const valueToLog = selectedListId !== null
+                ? selectedDelta
+                : (lists.length > 0 ? listsSum + count : count);
 
             if (valueToLog !== 0) {
                 historyLog.unshift({
@@ -924,12 +931,8 @@
             }
 
             if (selectedListId !== null) {
-                const targetList = lists.find(l => l.id === selectedListId);
-                if (targetList) {
-                    targetList.count = 0;
-                }
-                count = 0;
-                renderLists();
+                selectedDelta = 0;
+                updateDisplay();
             } else {
                 count = 0;
                 updateDisplay();
@@ -944,8 +947,9 @@
             e.stopPropagation();
             lists = [];
             selectedListId = null;
-            nextListNumber = 1;
+            selectedDelta = 0;
             count = 0;
+            nextListNumber = 1;
             renderLists();
         });
 
