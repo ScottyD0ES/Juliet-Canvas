@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tally Counter App</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #020617;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #ffffff;
+            transition: background-color 0.4s ease;
+        }
+
+        #app {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 40px 20px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Upper Middle Counter & Subtotal */
+        .counter-container {
+            margin-top: 24px;
+            text-align: center;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #subtotal-text {
+            font-size: 2.3rem;
+            font-weight: 400;
+            letter-spacing: 1px;
+            margin: 0 0 18px 0;
+            color: rgba(255, 255, 255, 0.9);
+            text-shadow: 0 0 20px rgba(0, 0, 0, 0.9);
+            min-height: 2.7rem;
+            opacity: 0;
+            transform: translateY(-6px);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        #subtotal-text.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        #counter-text {
+            font-size: 8rem;
+            font-weight: 300;
+            letter-spacing: 2px;
+            margin: 0;
+            line-height: 1;
+            text-shadow: 0 0 30px rgba(0, 0, 0, 0.9);
+        }
+
+        /* Left Rail: Add List (+) & Edge-Docked List Tabs */
+        .left-rail {
+            position: absolute;
+            top: 90px;
+            left: 0;
+            bottom: 85px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .add-list-btn {
+            margin-left: 18px;
+            margin-bottom: 18px;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: #ffffff;
+            color: #020617;
+            border: none;
+            font-size: 1.75rem;
+            font-weight: 600;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            pointer-events: auto;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+            transition: transform 0.12s ease, opacity 0.2s ease;
+        }
+
+        .add-list-btn:active {
+            transform: scale(0.92);
+        }
+
+        .lists-scroll-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+            overflow-x: visible;
+            padding: 6px 14px 14px 0;
+            max-height: 100%;
+            pointer-events: auto;
+            scrollbar-width: none;
+        }
+
+        .lists-scroll-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        .list-tab {
+            position: relative;
+            min-width: 92px;
+            max-width: 135px;
+            padding: 8px 14px 10px 10px;
+            border-radius: 0 14px 14px 0;
+            color: #ffffff;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+            transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+        }
+
+        .list-tab.selected {
+            transform: translateX(4px);
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85), 0 6px 18px rgba(0, 0, 0, 0.6);
+        }
+
+        .list-tab-header {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 4px;
+        }
+
+        .delete-single-list-btn {
+            display: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #ef4444;
+            color: #ffffff;
+            border: none;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .list-tab.selected .delete-single-list-btn {
+            display: flex;
+        }
+
+        .list-tab-name {
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.88);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: text;
+        }
+
+        .list-tab-name-input {
+            width: 78px;
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            border-radius: 5px;
+            color: #ffffff;
+            font-size: 0.78rem;
+            font-family: inherit;
+            padding: 1px 4px;
+            outline: none;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        .list-tab-count {
+            font-size: 1.75rem;
+            font-weight: 400;
+            text-align: right;
+            line-height: 1.1;
+            letter-spacing: 0.5px;
+        }
+
+        /* Mid-Screen Right Reset Button */
+        .reset-btn {
+            position: absolute;
+            top: 50%;
+            right: 25px;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            color: #ffffff;
+            border: 2px solid #ffffff;
+            padding: 12px 18px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 16px;
+            cursor: pointer;
+            z-index: 20;
+            pointer-events: auto;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        .reset-btn:active {
+            transform: translateY(-50%) scale(0.95);
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Bottom Grabber Drawer */
+        .drawer-wrapper {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 30;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transform: translateY(calc(100% - 34px));
+            transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+            pointer-events: none;
+        }
+
+        .drawer-wrapper.open {
+            transform: translateY(0);
+        }
+
+        .drawer-wrapper.dragging {
+            transition: none;
+        }
+
+        .drawer-grabber {
+            width: 54px;
+            height: 34px;
+            background: rgba(100, 116, 139, 0.65);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            pointer-events: auto;
+            touch-action: none;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.35);
+        }
+
+        .drawer-grabber svg {
+            width: 24px;
+            height: 24px;
+            stroke: #ffffff;
+            stroke-width: 2.6;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            transition: transform 0.3s ease;
+        }
+
+        .drawer-wrapper.open .drawer-grabber svg {
+            transform: rotate(180deg);
+        }
+
+        .drawer-sheet {
+            width: 100%;
+            height: 310px;
+            max-height: 46vh;
+            background: rgba(100, 116, 139, 0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 24px 24px 0 0;
+            padding: 18px 22px calc(18px + env(safe-area-inset-bottom));
+            display: flex;
+            flex-direction: column;
+            pointer-events: auto;
+            box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.55);
+        }
+
+        .drawer-top-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 16px;
+            flex-shrink: 0;
+        }
+
+        .multiplier-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .multiplier-label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .multiplier-input {
+            background: #020617;
+            border: 1.5px solid #ffffff;
+            color: #ffffff;
+            width: 112px;
+            height: 44px;
+            font-size: 1.25rem;
+            font-weight: 500;
+            border-radius: 12px;
+            text-align: center;
+            outline: none;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        .delete-lists-btn {
+            background: #020617;
+            color: #ffffff;
+            border: 1.5px solid #ffffff;
+            border-radius: 14px;
+            padding: 8px 16px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            line-height: 1.2;
+            text-align: center;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+
+        .delete-lists-btn:active {
+            transform: scale(0.95);
+            opacity: 0.85;
+        }
+
+        .delete-lists-btn:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
+
+        /* Scrollable History List inside Drawer */
+        .history-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 6px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .history-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .history-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .history-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.35);
+            border-radius: 4px;
+        }
+
+        .history-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 4px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+            font-size: 1.05rem;
+            font-weight: 400;
+        }
+
+        .history-row:last-child {
+            border-bottom: none;
+        }
+
+        .history-time {
+            color: rgba(255, 255, 255, 0.72);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .history-value {
+            color: rgba(255, 255, 255, 0.92);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .history-empty {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.55);
+            font-size: 0.85rem;
+            margin-top: 28px;
+        }
+
+        /* Canvas covering full screen */
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: auto;
+            touch-action: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app">
+        <div class="counter-container">
+            <div id="subtotal-text">0</div>
+            <h1 id="counter-text">0</h1>
+        </div>
+
+        <div class="left-rail" id="leftRail">
+            <button class="add-list-btn" id="addListBtn" aria-label="Add List">+</button>
+            <div class="lists-scroll-container" id="listsContainer"></div>
+        </div>
+
+        <button class="reset-btn" id="resetBtn">Reset</button>
+    </div>
+
+    <div class="drawer-wrapper" id="drawerWrapper">
+        <div class="drawer-grabber" id="drawerGrabber" aria-label="Toggle Drawer">
+            <svg viewBox="0 0 24 24">
+                <polyline points="6 15 12 9 18 15"></polyline>
+            </svg>
+        </div>
+        <div class="drawer-sheet" id="drawerSheet">
+            <div class="drawer-top-controls">
+                <div class="multiplier-group">
+                    <label class="multiplier-label" for="multiplierInput">Multiplier</label>
+                    <input type="number" id="multiplierInput" class="multiplier-input" value="1" min="1" step="any">
+                </div>
+                <button class="delete-lists-btn" id="deleteListsBtn" disabled>Delete<br>Lists</button>
+            </div>
+            <div class="history-scroll" id="historyScroll">
+                <div class="history-empty">No reset history yet</div>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const counterText = document.getElementById('counter-text');
+        const subtotalText = document.getElementById('subtotal-text');
+        const resetBtn = document.getElementById('resetBtn');
+        const addListBtn = document.getElementById('addListBtn');
+        const listsContainer = document.getElementById('listsContainer');
+        const deleteListsBtn = document.getElementById('deleteListsBtn');
+        const multiplierInput = document.getElementById('multiplierInput');
+        const historyScroll = document.getElementById('historyScroll');
+        const drawerWrapper = document.getElementById('drawerWrapper');
+        const drawerGrabber = document.getElementById('drawerGrabber');
+        const drawerSheet = document.getElementById('drawerSheet');
+
+        let count = 0;
+        let lists = []; // { id, name, count, color }
+        let selectedListId = null;
+        let nextListNumber = 1;
+        let historyLog = []; // { time, value }
+
+        let flashAlpha = 0;
+        let flashColor = '0, 255, 100';
+
+        // Curated dark jewel-tone palette for the first 8 lists, then golden-angle HSL fallback
+        const curatedColors = [
+            '#7f2727', // Deep Crimson Red
+            '#1e3a8a', // Deep Cobalt Blue
+            '#2e5a27', // Forest Green
+            '#78350f', // Warm Amber
+            '#581c87', // Deep Plum
+            '#115e59', // Dark Teal
+            '#7c2d12', // Burnt Rust
+            '#312e81'  // Deep Indigo
+        ];
+
+        function getListColor(index) {
+            if (index < curatedColors.length) {
+                return curatedColors[index];
+            }
+            const hue = Math.round((210 + index * 137.508) % 360);
+            return `hsl(${hue}, 55%, 30%)`;
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function flashScreen(type) {
+            if (type === 'increase') {
+                flashColor = '0, 255, 100';
+            } else {
+                flashColor = '255, 50, 50';
+            }
+            flashAlpha = 0.35;
+        }
+
+        function formatTimestamp(date) {
+            const h = String(date.getHours()).padStart(2, '0');
+            const m = String(date.getMinutes()).padStart(2, '0');
+            const s = String(date.getSeconds()).padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
+
+        function updateDisplay() {
+            counterText.textContent = count.toLocaleString();
+
+            if (lists.length > 0) {
+                const listsSum = lists.reduce((sum, item) => sum + item.count, 0);
+                // When no previous list is selected, include any active unbanked count in the live total
+                const total = selectedListId ? listsSum : listsSum + count;
+                subtotalText.textContent = total.toLocaleString();
+                subtotalText.classList.add('visible');
+                deleteListsBtn.disabled = false;
+            } else {
+                subtotalText.classList.remove('visible');
+                deleteListsBtn.disabled = true;
+            }
+        }
+
+        function renderLists() {
+            listsContainer.innerHTML = '';
+
+            lists.forEach((list) => {
+                const tab = document.createElement('div');
+                tab.className = 'list-tab' + (list.id === selectedListId ? ' selected' : '');
+                tab.style.backgroundColor = list.color;
+
+                const header = document.createElement('div');
+                header.className = 'list-tab-header';
+
+                const delBtn = document.createElement('button');
+                delBtn.className = 'delete-single-list-btn';
+                delBtn.innerHTML = '&times;';
+                delBtn.title = 'Delete list';
+                delBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+                delBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteSingleList(list.id);
+                });
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'list-tab-name';
+                nameSpan.textContent = list.name;
+                nameSpan.title = 'Tap name to rename';
+
+                // Tap directly on the list name to rename inline
+                nameSpan.addEventListener('pointerdown', (e) => e.stopPropagation());
+                nameSpan.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    startRenamingList(list, nameSpan);
+                });
+
+                header.appendChild(delBtn);
+                header.appendChild(nameSpan);
+
+                const countDiv = document.createElement('div');
+                countDiv.className = 'list-tab-count';
+                countDiv.textContent = list.count.toLocaleString();
+
+                tab.appendChild(header);
+                tab.appendChild(countDiv);
+
+                tab.addEventListener('pointerdown', (e) => e.stopPropagation());
+                tab.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleSelectList(list.id);
+                });
+
+                listsContainer.appendChild(tab);
+            });
+
+            updateDisplay();
+        }
+
+        function startRenamingList(list, nameSpan) {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'list-tab-name-input';
+            input.value = list.name;
+            input.maxLength = 24;
+
+            const commitRename = () => {
+                const trimmed = input.value.trim();
+                if (trimmed) {
+                    list.name = trimmed;
+                }
+                renderLists();
+            };
+
+            input.addEventListener('pointerdown', (e) => e.stopPropagation());
+            input.addEventListener('click', (e) => e.stopPropagation());
+            input.addEventListener('blur', commitRename);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    input.blur();
+                } else if (e.key === 'Escape') {
+                    renderLists();
+                }
+            });
+
+            nameSpan.replaceWith(input);
+            input.focus();
+            input.select();
+        }
+
+        function toggleSelectList(id) {
+            if (selectedListId === id) {
+                // Deselecting returns to fresh unbanked counting
+                selectedListId = null;
+                count = 0;
+            } else {
+                // If there was an unbanked count > 0 before selecting an existing list, bank it first
+                if (selectedListId === null && count !== 0) {
+                    lists.push({
+                        id: Date.now() + Math.random(),
+                        name: `List ${nextListNumber++}`,
+                        count: count,
+                        color: getListColor(lists.length)
+                    });
+                }
+                selectedListId = id;
+                count = 0; // Main counter stays 0 as an additive scratchpad
+            }
+            renderLists();
+        }
+
+        function deleteSingleList(id) {
+            lists = lists.filter(item => item.id !== id);
+            if (selectedListId === id) {
+                selectedListId = null;
+                count = 0;
+            }
+            if (lists.length === 0) {
+                nextListNumber = 1;
+            }
+            renderLists();
+        }
+
+        function renderHistory() {
+            if (historyLog.length === 0) {
+                historyScroll.innerHTML = '<div class="history-empty">No reset history yet</div>';
+                return;
+            }
+
+            historyScroll.innerHTML = '';
+            historyLog.forEach((entry) => {
+                const row = document.createElement('div');
+                row.className = 'history-row';
+
+                const timeSpan = document.createElement('span');
+                timeSpan.className = 'history-time';
+                timeSpan.textContent = entry.time;
+
+                const valSpan = document.createElement('span');
+                valSpan.className = 'history-value';
+                valSpan.textContent = entry.value.toLocaleString();
+
+                row.appendChild(timeSpan);
+                row.appendChild(valSpan);
+                historyScroll.appendChild(row);
+            });
+        }
+
+        // --- Particle & Ripple Background Systems ---
+        class Ripple {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 5;
+                this.maxRadius = 120 + Math.random() * 50;
+                this.opacity = 0.7;
+            }
+            update() {
+                this.radius += 2.5;
+                this.opacity *= 0.96;
+            }
+            draw() {
+                ctx.strokeStyle = `rgba(56, 189, 248, ${this.opacity})`;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+
+        class DustParticle {
+            constructor(type = 'ambient') {
+                this.type = type;
+                this.reset();
+            }
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.baseSize = Math.random() * 2 + 1;
+                this.size = this.baseSize;
+                this.speedX = (Math.random() - 0.5) * 0.4;
+                this.speedY = (Math.random() - 0.5) * 0.4 - 0.1;
+                this.hueOffset = Math.random() * 360;
+                this.alpha = Math.random() * 0.5 + 0.2;
+                this.maxAlpha = this.alpha;
+                this.fadingOut = false;
+                this.fadeRate = 0.12 + Math.random() * 0.08;
+            }
+            update() {
+                if (this.fadingOut) {
+                    this.alpha -= this.fadeRate;
+                    if (this.alpha < 0) this.alpha = 0;
+                    return;
+                }
+
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.hueOffset = (this.hueOffset + 0.2) % 360;
+
+                if (this.x < 0) this.x = canvas.width;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.y < 0) this.y = canvas.height;
+                if (this.y > canvas.height) this.y = 0;
+            }
+            draw() {
+                if (this.alpha <= 0.001) return;
+
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+
+                if (this.type === 'ambient') {
+                    let currentHue = (200 + Math.sin(this.hueOffset * 0.05) * 30);
+                    ctx.fillStyle = `hsl(${currentHue}, 70%, 80%)`;
+                } else if (this.type === 'positive') {
+                    let currentHue = (130 + Math.sin(this.hueOffset * 0.08) * 40);
+                    ctx.fillStyle = `hsl(${currentHue}, 80%, 65%)`;
+                } else if (this.type === 'negative') {
+                    let currentHue = (350 + Math.sin(this.hueOffset * 0.08) * 20);
+                    ctx.fillStyle = `hsl(${currentHue}, 85%, 60%)`;
+                }
+
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        let ripples = [];
+        let particles = [];
+
+        for (let i = 0; i < 50; i++) {
+            particles.push(new DustParticle('ambient'));
+        }
+
+        function adjustDynamicParticles(type) {
+            let countToAdd = 4;
+            for (let i = 0; i < countToAdd; i++) {
+                particles.push(new DustParticle(type));
+            }
+        }
+
+        function triggerResetTransition() {
+            let delayIndex = 0;
+            particles.forEach((p) => {
+                if (p.type !== 'ambient') {
+                    setTimeout(() => {
+                        p.fadingOut = true;
+                    }, delayIndex * 3);
+                    delayIndex++;
+                }
+            });
+
+            setTimeout(() => {
+                particles = particles.filter(p => p.type === 'ambient' || p.alpha > 0);
+            }, 300);
+        }
+
+        function animateBackground() {
+            let bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            bgGrad.addColorStop(0, '#020617');
+            bgGrad.addColorStop(1, '#0f172a');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = ripples.length - 1; i >= 0; i--) {
+                ripples[i].update();
+                ripples[i].draw();
+                if (ripples[i].opacity < 0.02 || ripples[i].radius > ripples[i].maxRadius) {
+                    ripples.splice(i, 1);
+                }
+            }
+
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+
+            if (flashAlpha > 0) {
+                ctx.fillStyle = `rgba(${flashColor}, ${flashAlpha})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                flashAlpha -= 0.02;
+            }
+
+            requestAnimationFrame(animateBackground);
+        }
+        animateBackground();
+
+        // --- Canvas Tally Interaction ---
+        let startX = 0;
+        let startY = 0;
+        let pointerMoved = false;
+
+        canvas.addEventListener('pointerdown', (e) => {
+            startX = e.clientX;
+            startY = e.clientY;
+            pointerMoved = false;
+        });
+
+        canvas.addEventListener('pointermove', (e) => {
+            if (Math.hypot(e.clientX - startX, e.clientY - startY) > 20) {
+                pointerMoved = true;
+            }
+        });
+
+        canvas.addEventListener('pointerup', (e) => {
+            ripples.push(new Ripple(e.clientX, e.clientY));
+            let multiplier = parseFloat(multiplierInput.value) || 1;
+            let delta = pointerMoved ? -multiplier : multiplier;
+
+            if (pointerMoved) {
+                flashScreen('decrease');
+                adjustDynamicParticles('negative');
+            } else {
+                flashScreen('increase');
+                adjustDynamicParticles('positive');
+            }
+
+            if (selectedListId !== null) {
+                // When a previous list is selected, center counter stays at 0 and taps add directly to that list
+                const targetList = lists.find(l => l.id === selectedListId);
+                if (targetList) {
+                    targetList.count += delta;
+                    renderLists();
+                }
+            } else {
+                count += delta;
+                updateDisplay();
+            }
+        });
+
+        // --- Add List (+) Button ---
+        addListBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+        addListBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+
+            if (selectedListId !== null) {
+                // Finish adding to selected list and start a fresh 0 counter
+                selectedListId = null;
+                count = 0;
+                renderLists();
+                return;
+            }
+
+            // Bank current count into a new list and reset active counter to 0
+            lists.push({
+                id: Date.now() + Math.random(),
+                name: `List ${nextListNumber++}`,
+                count: count,
+                color: getListColor(lists.length)
+            });
+
+            count = 0;
+            renderLists();
+            listsContainer.scrollTop = listsContainer.scrollHeight;
+        });
+
+        // --- Reset Button (Logs non-zero count to History & zeroes counter) ---
+        resetBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+        resetBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+
+            // Determine what value to log to history before zeroing
+            const listsSum = lists.reduce((sum, item) => sum + item.count, 0);
+            const valueToLog = lists.length > 0
+                ? (selectedListId ? listsSum : listsSum + count)
+                : count;
+
+            if (valueToLog !== 0) {
+                historyLog.unshift({
+                    time: formatTimestamp(new Date()),
+                    value: valueToLog
+                });
+                renderHistory();
+            }
+
+            if (selectedListId !== null) {
+                const targetList = lists.find(l => l.id === selectedListId);
+                if (targetList) {
+                    targetList.count = 0;
+                }
+                count = 0;
+                renderLists();
+            } else {
+                count = 0;
+                updateDisplay();
+            }
+
+            triggerResetTransition();
+        });
+
+        // --- Delete All Lists Button ---
+        deleteListsBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+        deleteListsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            lists = [];
+            selectedListId = null;
+            nextListNumber = 1;
+            count = 0;
+            renderLists();
+        });
+
+        // --- Bottom Grabber Drawer (Tap + Drag Support) ---
+        let drawerOpen = false;
+        let isDraggingDrawer = false;
+        let dragStartY = 0;
+        let dragStartTranslate = 0;
+        let drawerMoved = false;
+
+        function setDrawerState(open) {
+            drawerOpen = open;
+            drawerWrapper.classList.remove('dragging');
+            drawerWrapper.style.transform = '';
+            if (drawerOpen) {
+                drawerWrapper.classList.add('open');
+            } else {
+                drawerWrapper.classList.remove('open');
+            }
+        }
+
+        drawerGrabber.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            isDraggingDrawer = true;
+            drawerMoved = false;
+            dragStartY = e.clientY;
+            const sheetHeight = drawerSheet.offsetHeight;
+            dragStartTranslate = drawerOpen ? 0 : sheetHeight;
+            drawerWrapper.classList.add('dragging');
+            drawerGrabber.setPointerCapture(e.pointerId);
+        });
+
+        drawerGrabber.addEventListener('pointermove', (e) => {
+            if (!isDraggingDrawer) return;
+            e.stopPropagation();
+            const dy = e.clientY - dragStartY;
+            if (Math.abs(dy) > 5) {
+                drawerMoved = true;
+            }
+            const sheetHeight = drawerSheet.offsetHeight;
+            const nextTranslate = Math.max(0, Math.min(sheetHeight, dragStartTranslate + dy));
+            drawerWrapper.style.transform = `translateY(${nextTranslate}px)`;
+        });
+
+        drawerGrabber.addEventListener('pointerup', (e) => {
+            if (!isDraggingDrawer) return;
+            e.stopPropagation();
+            isDraggingDrawer = false;
+            drawerGrabber.releasePointerCapture(e.pointerId);
+
+            if (!drawerMoved) {
+                setDrawerState(!drawerOpen);
+            } else {
+                const sheetHeight = drawerSheet.offsetHeight;
+                const dy = e.clientY - dragStartY;
+                const finalTranslate = Math.max(0, Math.min(sheetHeight, dragStartTranslate + dy));
+                setDrawerState(finalTranslate < sheetHeight * 0.5);
+            }
+        });
+
+        drawerSheet.addEventListener('pointerdown', (e) => e.stopPropagation());
+        drawerSheet.addEventListener('pointerup', (e) => e.stopPropagation());
+        multiplierInput.addEventListener('click', (e) => e.stopPropagation());
+    </script>
+</body>
+</html>
