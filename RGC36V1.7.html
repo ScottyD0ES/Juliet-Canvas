@@ -1,0 +1,2416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>RGC36 v1.6</title>
+  <style>
+    :root {
+      --bg: #02040a;
+      --surface: rgba(18, 24, 38, 0.34);
+      --surface-alt: rgba(30, 40, 62, 0.44);
+      --surface-input: rgba(8, 12, 22, 0.36);
+      --border: rgba(255, 255, 255, 0.16);
+      --border-highlight: rgba(255, 255, 255, 0.28);
+      --text: #eceff4;
+      --muted: #b0bccd;
+      --accent: rgba(94, 129, 172, 0.72);
+      --accent-hover: rgba(129, 161, 193, 0.88);
+      --success: #a3be8c;
+      --warning: #ebcb8b;
+      --danger: #bf616a;
+      --font-sans: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      --font-mono: "Consolas", "SFMono-Regular", Menlo, Monaco, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      background: #02040a;
+      overflow-x: hidden;
+      -webkit-text-size-adjust: 100%;
+      touch-action: pan-y;
+    }
+
+    body {
+      margin: 0;
+      width: 100%;
+      max-width: 100%;
+      padding: max(16px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+      background: transparent;
+      color: var(--text);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      min-height: 100vh;
+      min-height: 100dvh;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    #bgCanvas {
+      position: fixed;
+      top: -10vh;
+      left: -10vw;
+      width: 120vw;
+      height: 120vh;
+      z-index: 0;
+      pointer-events: none;
+      display: block;
+    }
+
+    header,
+    .shared-controls,
+    .view-section {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      max-width: 1080px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    header {
+      margin-bottom: 18px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 14px;
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .brand-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      position: relative;
+    }
+
+    #brandLogoTrigger {
+      cursor: pointer;
+      display: inline-block;
+      font-size: clamp(2.45rem, 11vw, 3.6rem);
+      font-weight: 900;
+      line-height: 1.02;
+      letter-spacing: 0.14em;
+      padding-left: 0.14em;
+      user-select: none;
+      transition: transform 0.16s ease;
+    }
+
+    #brandLogoTrigger:active {
+      transform: scale(0.95);
+    }
+
+    .version-badge {
+      background: var(--surface-alt);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--accent-hover);
+      color: #d8dee9;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      align-self: flex-start;
+      margin-top: 4px;
+    }
+
+    .nav-menu {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      background: var(--surface);
+      backdrop-filter: blur(22px) saturate(160%);
+      -webkit-backdrop-filter: blur(22px) saturate(160%);
+      padding: 5px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+      max-width: 100%;
+    }
+
+    .nav-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--muted);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .nav-btn:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .nav-btn.active {
+      background: var(--accent);
+      border-color: var(--border-highlight);
+      color: #fff;
+      box-shadow: 0 2px 12px rgba(94, 129, 172, 0.35);
+    }
+
+    .shared-controls {
+      margin-bottom: 16px;
+      background: var(--surface);
+      backdrop-filter: blur(22px) saturate(160%);
+      -webkit-backdrop-filter: blur(22px) saturate(160%);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      box-shadow: 0 12px 38px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+
+    .view-section {
+      display: none;
+    }
+
+    .view-section.active {
+      display: block;
+    }
+
+    .panel {
+      background: var(--surface);
+      backdrop-filter: blur(22px) saturate(160%);
+      -webkit-backdrop-filter: blur(22px) saturate(160%);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      box-shadow: 0 14px 42px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+
+    .panel h2 {
+      margin: 0;
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--text);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    input[type="text"],
+    textarea {
+      width: 100%;
+      max-width: 100%;
+      background: var(--surface-input);
+      backdrop-filter: blur(14px) saturate(140%);
+      -webkit-backdrop-filter: blur(14px) saturate(140%);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 12px;
+      font-family: var(--font-mono);
+      font-size: 16px;
+      line-height: 1.5;
+      outline: none;
+      transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+
+    @media (min-width: 600px) {
+      input[type="text"],
+      textarea {
+        font-size: 0.95rem;
+        padding: 12px 14px;
+      }
+    }
+
+    input[type="text"]:focus,
+    textarea:focus {
+      border-color: var(--accent-hover);
+      background: rgba(10, 16, 30, 0.52);
+      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.34), 0 0 0 2px rgba(129, 161, 193, 0.22);
+    }
+
+    textarea {
+      min-height: 115px;
+      resize: vertical;
+      overflow-y: hidden;
+      overflow-x: hidden;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    #encodeOutput,
+    #decodeInput {
+      white-space: pre;
+      word-break: normal;
+      overflow-x: hidden;
+      font-size: clamp(11.5px, 3.15vw, 15.5px);
+      letter-spacing: 0.01em;
+    }
+
+    .row {
+      display: flex;
+      gap: 9px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    button {
+      background: var(--surface-alt);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 9px 14px;
+      font-family: var(--font-sans);
+      font-size: 0.86rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, transform 0.12s;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+
+    button:hover {
+      border-color: var(--border-highlight);
+      background: rgba(46, 58, 84, 0.58);
+    }
+
+    button.primary {
+      background: var(--accent);
+      border-color: var(--border-highlight);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(94, 129, 172, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    }
+
+    button.primary:hover {
+      background: var(--accent-hover);
+      border-color: rgba(255, 255, 255, 0.38);
+    }
+
+    button.active {
+      background: var(--accent);
+      border-color: var(--border-highlight);
+      color: #fff;
+    }
+
+    .toggle-group {
+      display: flex;
+      gap: 14px 20px;
+      flex-wrap: wrap;
+      font-size: 0.88rem;
+      color: var(--text);
+    }
+
+    .toggle-group label {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      text-transform: none;
+      letter-spacing: normal;
+      color: var(--text);
+      cursor: pointer;
+      margin: 0;
+    }
+
+    .status-bar {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: var(--success);
+      min-height: 1.3em;
+    }
+
+    .status-bar.error {
+      color: var(--danger);
+    }
+
+    .debug-container {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+    }
+
+    .debug-container.visible {
+      display: flex;
+    }
+
+    .debug-section {
+      background: rgba(8, 12, 22, 0.42);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+
+    .debug-section-title {
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: var(--warning);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .debug-pre {
+      margin: 0;
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-all;
+      line-height: 1.45;
+    }
+
+    .debug-scroll {
+      max-height: 300px;
+      overflow-y: auto;
+      padding-right: 6px;
+    }
+
+    .ref-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .telemetry {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      background: rgba(8, 12, 22, 0.38);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      text-align: center;
+    }
+
+    @media (max-width: 640px) {
+      .telemetry {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .telemetry div span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.72rem;
+      margin-bottom: 3px;
+    }
+
+    .telemetry div strong {
+      color: var(--warning);
+      font-size: 1.05rem;
+    }
+
+    .canvas-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 4px 0;
+    }
+
+    #gridCanvas {
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      width: 100%;
+      max-width: min(640px, calc(100dvh - 280px));
+      height: auto;
+      aspect-ratio: 660 / 716;
+      display: block;
+      user-select: none;
+      touch-action: manipulation;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+    }
+
+    .legend-bar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px 16px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+      background: rgba(8, 12, 22, 0.38);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 12px;
+    }
+
+    .legend-bar span {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .dot-cell { color: #6c9be8; font-weight: 700; }
+    .dot-fmt  { color: #d8a6ff; font-weight: 700; }
+    .dot-tai  { color: #52c47c; font-weight: 700; }
+    .dot-mod  { color: #8c98ad; font-weight: 700; }
+    .dot-del  { color: #d97757; font-weight: 700; }
+
+    .hint-text {
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="bgCanvas"></canvas>
+
+  <header>
+    <div class="brand">
+      <div class="brand-title-row">
+        <span id="brandLogoTrigger" title="Tap to trigger surge">RGC36</span>
+        <span class="version-badge">v1.6</span>
+      </div>
+    </div>
+
+    <nav class="nav-menu" aria-label="Primary Navigation">
+      <button type="button" class="nav-btn active" data-view="encodeView">Encode</button>
+      <button type="button" class="nav-btn" data-view="decodeView">Decode</button>
+      <button type="button" class="nav-btn" data-view="gridView">Reference Grid</button>
+    </nav>
+  </header>
+
+  <section class="shared-controls">
+    <div>
+      <label for="keywordInput">Keyword (Blank = Standard TAI A–Z, 0–9)</label>
+      <input type="text" id="keywordInput" autocomplete="off" spellcheck="false" />
+    </div>
+
+    <div class="toggle-group">
+      <label>
+        <input type="checkbox" id="yWrapperToggle" checked />
+        Y-Wrapper Formatting (Case, Symbols &amp; Line/Paragraph Breaks)
+      </label>
+      <label>
+        <input type="checkbox" id="groupBlockToggle" checked />
+        Format Ciphertext in 36-Char Blocks
+      </label>
+      <label>
+        <input type="checkbox" id="debugToggle" />
+        Full Pipeline &amp; Rotor Debug Inspector
+      </label>
+    </div>
+  </section>
+
+  <!-- Encode View -->
+  <main id="encodeView" class="view-section active">
+    <div class="panel">
+      <h2>Encode Plaintext</h2>
+
+      <div>
+        <label for="encodeInput">Plaintext Input</label>
+        <textarea id="encodeInput" spellcheck="false"></textarea>
+      </div>
+
+      <div class="row">
+        <button type="button" class="primary" id="encodeBtn">Encode Message</button>
+        <button type="button" id="sendToDecodeBtn">Send Output to Decode Tab</button>
+        <button type="button" id="copyEncodeBtn">Copy Ciphertext</button>
+        <button type="button" id="clearEncodeBtn">Clear Encode</button>
+      </div>
+
+      <div>
+        <label for="encodeOutput">Ciphertext Output</label>
+        <textarea id="encodeOutput" readonly spellcheck="false"></textarea>
+      </div>
+
+      <div class="status-bar" id="encodeStatus"></div>
+
+      <div class="debug-container" id="encodeDebugPanel">
+        <div class="debug-section">
+          <div class="debug-section-title">1. Keyed Grid &amp; Rotor Initialization</div>
+          <pre class="debug-pre" id="encDbgSeed"></pre>
+        </div>
+        <div class="debug-section">
+          <div class="debug-section-title">2. Rich-Text Prep, Space-Staged Assembly &amp; Unified Delimiter Pass</div>
+          <pre class="debug-pre" id="encDbgStages"></pre>
+        </div>
+        <div class="debug-section">
+          <div class="debug-section-title">3. Full Character-by-Character Rotor Execution Trace</div>
+          <div class="debug-scroll">
+            <pre class="debug-pre" id="encDbgTrace"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Decode View -->
+  <section id="decodeView" class="view-section">
+    <div class="panel">
+      <h2>Decode Ciphertext</h2>
+
+      <div>
+        <label for="decodeInput">Ciphertext Input</label>
+        <textarea id="decodeInput" spellcheck="false"></textarea>
+      </div>
+
+      <div class="row">
+        <button type="button" class="primary" id="decodeBtn">Decode Message</button>
+        <button type="button" id="sendToEncodeBtn">Send Output to Encode Tab</button>
+        <button type="button" id="copyDecodeBtn">Copy Plaintext</button>
+        <button type="button" id="clearDecodeBtn">Clear Decode</button>
+      </div>
+
+      <div>
+        <label for="decodeOutput">Decoded Plaintext</label>
+        <textarea id="decodeOutput" readonly spellcheck="false"></textarea>
+      </div>
+
+      <div class="status-bar" id="decodeStatus"></div>
+
+      <div class="debug-container" id="decodeDebugPanel">
+        <div class="debug-section">
+          <div class="debug-section-title">1. Origin Hint &amp; Rotor Initialization</div>
+          <pre class="debug-pre" id="decDbgSeed"></pre>
+        </div>
+        <div class="debug-section">
+          <div class="debug-section-title">2. Token-Split &amp; Outside-In Peel Pipeline (Tokens &rarr; X...X &rarr; Y...Y &rarr; Z...Z)</div>
+          <pre class="debug-pre" id="decDbgPeel"></pre>
+        </div>
+        <div class="debug-section">
+          <div class="debug-section-title">3. Full Character-by-Character Rotor Reversal Trace</div>
+          <div class="debug-scroll">
+            <pre class="debug-pre" id="decDbgTrace"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Reference Grid View -->
+  <section id="gridView" class="view-section">
+    <div class="panel">
+      <h2>Interactive Mechanical Reference Grid</h2>
+
+      <div class="ref-toolbar">
+        <div>
+          <label>Starting Master Grid (Hint A=1, B=2, C=3, D=4)</label>
+          <div class="row" id="startGridSelector">
+            <button type="button" class="start-btn active" data-start="1">1 (A)</button>
+            <button type="button" class="start-btn" data-start="2">2 (B)</button>
+            <button type="button" class="start-btn" data-start="3">3 (C)</button>
+            <button type="button" class="start-btn" data-start="4">4 (D)</button>
+          </div>
+        </div>
+
+        <div>
+          <label>Sub-Grid Alignment Mode</label>
+          <div class="row">
+            <button type="button" class="active" id="zerodModeBtn">Zero'd Grid (1 1111)</button>
+            <button type="button" id="configuredModeBtn">Configured Seed</button>
+          </div>
+        </div>
+
+        <div>
+          <label>Grid Overlay</label>
+          <div class="row">
+            <button type="button" class="active" id="toggleFormatSymbolsBtn">Y-Wrapper Symbols: ON</button>
+          </div>
+        </div>
+
+        <div class="row">
+          <button type="button" class="primary" id="nextWordBtn">Next Word</button>
+          <button type="button" id="stepBackBtn">Step Back</button>
+          <button type="button" id="resetRefBtn">Reset to Start</button>
+        </div>
+      </div>
+
+      <div class="telemetry">
+        <div>
+          <span>WORD #</span>
+          <strong id="telWord">1</strong>
+        </div>
+        <div>
+          <span>MASTER GRID</span>
+          <strong id="telGrid">1</strong>
+        </div>
+        <div>
+          <span>MAP (Q1 Q2 Q3 Q4)</span>
+          <strong id="telMap">1 1 1 1</strong>
+        </div>
+        <div>
+          <span>NEXT WORD CLICK</span>
+          <strong id="telNextQ">Q1</strong>
+        </div>
+      </div>
+
+      <div class="canvas-stage">
+        <canvas id="gridCanvas" width="660" height="716"></canvas>
+        <div class="legend-bar" id="gridLegendBar">
+          <span><b class="dot-cell">TL</b> Cell #</span>
+          <span id="legendFmtItem"><b class="dot-fmt">TC</b> Y-Format Symbol (↵ Line, ¶ Para, --- Div, ⇧ Cap)</span>
+          <span><b class="dot-tai">TR</b> TAI Anchor</span>
+          <span><b class="dot-mod">BL</b> Mod 4</span>
+          <span><b class="dot-del">BR</b> Delim Digit</span>
+        </div>
+        <div class="hint-text">
+          Tap the outer border to spin the Master Grid (+90° CW) • Tap any Q1–Q4 quadrant to spin that sub-grid (+90° CW)
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    "use strict";
+
+    // =========================================================================
+    // 0. PREVENT PINCH/DOUBLE-TAP ZOOM & SYNC FULL-BLEED BACKGROUND
+    // =========================================================================
+    document.addEventListener("gesturestart", (e) => e.preventDefault(), { passive: false });
+    document.addEventListener("gesturechange", (e) => e.preventDefault(), { passive: false });
+    document.addEventListener("gestureend", (e) => e.preventDefault(), { passive: false });
+
+    (function initHoneycombBackground() {
+      const bgCanvas = document.getElementById("bgCanvas");
+      const bgCtx = bgCanvas.getContext("2d");
+      const brandLogo = document.getElementById("brandLogoTrigger");
+
+      const BOOT_DURATION_MS = 2200;
+      let width = 0;
+      let height = 0;
+      let centerX = 0;
+      let centerY = 0;
+
+      const bgState = {
+        baseHue: 198,
+        isBooting: false,
+        bootStart: 0,
+        surgeActive: false,
+        surgeStart: 0,
+        surgeDuration: 1200,
+        surgeStartHue: 195,
+        surgeEndHue: 325
+      };
+
+      function updateBrandLogoColor(now) {
+        if (!brandLogo) return;
+        const loopHue = (bgState.baseHue + now * 0.048) % 360;
+        const secondHue = (loopHue + 60) % 360;
+        const thirdHue = (loopHue + 125) % 360;
+        const fourthHue = (loopHue + 195) % 360;
+
+        brandLogo.style.backgroundImage = `linear-gradient(105deg, hsl(${loopHue.toFixed(1)}, 98%, 66%), hsl(${secondHue.toFixed(1)}, 98%, 68%), hsl(${thirdHue.toFixed(1)}, 98%, 70%), hsl(${fourthHue.toFixed(1)}, 98%, 66%))`;
+        brandLogo.style.webkitBackgroundClip = "text";
+        brandLogo.style.backgroundClip = "text";
+        brandLogo.style.color = "transparent";
+        brandLogo.style.filter = `drop-shadow(0 0 18px hsla(${loopHue.toFixed(1)}, 100%, 62%, 0.55)) drop-shadow(0 0 34px hsla(${thirdHue.toFixed(1)}, 100%, 58%, 0.32))`;
+      }
+
+      function triggerSurgeWave(duration = 1200, hueSpan = 135) {
+        const startHue = (bgState.baseHue + 22) % 360;
+        const endHue = (startHue + hueSpan) % 360;
+        bgState.baseHue = endHue;
+        bgState.surgeActive = true;
+        bgState.surgeStart = performance.now();
+        bgState.surgeDuration = duration;
+        bgState.surgeStartHue = startHue;
+        bgState.surgeEndHue = endHue;
+      }
+
+      window.RGC36Background = {
+        replayBoot() {
+          bgState.isBooting = true;
+          bgState.bootStart = performance.now();
+          bgState.surgeActive = false;
+          hexCells.forEach((h) => h.resetForBoot());
+        },
+        triggerSurge() {
+          triggerSurgeWave(1200, 135);
+        }
+      };
+
+      const hexCells = [];
+      let hexRadius = 38;
+
+      class HexCell {
+        constructor(col, row, x, y, normY) {
+          this.col = col;
+          this.row = row;
+          this.x = x;
+          this.y = y;
+          this.normY = normY;
+          this.revealProgress = 1;
+          this.bootDelay = 0;
+          this.surgeIntensity = 0;
+          this.surgeHue = bgState.baseHue;
+        }
+
+        resetForBoot() {
+          this.revealProgress = 0;
+          const wave = this.normY * 0.65 + (Math.sin(this.col * 0.7 + this.row * 0.4) * 0.5 + 0.5) * 0.25;
+          this.bootDelay = Math.max(0, Math.min(0.85, wave));
+          this.surgeIntensity = 0;
+        }
+
+        getVertices(radius, offsetX = 0, offsetY = 0) {
+          const pts = [];
+          for (let i = 0; i < 6; i++) {
+            const angle = (Math.PI / 3) * i - Math.PI / 2;
+            pts.push({
+              x: this.x + offsetX + Math.cos(angle) * radius,
+              y: this.y + offsetY + Math.sin(angle) * radius
+            });
+          }
+          return pts;
+        }
+
+        update(bootT, surgeProgress) {
+          if (bgState.isBooting) {
+            const localT = Math.max(0, (bootT - this.bootDelay * 0.55) / 0.45);
+            this.revealProgress = Math.min(1, 1 - Math.pow(1 - localT, 3));
+          } else {
+            this.revealProgress = 1;
+          }
+
+          if (bgState.surgeActive) {
+            const waveFront = -0.25 + surgeProgress * 1.5;
+            const bandWidth = 0.26;
+            const dist = Math.abs(this.normY - waveFront);
+
+            if (dist < bandWidth) {
+              const falloff = 1 - dist / bandWidth;
+              const smooth = falloff * falloff * (3 - 2 * falloff);
+              if (smooth > this.surgeIntensity) {
+                this.surgeIntensity = smooth;
+              }
+              const tSweep = Math.max(0, Math.min(1, this.normY));
+              this.surgeHue = bgState.surgeStartHue + (bgState.surgeEndHue - bgState.surgeStartHue) * tSweep;
+            }
+          }
+
+          this.surgeIntensity *= 0.91;
+        }
+
+        draw(now, baseHue) {
+          if (this.revealProgress <= 0.01) return;
+
+          const tSec = now * 0.001;
+          const breathe = Math.sin(tSec * 1.4 + this.row * 0.6 + this.col * 0.4) * 0.015;
+          const activeR = hexRadius * (0.94 + breathe) * (0.5 + 0.5 * this.revealProgress);
+
+          const driftOut = (1 - this.revealProgress) * 28;
+          const dx = (this.x - centerX) * 0.08 * (1 - this.revealProgress);
+          const dy = (this.y - centerY) * 0.08 * (1 - this.revealProgress) - driftOut;
+
+          const verts = this.getVertices(activeR, dx, dy);
+
+          const hasSurge = this.surgeIntensity > 0.02;
+          const activeHue = hasSurge ? this.surgeHue : (baseHue + this.col * 6 + this.row * 4) % 360;
+
+          if (hasSurge) {
+            bgCtx.fillStyle = `hsla(${activeHue}, 100%, 58%, ${this.surgeIntensity * 0.2 * this.revealProgress})`;
+            bgCtx.beginPath();
+            verts.forEach((v, i) => (i === 0 ? bgCtx.moveTo(v.x, v.y) : bgCtx.lineTo(v.x, v.y)));
+            bgCtx.closePath();
+            bgCtx.fill();
+          }
+
+          const baseAlpha = 0.22 * this.revealProgress;
+          const surgeAlpha = this.surgeIntensity * 0.9 * this.revealProgress;
+          const strokeAlpha = Math.min(0.98, baseAlpha + surgeAlpha);
+          const lightness = hasSurge ? 60 + this.surgeIntensity * 26 : 66;
+
+          bgCtx.save();
+          if (hasSurge && this.surgeIntensity > 0.25) {
+            bgCtx.shadowBlur = 15 * this.surgeIntensity;
+            bgCtx.shadowColor = `hsla(${activeHue}, 100%, 65%, ${this.surgeIntensity * 0.88})`;
+          }
+          bgCtx.strokeStyle = `hsla(${activeHue}, 95%, ${lightness}%, ${strokeAlpha})`;
+          bgCtx.lineWidth = hasSurge ? 1.2 + this.surgeIntensity * 2.1 : 1.1;
+
+          bgCtx.beginPath();
+          verts.forEach((v, i) => (i === 0 ? bgCtx.moveTo(v.x, v.y) : bgCtx.lineTo(v.x, v.y)));
+          bgCtx.closePath();
+          bgCtx.stroke();
+
+          if (hasSurge && this.surgeIntensity > 0.45) {
+            bgCtx.fillStyle = `hsla(${(activeHue + 36) % 360}, 100%, 85%, ${this.surgeIntensity * 0.75})`;
+            bgCtx.beginPath();
+            bgCtx.arc(this.x + dx, this.y + dy, 1.9 * this.surgeIntensity, 0, Math.PI * 2);
+            bgCtx.fill();
+          }
+          bgCtx.restore();
+        }
+      }
+
+      function buildHoneycombLattice() {
+        const wasBooting = bgState.isBooting;
+        hexCells.length = 0;
+        const minDim = Math.min(width, height);
+        hexRadius = Math.max(26, Math.min(46, minDim * 0.056));
+
+        const horizSpacing = Math.sqrt(3) * hexRadius;
+        const vertSpacing = 1.5 * hexRadius;
+
+        const cols = Math.ceil(width / horizSpacing) + 4;
+        const rows = Math.ceil(height / vertSpacing) + 4;
+
+        const startX = centerX - ((cols - 1) * horizSpacing) / 2;
+        const startY = centerY - ((rows - 1) * vertSpacing) / 2;
+
+        for (let r = 0; r < rows; r++) {
+          const rowOffsetX = r % 2 === 1 ? horizSpacing * 0.5 : 0;
+          for (let c = 0; c < cols; c++) {
+            const x = startX + c * horizSpacing + rowOffsetX;
+            const y = startY + r * vertSpacing;
+            const normY = Math.max(0, Math.min(1, y / Math.max(1, height)));
+            const cell = new HexCell(c, r, x, y, normY);
+            if (wasBooting) cell.resetForBoot();
+            hexCells.push(cell);
+          }
+        }
+      }
+
+      function resizeBg() {
+        const rect = bgCanvas.getBoundingClientRect();
+        const newW = Math.max(Math.ceil(rect.width), Math.ceil(window.innerWidth * 1.2));
+        const newH = Math.max(Math.ceil(rect.height), Math.ceil(window.innerHeight * 1.2));
+        if (newW === width && newH === height) return;
+        width = bgCanvas.width = newW;
+        height = bgCanvas.height = newH;
+        centerX = width / 2;
+        centerY = height / 2;
+        buildHoneycombLattice();
+      }
+
+      window.addEventListener("resize", resizeBg);
+      window.addEventListener("orientationchange", () => setTimeout(resizeBg, 100));
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", resizeBg);
+      }
+      resizeBg();
+      window.RGC36Background.replayBoot();
+
+      if (brandLogo) {
+        brandLogo.addEventListener("click", () => triggerSurgeWave(1200, 135));
+      }
+
+      function animateBg(now) {
+        bgCtx.globalCompositeOperation = "source-over";
+        bgCtx.fillStyle = "rgba(2, 4, 10, 0.42)";
+        bgCtx.fillRect(0, 0, width, height);
+
+        updateBrandLogoColor(now);
+
+        let bootT = 1;
+        if (bgState.isBooting) {
+          const elapsed = now - bgState.bootStart;
+          if (elapsed >= BOOT_DURATION_MS) {
+            bgState.isBooting = false;
+            triggerSurgeWave(1100, 120);
+          } else {
+            bootT = elapsed / BOOT_DURATION_MS;
+          }
+        }
+
+        let surgeProgress = 0;
+        if (bgState.surgeActive) {
+          const sElapsed = now - bgState.surgeStart;
+          if (sElapsed >= bgState.surgeDuration) {
+            bgState.surgeActive = false;
+          } else {
+            surgeProgress = sElapsed / bgState.surgeDuration;
+          }
+        }
+
+        for (let i = 0; i < hexCells.length; i++) {
+          hexCells[i].update(bootT, surgeProgress);
+          hexCells[i].draw(now, bgState.baseHue);
+        }
+
+        requestAnimationFrame(animateBg);
+      }
+
+      requestAnimationFrame(animateBg);
+    })();
+
+    // =========================================================================
+    // AUTO-GROWING TEXTAREAS & EXACT 36-CHAR FIT SCALING
+    // =========================================================================
+    function fit36CharFontSize(el) {
+      if (!el || (el.id !== "encodeOutput" && el.id !== "decodeInput")) return;
+      const style = getComputedStyle(el);
+      const padLeft = parseFloat(style.paddingLeft) || 0;
+      const padRight = parseFloat(style.paddingRight) || 0;
+      const availWidth = el.clientWidth - padLeft - padRight;
+      if (availWidth <= 0) return;
+
+      const idealFontSize = (availWidth / 36.6) / 0.6;
+      const clampedSize = Math.max(9.5, Math.min(15.5, idealFontSize));
+      el.style.fontSize = clampedSize.toFixed(2) + "px";
+    }
+
+    function autoResizeTextarea(el) {
+      if (!el) return;
+      fit36CharFontSize(el);
+      el.style.height = "auto";
+      const minH = 115;
+      const targetH = Math.max(minH, el.scrollHeight + 4);
+      el.style.height = targetH + "px";
+    }
+
+    function syncAllTextareas() {
+      document.querySelectorAll("textarea").forEach(autoResizeTextarea);
+    }
+
+    document.querySelectorAll("textarea").forEach((ta) => {
+      ta.addEventListener("input", () => autoResizeTextarea(ta));
+    });
+
+    window.addEventListener("resize", syncAllTextareas);
+    window.addEventListener("orientationchange", () => setTimeout(syncAllTextareas, 100));
+
+    const APP_VERSION = "v1.6";
+
+    // =========================================================================
+    // 1. CORE ALPHABET & TAI UTILITIES
+    // =========================================================================
+    const TAI_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    const HINT_LETTERS = ["A", "B", "C", "D"];
+
+    function charToTAI(ch) {
+      const idx = TAI_ALPHABET.indexOf(ch.toUpperCase());
+      return idx === -1 ? -1 : idx + 1;
+    }
+
+    function taiToChar(tai) {
+      return TAI_ALPHABET[(tai - 1) % 36];
+    }
+
+    function mod4OneBased(n) {
+      const r = ((n % 4) + 4) % 4;
+      return r === 0 ? 4 : r;
+    }
+
+    function buildKeyedAlphabet(keyword) {
+      const seen = new Set();
+      const grid = [];
+      const cleanKey = (keyword || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+      for (const ch of cleanKey) {
+        if (!seen.has(ch)) {
+          seen.add(ch);
+          grid.push(ch);
+        }
+      }
+      for (const ch of TAI_ALPHABET) {
+        if (!seen.has(ch)) {
+          seen.add(ch);
+          grid.push(ch);
+        }
+      }
+      return grid;
+    }
+
+    function getInitialMap(baseGrid) {
+      return [
+        mod4OneBased(charToTAI(baseGrid[0])),
+        mod4OneBased(charToTAI(baseGrid[1])),
+        mod4OneBased(charToTAI(baseGrid[2])),
+        mod4OneBased(charToTAI(baseGrid[3]))
+      ];
+    }
+
+    // =========================================================================
+    // 2. GRID ROTATION ENGINE (6x6 MASTER + SPATIALLY LOCKED 3x3 QUADRANTS)
+    // =========================================================================
+    function rotate6x6CW(grid) {
+      const next = new Array(36);
+      for (let r = 0; r < 6; r++) {
+        for (let c = 0; c < 6; c++) {
+          const newR = c;
+          const newC = 5 - r;
+          next[newR * 6 + newC] = grid[r * 6 + c];
+        }
+      }
+      return next;
+    }
+
+    const QUADRANT_OFFSETS = [
+      { r0: 0, c0: 0 }, // Q1 Top-Left
+      { r0: 0, c0: 3 }, // Q2 Top-Right
+      { r0: 3, c0: 0 }, // Q3 Bottom-Left
+      { r0: 3, c0: 3 }  // Q4 Bottom-Right
+    ];
+
+    function rotateQuadrantInPlace(grid, quadrantIndex, turnsCW) {
+      const turns = ((turnsCW % 4) + 4) % 4;
+      if (turns === 0) return;
+
+      const { r0, c0 } = QUADRANT_OFFSETS[quadrantIndex];
+      for (let t = 0; t < turns; t++) {
+        const sub = new Array(9);
+        for (let r = 0; r < 3; r++) {
+          for (let c = 0; c < 3; c++) {
+            sub[r * 3 + c] = grid[(r0 + r) * 6 + (c0 + c)];
+          }
+        }
+        for (let r = 0; r < 3; r++) {
+          for (let c = 0; c < 3; c++) {
+            const newR = c;
+            const newC = 2 - r;
+            grid[(r0 + newR) * 6 + (c0 + newC)] = sub[r * 3 + c];
+          }
+        }
+      }
+    }
+
+    function getActiveGrid(baseGrid, masterOrientation, mapState) {
+      let current = baseGrid.slice();
+      const masterTurns = (masterOrientation - 1 + 4) % 4;
+      for (let t = 0; t < masterTurns; t++) {
+        current = rotate6x6CW(current);
+      }
+      for (let q = 0; q < 4; q++) {
+        const qTurns = (mapState[q] - 1 + 4) % 4;
+        rotateQuadrantInPlace(current, q, qTurns);
+      }
+      return current;
+    }
+
+    // =========================================================================
+    // 3. RICH-TEXT SANITIZER & FORMATTING LOG (Y...Y)
+    // =========================================================================
+    const PUNCT_TO_CODE = {
+      ".": "P",
+      ",": "C",
+      "!": "E",
+      "?": "Q",
+      "'": "S",
+      "\"": "D",
+      "-": "H",
+      ":": "N",
+      ";": "M",
+      "/": "L",
+      "(": "O",
+      ")": "R",
+      "@": "A",
+      "_": "V",
+      "+": "T",
+      "#": "K",
+      "$": "W",
+      "%": "I",
+      "&": "J",
+      "=": "Z",
+      "*": "X",
+      "°": "Y",
+      "[": "0",
+      "]": "1",
+      "{": "2",
+      "}": "3",
+      "<": "4",
+      ">": "5",
+      "\\": "6",
+      "|": "7",
+      "~": "8",
+      "^": "9"
+    };
+
+    const CODE_TO_PUNCT = Object.fromEntries(
+      Object.entries(PUNCT_TO_CODE).map(([k, v]) => [v, k])
+    );
+
+    const STRUCTURAL_CODE_TO_BADGE = {
+      B: "↵",
+      F: "---",
+      G: "¶",
+      U: "⇧"
+    };
+
+    const CODE_TO_GRID_BADGE = {
+      ...CODE_TO_PUNCT,
+      ...STRUCTURAL_CODE_TO_BADGE
+    };
+
+    function sanitizeRichTextAndMarkers(rawInput) {
+      return String(rawInput || "")
+        .replace(/\r\n?/g, "\n")
+        .replace(/\u00A0/g, " ")
+        .replace(/[\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, "")
+        .replace(/[\u201C\u201D\u201E\u201F]/g, "\"")
+        .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+        .replace(/[\u2013\u2014\u2015\u2212]/g, "-")
+        .replace(/^([ \t]*)(?:☐|\[\s*\])(?=\s|$)/gm, "$1( )")
+        .replace(/^([ \t]*)(?:☑|☒|\[[xX]\])(?=\s|$)/gm, "$1(X)")
+        .replace(/\(\s*([xX]?)\s*\)/g, (_, mark) =>
+          mark ? `(X)` : `( )`
+        )
+        .replace(/^([ \t]*)[•∙▪▫◦‣⁃]\s*/gm, "$1- ");
+    }
+
+    function toBase36(num) {
+      return num.toString(36).toUpperCase();
+    }
+
+    function fromBase36(str) {
+      return parseInt(str, 36);
+    }
+
+    function extractFormattingLog(rawText) {
+      const sanitized = sanitizeRichTextAndMarkers(rawText);
+      const unified = sanitized
+        .replace(/[^\S\n\f]+/g, " ")
+        .replace(/^ +| +$/gm, "")
+        .trim();
+
+      const events = [];
+      const cleanChars = [];
+
+      function pushSeparatorSpace() {
+        if (cleanChars.length > 0 && cleanChars[cleanChars.length - 1] !== " ") {
+          cleanChars.push(" ");
+        }
+      }
+
+      let i = 0;
+      while (i < unified.length) {
+        const ch = unified[i];
+
+        if (ch === "\f") {
+          events.push({ index: cleanChars.length, type: "F" });
+          pushSeparatorSpace();
+          i++;
+          while (i < unified.length && (unified[i] === "\n" || unified[i] === " ")) i++;
+          continue;
+        }
+
+        if (
+          ch === "\n" &&
+          unified.slice(i + 1, i + 4) === "---" &&
+          (i + 4 >= unified.length || unified[i + 4] === "\n")
+        ) {
+          events.push({ index: cleanChars.length, type: "F" });
+          pushSeparatorSpace();
+          i += 4;
+          while (i < unified.length && (unified[i] === "\n" || unified[i] === " ")) i++;
+          continue;
+        }
+
+        if (ch === "\n") {
+          let nlCount = 0;
+          while (i < unified.length && unified[i] === "\n") {
+            nlCount++;
+            i++;
+          }
+          events.push({ index: cleanChars.length, type: nlCount >= 2 ? "G" : "B" });
+          pushSeparatorSpace();
+          continue;
+        }
+
+        if (/[A-Z]/.test(ch)) {
+          events.push({ index: cleanChars.length, type: "U" });
+          cleanChars.push(ch);
+        } else if (/[a-z]/.test(ch)) {
+          cleanChars.push(ch.toUpperCase());
+        } else if (/[0-9 ]/.test(ch)) {
+          cleanChars.push(ch);
+        } else if (PUNCT_TO_CODE[ch]) {
+          events.push({ index: cleanChars.length, type: PUNCT_TO_CODE[ch] });
+        }
+        i++;
+      }
+
+      while (cleanChars.length > 0 && cleanChars[cleanChars.length - 1] === " ") {
+        cleanChars.pop();
+      }
+
+      const strippedText = cleanChars.join("");
+
+      if (events.length === 0) {
+        return { sanitizedText: sanitized, strippedText, yBlock: "", eventCount: 0 };
+      }
+
+      let prevIdx = 0;
+      let payload = "";
+      for (const ev of events) {
+        const delta = ev.index - prevIdx;
+        prevIdx = ev.index;
+        const delta36 = toBase36(delta);
+        const len36 = toBase36(delta36.length);
+        payload += len36 + delta36 + ev.type;
+      }
+
+      return {
+        sanitizedText: sanitized,
+        strippedText,
+        yBlock: "Y" + payload + "Y",
+        eventCount: events.length
+      };
+    }
+
+    function restoreFormatting(strippedText, yPayload) {
+      if (!yPayload) return strippedText.toLowerCase();
+
+      const chars = strippedText.toLowerCase().split("");
+      const events = [];
+      let pos = 0;
+      let runningIndex = 0;
+
+      while (pos < yPayload.length) {
+        const len = fromBase36(yPayload[pos]);
+        if (!len || pos + len + 1 >= yPayload.length) break;
+        const deltaStr = yPayload.slice(pos + 1, pos + 1 + len);
+        const typeCode = yPayload[pos + 1 + len];
+        const delta = fromBase36(deltaStr);
+        runningIndex += delta;
+        events.push({ index: runningIndex, type: typeCode });
+        pos += 2 + len;
+      }
+
+      for (let i = events.length - 1; i >= 0; i--) {
+        const ev = events[i];
+        if (ev.type === "U") continue;
+
+        if (ev.type === "B") {
+          if (ev.index >= 0 && ev.index < chars.length && chars[ev.index] === " ") {
+            chars[ev.index] = "\n";
+          } else {
+            chars.splice(ev.index, 0, "\n");
+          }
+        } else if (ev.type === "G") {
+          if (ev.index >= 0 && ev.index < chars.length && chars[ev.index] === " ") {
+            chars.splice(ev.index, 1, "\n", "\n");
+          } else {
+            chars.splice(ev.index, 0, "\n", "\n");
+          }
+        } else if (ev.type === "F") {
+          const divider = ["\n", "-", "-", "-", "\n"];
+          if (ev.index >= 0 && ev.index < chars.length && chars[ev.index] === " ") {
+            chars.splice(ev.index, 1, ...divider);
+          } else {
+            chars.splice(ev.index, 0, ...divider);
+          }
+        } else if (CODE_TO_PUNCT[ev.type]) {
+          chars.splice(ev.index, 0, CODE_TO_PUNCT[ev.type]);
+        }
+      }
+
+      for (let i = 0; i < events.length; i++) {
+        const ev = events[i];
+        if (ev.type !== "U") continue;
+
+        let shift = 0;
+        for (let j = 0; j < events.length; j++) {
+          const other = events[j];
+          if (other.type === "U" || other.index >= ev.index) continue;
+          if (other.type === "G") shift += 1;
+          else if (other.type === "F") shift += 4;
+          else if (other.type !== "B") shift += 1;
+        }
+
+        const targetIdx = ev.index + shift;
+        if (targetIdx >= 0 && targetIdx < chars.length) {
+          chars[targetIdx] = chars[targetIdx].toUpperCase();
+        }
+      }
+
+      return chars.join("");
+    }
+
+    function wrapNumbersWholeWord(text) {
+      return text
+        .split(" ")
+        .filter(Boolean)
+        .map((word) => (/[0-9]/.test(word) ? "Z" + word + "Z" : word))
+        .join(" ");
+    }
+
+    function unwrapNumberToken(token) {
+      if (
+        token.length >= 3 &&
+        token[0] === "Z" &&
+        token[token.length - 1] === "Z" &&
+        /[0-9]/.test(token)
+      ) {
+        return token.slice(1, -1);
+      }
+      return token;
+    }
+
+    // =========================================================================
+    // 4. RGC36 ENCODE & DECODE PIPELINE (SPACE-STAGED UNIFIED DELIMITERS)
+    // =========================================================================
+    function encodeRGC36(rawText, keyword, useYWrapper) {
+      if (!rawText || !rawText.trim()) {
+        throw new Error("Enter plaintext to encode.");
+      }
+
+      const baseGrid = buildKeyedAlphabet(keyword);
+      const initialMap = getInitialMap(baseGrid);
+
+      let workingText = "";
+      let sanitizedPreview = "";
+      let yBlock = "";
+      let yEventCount = 0;
+
+      if (useYWrapper) {
+        const extracted = extractFormattingLog(rawText);
+        sanitizedPreview = extracted.sanitizedText;
+        workingText = extracted.strippedText;
+        yBlock = extracted.yBlock;
+        yEventCount = extracted.eventCount;
+      } else {
+        sanitizedPreview = sanitizeRichTextAndMarkers(rawText);
+        workingText = sanitizedPreview
+          .toUpperCase()
+          .replace(/[^A-Z0-9\s]/g, " ")
+          .trim()
+          .replace(/\s+/g, " ");
+      }
+
+      if (!workingText) {
+        throw new Error("Input contains no encodable alphanumeric characters.");
+      }
+
+      const zWrappedText = wrapNumbersWholeWord(workingText);
+
+      const sections = zWrappedText.split(" ").filter(Boolean);
+      if (yBlock) {
+        sections.push(yBlock);
+      }
+
+      const preXLength = sections.join(" ").length;
+      const blockCount = Math.ceil((preXLength + 1 + 2 + 1) / 36);
+      const targetStreamLen = blockCount * 36 - 1;
+      const xBlockLen = targetStreamLen - (preXLength + 1);
+
+      const innerPadLen = xBlockLen - 2;
+      let innerPad = "";
+      for (let i = 0; i < innerPadLen; i++) {
+        innerPad += baseGrid[35 - (i % 36)];
+      }
+      const xBlock = "X" + innerPad + "X";
+      sections.push(xBlock);
+
+      const stagedWithSpaces = sections.join(" ");
+
+      const streamTokens = [];
+      const delimiterList = [];
+
+      for (let sIdx = 0; sIdx < sections.length; sIdx++) {
+        const sec = sections[sIdx];
+        const tag =
+          sIdx === sections.length - 1
+            ? "X-PAD"
+            : yBlock && sIdx === sections.length - 2
+            ? "Y-LOG"
+            : "BODY";
+
+        for (const ch of sec) {
+          streamTokens.push({ ch, tag });
+        }
+
+        if (sIdx < sections.length - 1) {
+          const delimChar = baseGrid[sIdx % 36];
+          const delimDigit = String(charToTAI(delimChar) % 10);
+          delimiterList.push(delimDigit);
+          streamTokens.push({ ch: delimDigit, tag: "DELIM" });
+        }
+      }
+
+      const originModulo = mod4OneBased(charToTAI(streamTokens[0].ch));
+      const originHintChar = HINT_LETTERS[originModulo - 1];
+
+      let masterGrid = originModulo;
+      let wordStartMaster = originModulo;
+      const mapState = initialMap.slice();
+      let wordIndex = 1;
+
+      const cipherChars = [];
+      const traceLines = [];
+
+      for (let i = 0; i < streamTokens.length; i++) {
+        const token = streamTokens[i];
+        const activeGrid = getActiveGrid(baseGrid, masterGrid, mapState);
+        const tai = charToTAI(token.ch);
+        const outChar = activeGrid[tai - 1];
+        cipherChars.push(outChar);
+
+        traceLines.push(
+          `[${String(cipherChars.length).padStart(3, "0")}] W${String(wordIndex).padStart(2, "0")} | GRID:${masterGrid} MAP:[${mapState.join(" ")}] | '${token.ch}' (TAI ${String(tai).padStart(2, "0")}) -> '${outChar}'  [${token.tag}]`
+        );
+
+        if (token.tag === "DELIM") {
+          masterGrid = ((wordStartMaster - 2 + 4) % 4) + 1;
+          wordStartMaster = masterGrid;
+
+          const qToRotate = (wordIndex - 1) % 4;
+          mapState[qToRotate] = (mapState[qToRotate] % 4) + 1;
+          wordIndex++;
+        } else {
+          masterGrid = (masterGrid % 4) + 1;
+        }
+      }
+
+      cipherChars.push(originHintChar);
+      const fullPreparedStream = streamTokens.map((t) => t.ch).join("");
+
+      return {
+        ciphertext: cipherChars.join(""),
+        debugData: {
+          seed:
+            `Engine Version   : RGC36 ${APP_VERSION}\n` +
+            `Keyword Applied  : ${keyword.trim() ? keyword.trim().toUpperCase() : "(None — Standard TAI)"}\n` +
+            `Keyed Alphabet   : ${baseGrid.join("")}\n` +
+            `Initial Sub-Grid : MAP [${initialMap.join(" ")}] (from Cells 1–4: ${baseGrid.slice(0, 4).join(", ")})\n` +
+            `Starting Master  : GRID ${originModulo} (from '${streamTokens[0].ch}' TAI ${charToTAI(streamTokens[0].ch)} mod 4)\n` +
+            `Trailing Hint    : '${originHintChar}' (appended at index ${cipherChars.length})`,
+          stages:
+            `[0] Cleaned Input    : ${JSON.stringify(sanitizedPreview)}\n` +
+            `[1] Stripped Upper   : ${workingText}\n` +
+            `[2] Whole-Word Z...Z : ${zWrappedText}\n` +
+            `[3] Y-Formatting Log : ${yBlock || "(Disabled / No formatting events)"} (${yEventCount} events)\n` +
+            `[4] X-Padding (Rev36): ${xBlock} (${xBlock.length} chars)\n` +
+            `[5] Space-Staged Text: ${stagedWithSpaces}\n` +
+            `[6] Delimiter Pass   : ${delimiterList.join(", ")} -> ${fullPreparedStream} (${cipherChars.length} total chars)`,
+          trace: traceLines.join("\n")
+        }
+      };
+    }
+
+    function verifyXBufferToken(token, baseGrid) {
+      if (!token || token.length < 2 || token[0] !== "X" || token[token.length - 1] !== "X") {
+        return false;
+      }
+      const inner = token.slice(1, -1);
+      for (let i = 0; i < inner.length; i++) {
+        if (inner[i] !== baseGrid[35 - (i % 36)]) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    function isWholeWordZTokenAt(payloadStream, zStart, baseGrid, masterGrid, mapState, wordIndex) {
+      let mGrid = masterGrid;
+      const expectedDelim = String(charToTAI(baseGrid[(wordIndex - 1) % 36]) % 10);
+      let sawDigit = false;
+      let innerCount = 0;
+
+      for (let j = zStart; j < payloadStream.length; j++) {
+        const activeGrid = getActiveGrid(baseGrid, mGrid, mapState);
+        const cellIdx = activeGrid.indexOf(payloadStream[j]);
+        if (cellIdx === -1) return false;
+        const ch = taiToChar(cellIdx + 1);
+        mGrid = (mGrid % 4) + 1;
+
+        if (j === zStart) {
+          if (ch !== "Z") return false;
+          continue;
+        }
+
+        if (ch === "Z" && innerCount > 0 && sawDigit) {
+          if (j + 1 >= payloadStream.length) return false;
+          const nextGrid = getActiveGrid(baseGrid, mGrid, mapState);
+          const nextIdx = nextGrid.indexOf(payloadStream[j + 1]);
+          if (nextIdx !== -1 && taiToChar(nextIdx + 1) === expectedDelim) {
+            return true;
+          }
+        }
+
+        if (/[0-9]/.test(ch)) sawDigit = true;
+        innerCount++;
+      }
+      return false;
+    }
+
+    function isYLogTokenAt(payloadStream, yStart, baseGrid, masterGrid, mapState, wordIndex) {
+      let mGrid = masterGrid;
+      const wStart = masterGrid;
+      const mState = mapState.slice();
+      const expectedDelim = String(charToTAI(baseGrid[(wordIndex - 1) % 36]) % 10);
+      let sawPayload = false;
+
+      for (let j = yStart; j < payloadStream.length; j++) {
+        const activeGrid = getActiveGrid(baseGrid, mGrid, mState);
+        const cellIdx = activeGrid.indexOf(payloadStream[j]);
+        if (cellIdx === -1) return false;
+        const ch = taiToChar(cellIdx + 1);
+        mGrid = (mGrid % 4) + 1;
+
+        if (j === yStart) {
+          if (ch !== "Y") return false;
+          continue;
+        }
+
+        if (ch === "Y" && sawPayload) {
+          if (j + 1 >= payloadStream.length) return false;
+          const delimGrid = getActiveGrid(baseGrid, mGrid, mState);
+          const delimIdx = delimGrid.indexOf(payloadStream[j + 1]);
+          if (delimIdx !== -1 && taiToChar(delimIdx + 1) === expectedDelim) {
+            const candidateMap = mState.slice();
+            let xMaster = ((wStart - 2 + 4) % 4) + 1;
+            const qToRotate = (wordIndex - 1) % 4;
+            candidateMap[qToRotate] = (candidateMap[qToRotate] % 4) + 1;
+
+            let rem = "";
+            let validRem = true;
+            for (let k = j + 2; k < payloadStream.length; k++) {
+              const g = getActiveGrid(baseGrid, xMaster, candidateMap);
+              const idx = g.indexOf(payloadStream[k]);
+              if (idx === -1) {
+                validRem = false;
+                break;
+              }
+              rem += taiToChar(idx + 1);
+              xMaster = (xMaster % 4) + 1;
+            }
+            if (validRem && verifyXBufferToken(rem, baseGrid)) {
+              return true;
+            }
+          }
+        }
+
+        sawPayload = true;
+      }
+      return false;
+    }
+
+    function decodeRGC36(rawCipher, keyword, useYWrapper) {
+      const cleaned = sanitizeRichTextAndMarkers(rawCipher || "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "");
+
+      if (cleaned.length < 36 || cleaned.length % 36 !== 0) {
+        throw new Error(`Ciphertext must be a multiple of 36 characters (got ${cleaned.length}).`);
+      }
+
+      const originHintChar = cleaned[cleaned.length - 1];
+      const originModulo = HINT_LETTERS.indexOf(originHintChar) + 1;
+      if (originModulo < 1 || originModulo > 4) {
+        throw new Error(`Invalid trailing origin hint '${originHintChar}' (expected A, B, C, or D).`);
+      }
+
+      const payloadStream = cleaned.slice(0, -1);
+      const baseGrid = buildKeyedAlphabet(keyword);
+      const initialMap = getInitialMap(baseGrid);
+
+      let masterGrid = originModulo;
+      let wordStartMaster = originModulo;
+      const mapState = initialMap.slice();
+      let wordIndex = 1;
+
+      let inZToken = false;
+      let inYToken = false;
+      let inXToken = false;
+
+      const tokens = [];
+      let currentToken = "";
+      const decodedChars = [];
+      const traceLines = [];
+
+      for (let i = 0; i < payloadStream.length; i++) {
+        const cChar = payloadStream[i];
+        const activeGrid = getActiveGrid(baseGrid, masterGrid, mapState);
+        const cellIndex = activeGrid.indexOf(cChar);
+        if (cellIndex === -1) {
+          throw new Error(`Invalid ciphertext character '${cChar}' at position ${i + 1}.`);
+        }
+
+        const pChar = taiToChar(cellIndex + 1);
+
+        if (currentToken.length === 0 && !inZToken && !inYToken && !inXToken) {
+          if (pChar === "Z" && isWholeWordZTokenAt(payloadStream, i, baseGrid, masterGrid, mapState, wordIndex)) {
+            inZToken = true;
+          } else if (pChar === "Y" && isYLogTokenAt(payloadStream, i, baseGrid, masterGrid, mapState, wordIndex)) {
+            inYToken = true;
+          } else if (pChar === "X") {
+            let mTest = masterGrid;
+            let rem = "";
+            for (let k = i; k < payloadStream.length; k++) {
+              const g = getActiveGrid(baseGrid, mTest, mapState);
+              const idx = g.indexOf(payloadStream[k]);
+              if (idx === -1) break;
+              rem += taiToChar(idx + 1);
+              mTest = (mTest % 4) + 1;
+            }
+            if (verifyXBufferToken(rem, baseGrid)) {
+              inXToken = true;
+            }
+          }
+        }
+
+        decodedChars.push(pChar);
+
+        const expectedDelimDigit = String(charToTAI(baseGrid[(wordIndex - 1) % 36]) % 10);
+        const isDelimiter =
+          !inXToken &&
+          !inYToken &&
+          !inZToken &&
+          currentToken.length > 0 &&
+          /[0-9]/.test(pChar) &&
+          pChar === expectedDelimDigit;
+
+        traceLines.push(
+          `[${String(i + 1).padStart(3, "0")}] W${String(wordIndex).padStart(2, "0")} | GRID:${masterGrid} MAP:[${mapState.join(" ")}] | '${cChar}' -> '${pChar}' (TAI ${String(cellIndex + 1).padStart(2, "0")})${isDelimiter ? "  [DELIM]" : inZToken ? "  [Z-WORD]" : inYToken ? "  [Y-LOG]" : inXToken ? "  [X-PAD]" : ""}`
+        );
+
+        if (isDelimiter) {
+          tokens.push(currentToken);
+          currentToken = "";
+
+          masterGrid = ((wordStartMaster - 2 + 4) % 4) + 1;
+          wordStartMaster = masterGrid;
+
+          const qToRotate = (wordIndex - 1) % 4;
+          mapState[qToRotate] = (mapState[qToRotate] % 4) + 1;
+          wordIndex++;
+        } else {
+          if (inZToken && currentToken.length > 1 && pChar === "Z") {
+            const nextMaster = (masterGrid % 4) + 1;
+            if (i + 1 < payloadStream.length) {
+              const nextGrid = getActiveGrid(baseGrid, nextMaster, mapState);
+              const nextIdx = nextGrid.indexOf(payloadStream[i + 1]);
+              if (nextIdx !== -1 && taiToChar(nextIdx + 1) === expectedDelimDigit) {
+                inZToken = false;
+              }
+            }
+          }
+
+          if (inYToken && currentToken.length > 1 && pChar === "Y") {
+            const nextMaster = (masterGrid % 4) + 1;
+            if (i + 1 < payloadStream.length) {
+              const nextGrid = getActiveGrid(baseGrid, nextMaster, mapState);
+              const nextIdx = nextGrid.indexOf(payloadStream[i + 1]);
+              if (nextIdx !== -1 && taiToChar(nextIdx + 1) === expectedDelimDigit) {
+                inYToken = false;
+              }
+            }
+          }
+
+          currentToken += pChar;
+          masterGrid = (masterGrid % 4) + 1;
+        }
+      }
+
+      if (currentToken) {
+        tokens.push(currentToken);
+      }
+
+      const rawDecodedStream = decodedChars.join("");
+      const lastToken = tokens[tokens.length - 1];
+
+      if (tokens.length < 2 || !verifyXBufferToken(lastToken, baseGrid)) {
+        document.getElementById("decDbgSeed").textContent =
+          `Engine Version   : RGC36 ${APP_VERSION}\n` +
+          `Keyword Applied  : ${keyword.trim() ? keyword.trim().toUpperCase() : "(None — Standard TAI)"}\n` +
+          `Keyed Alphabet   : ${baseGrid.join("")}\n` +
+          `Initial Sub-Grid : MAP [${initialMap.join(" ")}]\n` +
+          `Trailing Hint    : '${originHintChar}' -> Starting Master GRID ${originModulo}`;
+        document.getElementById("decDbgPeel").textContent =
+          `[1] Raw Decoded Stream  : ${rawDecodedStream}\n` +
+          `[2] Split Tokens        : ${tokens.join(" | ")}\n` +
+          `[3] Error               : Final token '${lastToken || ""}' is not a valid X...X reverse Cell-36 buffer.`;
+        document.getElementById("decDbgTrace").textContent = traceLines.join("\n");
+        throw new Error("Could not verify trailing X...X padding buffer. Check keyword or ciphertext.");
+      }
+
+      const xBlock = tokens.pop();
+
+      let yPayload = "";
+      let yFullBlock = "(None)";
+      const maybeY = tokens[tokens.length - 1];
+      if (maybeY && maybeY.length >= 2 && maybeY[0] === "Y" && maybeY[maybeY.length - 1] === "Y") {
+        yFullBlock = tokens.pop();
+        yPayload = yFullBlock.slice(1, -1);
+      }
+
+      const zUnwrappedText = tokens.map(unwrapNumberToken).join(" ");
+
+      const reconstructed = useYWrapper && yPayload
+        ? restoreFormatting(zUnwrappedText, yPayload)
+        : zUnwrappedText.toLowerCase();
+
+      return {
+        plaintext: reconstructed,
+        debugData: {
+          seed:
+            `Engine Version   : RGC36 ${APP_VERSION}\n` +
+            `Keyword Applied  : ${keyword.trim() ? keyword.trim().toUpperCase() : "(None — Standard TAI)"}\n` +
+            `Keyed Alphabet   : ${baseGrid.join("")}\n` +
+            `Initial Sub-Grid : MAP [${initialMap.join(" ")}]\n` +
+            `Trailing Hint    : '${originHintChar}' -> Starting Master GRID ${originModulo}`,
+          peel:
+            `[1] Raw Decoded Stream  : ${rawDecodedStream}\n` +
+            `[2] Peeled X...X Token  : ${xBlock} (${xBlock.length} chars verified)\n` +
+            `[3] Peeled Y...Y Token  : ${yFullBlock}\n` +
+            `[4] Body Word Tokens    : ${tokens.join(" | ")}\n` +
+            `[5] Z-Unwrapped Text    : ${zUnwrappedText}\n` +
+            `[6] Final Restored Text : ${reconstructed}`,
+          trace: traceLines.join("\n")
+        }
+      };
+    }
+
+    // =========================================================================
+    // 5. POLISHED INTERACTIVE REFERENCE GRID WITH COUNTER-ROTATING GLYPHS
+    // =========================================================================
+    const canvas = document.getElementById("gridCanvas");
+    const ctx = canvas.getContext("2d");
+    const BASE_CANVAS_W = 660;
+    const BASE_CANVAS_H = 716;
+
+    function configureCanvasHiDPI() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 3);
+      canvas.width = Math.round(BASE_CANVAS_W * dpr);
+      canvas.height = Math.round(BASE_CANVAS_H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    configureCanvasHiDPI();
+
+    const refState = {
+      startMaster: 1,
+      wordStartMaster: 1,
+      masterGrid: 1,
+      mapState: [1, 1, 1, 1],
+      useConfiguredSeed: false,
+      showFormatSymbols: true,
+      wordNumber: 1,
+      history: [],
+      anim: null
+    };
+
+    function getBaselineMap(baseGrid) {
+      return refState.useConfiguredSeed ? getInitialMap(baseGrid) : [1, 1, 1, 1];
+    }
+
+    function snapshotRefState() {
+      refState.history.push({
+        wordStartMaster: refState.wordStartMaster,
+        masterGrid: refState.masterGrid,
+        mapState: refState.mapState.slice(),
+        wordNumber: refState.wordNumber
+      });
+      if (refState.history.length > 200) refState.history.shift();
+    }
+
+    function updateTelemetryDisplay() {
+      document.getElementById("telWord").textContent = String(refState.wordNumber);
+      document.getElementById("telGrid").textContent = String(refState.masterGrid);
+      document.getElementById("telMap").textContent = refState.mapState.join(" ");
+      const nextQ = ((refState.wordNumber - 1) % 4) + 1;
+      document.getElementById("telNextQ").textContent = `Q${nextQ}`;
+    }
+
+    function syncReferenceToKeyword(resetAll = true) {
+      const baseGrid = buildKeyedAlphabet(document.getElementById("keywordInput").value);
+      const baselineMap = getBaselineMap(baseGrid);
+
+      if (resetAll) {
+        refState.wordNumber = 1;
+        refState.masterGrid = refState.startMaster;
+        refState.wordStartMaster = refState.startMaster;
+        refState.mapState = baselineMap;
+        refState.history = [];
+        refState.anim = null;
+      }
+      updateTelemetryDisplay();
+      renderReferenceFrame(1);
+    }
+
+    function easeInOutCubic(t) {
+      return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+
+    function triggerRotationAnimation(animConfig) {
+      refState.anim = {
+        ...animConfig,
+        startTime: performance.now(),
+        duration: 360
+      };
+      updateTelemetryDisplay();
+
+      function tick(now) {
+        if (!refState.anim) return;
+        const elapsed = now - refState.anim.startTime;
+        const rawT = Math.min(1, elapsed / refState.anim.duration);
+        const eased = easeInOutCubic(rawT);
+
+        renderReferenceFrame(eased);
+
+        if (rawT < 1) {
+          requestAnimationFrame(tick);
+        } else {
+          refState.anim = null;
+          renderReferenceFrame(1);
+        }
+      }
+
+      requestAnimationFrame(tick);
+    }
+
+    function drawRoundedRectPath(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    function drawCellTelemetryChrome(x, y, cellSize, cellIdx) {
+      const cellNum = cellIdx + 1;
+      const taiAnchorChar = TAI_ALPHABET[cellIdx];
+      const cellMod4 = mod4OneBased(cellNum);
+      const cellDelimDigit = cellNum % 10;
+      const formatBadge = CODE_TO_GRID_BADGE[taiAnchorChar] || "";
+
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, cellSize, cellSize);
+
+      const padX = 9;
+      const topY = y + 19;
+      const botY = y + cellSize - 9;
+
+      // Top-Left: Cell Number (1-36)
+      ctx.fillStyle = "#6c9be8";
+      ctx.font = "600 13px 'Segoe UI', -apple-system, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(String(cellNum), x + padX, topY);
+
+      // Top-Center: Y-Wrapper Formatting Symbol / Structural Event Badge
+      if (refState.showFormatSymbols && formatBadge) {
+        const isStructural = Boolean(STRUCTURAL_CODE_TO_BADGE[taiAnchorChar]);
+        ctx.fillStyle = isStructural ? "#f0c674" : "#d8a6ff";
+        ctx.font = isStructural
+          ? "700 11.5px 'Consolas', 'Segoe UI', monospace"
+          : "700 13px 'Consolas', 'Segoe UI', monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(formatBadge, x + cellSize / 2, topY);
+      }
+
+      // Top-Right: Standard TAI Anchor (A-Z, 0-9)
+      ctx.fillStyle = "#52c47c";
+      ctx.font = "600 13px 'Segoe UI', -apple-system, sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(taiAnchorChar, x + cellSize - padX, topY);
+
+      // Bottom-Left: Mod 4
+      ctx.fillStyle = "#7d8799";
+      ctx.font = "600 13px 'Segoe UI', -apple-system, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(String(cellMod4), x + padX, botY);
+
+      // Bottom-Right: Delimiter Digit
+      ctx.fillStyle = "#d97757";
+      ctx.font = "600 13px 'Segoe UI', -apple-system, sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(String(cellDelimDigit), x + cellSize - padX, botY);
+    }
+
+    function drawOrbitingGlyph(cellX, cellY, cellSize, charText, pivotX, pivotY, angleRad, glow = false) {
+      const cx = cellX + cellSize / 2;
+      const cy = cellY + cellSize / 2 + 3;
+
+      ctx.save();
+      if (angleRad !== 0) {
+        ctx.translate(pivotX, pivotY);
+        ctx.rotate(angleRad);
+        ctx.translate(-pivotX, -pivotY);
+      }
+
+      ctx.translate(cx, cy);
+      if (angleRad !== 0) {
+        ctx.rotate(-angleRad);
+      }
+
+      if (glow) {
+        ctx.shadowColor = "rgba(129, 161, 193, 0.45)";
+        ctx.shadowBlur = 10;
+      }
+
+      ctx.fillStyle = "#f2f4f8";
+      ctx.font = "500 32px 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(charText, 0, 0);
+      ctx.restore();
+    }
+
+    function drawQuadrantHighlight(margin, cellSize, qIdx, rotationRad, alpha = 1) {
+      const { r0, c0 } = QUADRANT_OFFSETS[qIdx];
+      const qX = margin + c0 * cellSize;
+      const qY = margin + r0 * cellSize;
+      const qSize = cellSize * 3;
+      const qCenterX = qX + qSize / 2;
+      const qCenterY = qY + qSize / 2;
+
+      ctx.save();
+      ctx.translate(qCenterX, qCenterY);
+      ctx.rotate(rotationRad);
+      ctx.translate(-qCenterX, -qCenterY);
+
+      ctx.fillStyle = `rgba(94, 129, 172, ${0.14 * alpha})`;
+      ctx.fillRect(qX + 1, qY + 1, qSize - 2, qSize - 2);
+
+      ctx.strokeStyle = `rgba(129, 161, 193, ${0.78 * alpha})`;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(qX + 1, qY + 1, qSize - 2, qSize - 2);
+      ctx.restore();
+    }
+
+    function drawGridFrameChrome(margin, gridSize) {
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.14)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(margin + gridSize / 2, margin);
+      ctx.lineTo(margin + gridSize / 2, margin + gridSize);
+      ctx.moveTo(margin, margin + gridSize / 2);
+      ctx.lineTo(margin + gridSize, margin + gridSize / 2);
+      ctx.stroke();
+
+      drawRoundedRectPath(margin, margin, gridSize, gridSize, 18);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.16)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    function renderReferenceFrame(progress = 1) {
+      const baseGrid = buildKeyedAlphabet(document.getElementById("keywordInput").value);
+      const currentCells = getActiveGrid(baseGrid, refState.masterGrid, refState.mapState);
+
+      const W = BASE_CANVAS_W;
+      const H = BASE_CANVAS_H;
+      const margin = 30;
+      const gridSize = W - margin * 2;
+      const cellSize = gridSize / 6;
+      const centerX = margin + gridSize / 2;
+      const centerY = margin + gridSize / 2;
+
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = "rgba(6, 9, 16, 0.72)";
+      ctx.fillRect(0, 0, W, H);
+
+      drawRoundedRectPath(margin, margin, gridSize, gridSize, 18);
+      ctx.fillStyle = "rgba(8, 12, 22, 0.68)";
+      ctx.fill();
+
+      ctx.save();
+      drawRoundedRectPath(margin, margin, gridSize, gridSize, 18);
+      ctx.clip();
+
+      for (let r = 0; r < 6; r++) {
+        for (let c = 0; c < 6; c++) {
+          const idx = r * 6 + c;
+          const x = margin + c * cellSize;
+          const y = margin + r * cellSize;
+          drawCellTelemetryChrome(x, y, cellSize, idx);
+        }
+      }
+
+      const anim = refState.anim;
+      const isAnimating = anim && progress < 1;
+
+      if (isAnimating && anim.type === "master") {
+        const angle = anim.deltaAngle * progress;
+        const pulse = Math.sin(progress * Math.PI);
+
+        ctx.strokeStyle = `rgba(129, 161, 193, ${0.45 * pulse})`;
+        ctx.lineWidth = 4;
+        ctx.strokeRect(margin + 2, margin + 2, gridSize - 4, gridSize - 4);
+
+        for (let r = 0; r < 6; r++) {
+          for (let c = 0; c < 6; c++) {
+            const idx = r * 6 + c;
+            const x = margin + c * cellSize;
+            const y = margin + r * cellSize;
+            drawOrbitingGlyph(x, y, cellSize, anim.fromCells[idx], centerX, centerY, angle, true);
+          }
+        }
+      } else if (isAnimating && anim.type === "quadrant") {
+        const angle = anim.deltaAngle * progress;
+        const targetQ = anim.qIdx;
+        const { r0, c0 } = QUADRANT_OFFSETS[targetQ];
+        const qCenterX = margin + (c0 + 1.5) * cellSize;
+        const qCenterY = margin + (r0 + 1.5) * cellSize;
+        const pulse = Math.sin(progress * Math.PI);
+
+        drawQuadrantHighlight(margin, cellSize, targetQ, angle, pulse);
+
+        for (let r = 0; r < 6; r++) {
+          for (let c = 0; c < 6; c++) {
+            const idx = r * 6 + c;
+            const x = margin + c * cellSize;
+            const y = margin + r * cellSize;
+            const inTargetQ = r >= r0 && r < r0 + 3 && c >= c0 && c < c0 + 3;
+
+            if (inTargetQ) {
+              drawOrbitingGlyph(x, y, cellSize, anim.fromCells[idx], qCenterX, qCenterY, angle, true);
+            } else {
+              drawOrbitingGlyph(x, y, cellSize, anim.toCells[idx], 0, 0, 0, false);
+            }
+          }
+        }
+      } else {
+        for (let r = 0; r < 6; r++) {
+          for (let c = 0; c < 6; c++) {
+            const idx = r * 6 + c;
+            const x = margin + c * cellSize;
+            const y = margin + r * cellSize;
+            drawOrbitingGlyph(x, y, cellSize, currentCells[idx], 0, 0, 0, false);
+          }
+        }
+      }
+
+      ctx.restore();
+
+      drawGridFrameChrome(margin, gridSize);
+
+      const footerY = margin + gridSize + 44;
+      const footerText = `GRID: ${refState.masterGrid}   |   MAP: ${refState.mapState.join(" ")}`;
+      ctx.fillStyle = "#6c9be8";
+      ctx.font = "600 20px 'Segoe UI', -apple-system, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillText(footerText, W / 2, footerY);
+    }
+
+    canvas.addEventListener("click", (e) => {
+      if (refState.anim) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = BASE_CANVAS_W / rect.width;
+      const scaleY = BASE_CANVAS_H / rect.height;
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
+
+      const margin = 30;
+      const gridSize = BASE_CANVAS_W - margin * 2;
+      const half = gridSize / 2;
+
+      const baseGrid = buildKeyedAlphabet(document.getElementById("keywordInput").value);
+      const fromCells = getActiveGrid(baseGrid, refState.masterGrid, refState.mapState);
+
+      snapshotRefState();
+
+      if (x < margin || x > margin + gridSize || y < margin || y > margin + gridSize) {
+        refState.masterGrid = (refState.masterGrid % 4) + 1;
+        const toCells = getActiveGrid(baseGrid, refState.masterGrid, refState.mapState);
+
+        triggerRotationAnimation({
+          type: "master",
+          deltaAngle: Math.PI / 2,
+          fromCells,
+          toCells
+        });
+      } else {
+        const colRight = x >= margin + half ? 1 : 0;
+        const rowBottom = y >= margin + half ? 2 : 0;
+        const qIdx = rowBottom + colRight;
+
+        refState.mapState[qIdx] = (refState.mapState[qIdx] % 4) + 1;
+        const toCells = getActiveGrid(baseGrid, refState.masterGrid, refState.mapState);
+
+        triggerRotationAnimation({
+          type: "quadrant",
+          qIdx,
+          deltaAngle: Math.PI / 2,
+          fromCells,
+          toCells
+        });
+      }
+    });
+
+    // =========================================================================
+    // 6. MENU NAVIGATION & SEPARATE ENCODE / DECODE WIRING
+    // =========================================================================
+    let lastRawCiphertext = "";
+
+    function switchView(viewId) {
+      document.querySelectorAll(".nav-btn").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.view === viewId);
+      });
+      document.querySelectorAll(".view-section").forEach((sec) => {
+        sec.classList.toggle("active", sec.id === viewId);
+      });
+      if (viewId === "gridView") {
+        configureCanvasHiDPI();
+        renderReferenceFrame(1);
+      } else {
+        syncAllTextareas();
+      }
+    }
+
+    document.querySelectorAll(".nav-btn").forEach((btn) => {
+      btn.addEventListener("click", () => switchView(btn.dataset.view));
+    });
+
+    function formatOutputBlocks(str, useBlocks) {
+      if (!useBlocks) return str;
+      const chunks = [];
+      for (let i = 0; i < str.length; i += 36) {
+        chunks.push(str.slice(i, i + 36));
+      }
+      return chunks.join("\n");
+    }
+
+    function setStatus(elementId, msg, isError = false) {
+      const el = document.getElementById(elementId);
+      el.textContent = msg;
+      el.classList.toggle("error", isError);
+    }
+
+    document.getElementById("groupBlockToggle").addEventListener("change", (e) => {
+      if (!lastRawCiphertext) return;
+      const encOut = document.getElementById("encodeOutput");
+      encOut.value = formatOutputBlocks(lastRawCiphertext, e.target.checked);
+      autoResizeTextarea(encOut);
+    });
+
+    document.getElementById("encodeBtn").addEventListener("click", () => {
+      try {
+        const text = document.getElementById("encodeInput").value;
+        const kw = document.getElementById("keywordInput").value;
+        const useY = document.getElementById("yWrapperToggle").checked;
+        const useBlocks = document.getElementById("groupBlockToggle").checked;
+
+        const res = encodeRGC36(text, kw, useY);
+        lastRawCiphertext = res.ciphertext;
+        const encOut = document.getElementById("encodeOutput");
+        encOut.value = formatOutputBlocks(res.ciphertext, useBlocks);
+        autoResizeTextarea(encOut);
+
+        document.getElementById("encDbgSeed").textContent = res.debugData.seed;
+        document.getElementById("encDbgStages").textContent = res.debugData.stages;
+        document.getElementById("encDbgTrace").textContent = res.debugData.trace;
+
+        if (window.RGC36Background) {
+          window.RGC36Background.triggerSurge();
+        }
+
+        setStatus(
+          "encodeStatus",
+          `Encoded successfully (${res.ciphertext.length} chars, ${res.ciphertext.length / 36} block${res.ciphertext.length === 36 ? "" : "s"}).`
+        );
+      } catch (err) {
+        setStatus("encodeStatus", err.message, true);
+      }
+    });
+
+    document.getElementById("sendToDecodeBtn").addEventListener("click", () => {
+      const cipher = document.getElementById("encodeOutput").value;
+      if (!cipher) return;
+      const decIn = document.getElementById("decodeInput");
+      decIn.value = cipher;
+      switchView("decodeView");
+      autoResizeTextarea(decIn);
+      setStatus("decodeStatus", "Ciphertext loaded from Encode tab.");
+    });
+
+    document.getElementById("copyEncodeBtn").addEventListener("click", async () => {
+      const out = document.getElementById("encodeOutput").value;
+      if (!out) return;
+      await navigator.clipboard.writeText(out);
+      setStatus("encodeStatus", "Ciphertext copied to clipboard.");
+    });
+
+    document.getElementById("clearEncodeBtn").addEventListener("click", () => {
+      lastRawCiphertext = "";
+      const encIn = document.getElementById("encodeInput");
+      const encOut = document.getElementById("encodeOutput");
+      encIn.value = "";
+      encOut.value = "";
+      autoResizeTextarea(encIn);
+      autoResizeTextarea(encOut);
+      document.getElementById("encDbgSeed").textContent = "";
+      document.getElementById("encDbgStages").textContent = "";
+      document.getElementById("encDbgTrace").textContent = "";
+      setStatus("encodeStatus", "");
+    });
+
+    document.getElementById("decodeBtn").addEventListener("click", () => {
+      try {
+        const cipher = document.getElementById("decodeInput").value;
+        const kw = document.getElementById("keywordInput").value;
+        const useY = document.getElementById("yWrapperToggle").checked;
+
+        const res = decodeRGC36(cipher, kw, useY);
+        const decOut = document.getElementById("decodeOutput");
+        decOut.value = res.plaintext;
+        autoResizeTextarea(decOut);
+
+        document.getElementById("decDbgSeed").textContent = res.debugData.seed;
+        document.getElementById("decDbgPeel").textContent = res.debugData.peel;
+        document.getElementById("decDbgTrace").textContent = res.debugData.trace;
+
+        if (window.RGC36Background) {
+          window.RGC36Background.triggerSurge();
+        }
+
+        setStatus("decodeStatus", "Decoded successfully.");
+      } catch (err) {
+        setStatus("decodeStatus", err.message, true);
+      }
+    });
+
+    document.getElementById("sendToEncodeBtn").addEventListener("click", () => {
+      const plain = document.getElementById("decodeOutput").value;
+      if (!plain) return;
+      const encIn = document.getElementById("encodeInput");
+      encIn.value = plain;
+      switchView("encodeView");
+      autoResizeTextarea(encIn);
+      setStatus("encodeStatus", "Plaintext loaded from Decode tab.");
+    });
+
+    document.getElementById("copyDecodeBtn").addEventListener("click", async () => {
+      const out = document.getElementById("decodeOutput").value;
+      if (!out) return;
+      await navigator.clipboard.writeText(out);
+      setStatus("decodeStatus", "Plaintext copied to clipboard.");
+    });
+
+    document.getElementById("clearDecodeBtn").addEventListener("click", () => {
+      const decIn = document.getElementById("decodeInput");
+      const decOut = document.getElementById("decodeOutput");
+      decIn.value = "";
+      decOut.value = "";
+      autoResizeTextarea(decIn);
+      autoResizeTextarea(decOut);
+      document.getElementById("decDbgSeed").textContent = "";
+      document.getElementById("decDbgPeel").textContent = "";
+      document.getElementById("decDbgTrace").textContent = "";
+      setStatus("decodeStatus", "");
+    });
+
+    document.getElementById("debugToggle").addEventListener("change", (e) => {
+      const show = e.target.checked;
+      document.getElementById("encodeDebugPanel").classList.toggle("visible", show);
+      document.getElementById("decodeDebugPanel").classList.toggle("visible", show);
+    });
+
+    document.getElementById("keywordInput").addEventListener("input", () => {
+      syncReferenceToKeyword(true);
+    });
+
+    document.querySelectorAll(".start-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".start-btn").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        refState.startMaster = Number(btn.dataset.start);
+        syncReferenceToKeyword(true);
+      });
+    });
+
+    document.getElementById("zerodModeBtn").addEventListener("click", () => {
+      refState.useConfiguredSeed = false;
+      document.getElementById("zerodModeBtn").classList.add("active");
+      document.getElementById("configuredModeBtn").classList.remove("active");
+      syncReferenceToKeyword(true);
+    });
+
+    document.getElementById("configuredModeBtn").addEventListener("click", () => {
+      refState.useConfiguredSeed = true;
+      document.getElementById("configuredModeBtn").classList.add("active");
+      document.getElementById("zerodModeBtn").classList.remove("active");
+      syncReferenceToKeyword(true);
+    });
+
+    document.getElementById("toggleFormatSymbolsBtn").addEventListener("click", (e) => {
+      refState.showFormatSymbols = !refState.showFormatSymbols;
+      e.target.classList.toggle("active", refState.showFormatSymbols);
+      e.target.textContent = `Y-Wrapper Symbols: ${refState.showFormatSymbols ? "ON" : "OFF"}`;
+      document.getElementById("legendFmtItem").style.display = refState.showFormatSymbols ? "inline-flex" : "none";
+      renderReferenceFrame(1);
+    });
+
+    document.getElementById("nextWordBtn").addEventListener("click", () => {
+      if (refState.anim) return;
+
+      const baseGrid = buildKeyedAlphabet(document.getElementById("keywordInput").value);
+      const fromCells = getActiveGrid(baseGrid, refState.masterGrid, refState.mapState);
+
+      snapshotRefState();
+
+      refState.masterGrid = ((refState.wordStartMaster - 2 + 4) % 4) + 1;
+      refState.wordStartMaster = refState.masterGrid;
+
+      const qIdx = (refState.wordNumber - 1) % 4;
+      refState.mapState[qIdx] = (refState.mapState[qIdx] % 4) + 1;
+      refState.wordNumber++;
+
+      const toCells = getActiveGrid(baseGrid, refState.masterGrid, refState.mapState);
+
+      triggerRotationAnimation({
+        type: "quadrant",
+        qIdx,
+        deltaAngle: Math.PI / 2,
+        fromCells,
+        toCells
+      });
+    });
+
+    document.getElementById("stepBackBtn").addEventListener("click", () => {
+      const prev = refState.history.pop();
+      if (!prev) return;
+      refState.anim = null;
+      refState.wordStartMaster = prev.wordStartMaster;
+      refState.masterGrid = prev.masterGrid;
+      refState.mapState = prev.mapState;
+      refState.wordNumber = prev.wordNumber;
+      updateTelemetryDisplay();
+      renderReferenceFrame(1);
+    });
+
+    document.getElementById("resetRefBtn").addEventListener("click", () => {
+      syncReferenceToKeyword(true);
+    });
+
+    syncReferenceToKeyword(true);
+    syncAllTextareas();
+  </script>
+</body>
+</html>
