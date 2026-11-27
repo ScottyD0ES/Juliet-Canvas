@@ -224,6 +224,14 @@
     font-variant-numeric: tabular-nums;
   }
 
+  .field-label span.highlight.mod4-tint {
+    color: var(--accent-yellow);
+  }
+
+  .field-label span.highlight.mod10-tint {
+    color: var(--accent-orange);
+  }
+
   .keyword-row {
     display: flex;
     gap: 7px;
@@ -365,7 +373,12 @@
     margin-top: 1px;
   }
 
-  /* 36-Char Keyed TAI Sequence Strip */
+  /* Tappable 36-Char Keyed Sequence Card */
+  .tai-card {
+    cursor: pointer;
+    user-select: none;
+  }
+
   .tai-strip {
     display: grid;
     grid-template-columns: repeat(12, 1fr);
@@ -399,8 +412,17 @@
   }
 
   .tai-chip .c-idx {
-    font-size: 0.54rem;
-    color: var(--text-dim);
+    font-size: 0.56rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tai-chip .c-idx.mod4-val {
+    color: var(--accent-yellow);
+  }
+
+  .tai-chip .c-idx.mod10-val {
+    color: var(--accent-orange);
   }
 
   /* Outer Tappable Master Frame Rim */
@@ -711,11 +733,11 @@
       </div>
     </section>
 
-    <!-- 36-Char Keyed TAI Sequence Reference -->
-    <section class="card">
+    <!-- Tappable 36-Char Keyed Sequence (Toggles Mod 4 / Mod 10 on Tap) -->
+    <section class="card tai-card" id="tai-card">
       <div class="field-label">
-        <span>Keyed TAI Sequence (01–36)</span>
-        <span class="highlight">BLUE = KEY Q1–Q4</span>
+        <span>Keyed Sequence (Tap to Toggle)</span>
+        <span class="highlight mod4-tint" id="tai-mode-label">SHOWING: TAI MOD 4</span>
       </div>
       <div class="tai-strip" id="tai-strip"></div>
     </section>
@@ -783,7 +805,8 @@
     masterDeg: 0,             // Cumulative degrees for smooth CW rotation
     quadMod4: [1, 1, 1, 1],   // 1..4 for Q1..Q4
     quadDeg: [0, 0, 0, 0],    // Cumulative degrees for smooth CW rotation
-    symbolSwapMode: false
+    symbolSwapMode: false,
+    taiStripMode: "mod4"      // 'mod4' | 'mod10'
   };
 
   // DOM References
@@ -809,6 +832,8 @@
   const mod4Btns = document.querySelectorAll(".mod4-btn");
   const quadPills = document.querySelectorAll(".quad-pill");
   const applyKeyRotorsBtn = document.getElementById("apply-key-rotors-btn");
+  const taiCard = document.getElementById("tai-card");
+  const taiModeLabel = document.getElementById("tai-mode-label");
   const taiStripEl = document.getElementById("tai-strip");
   const modeBtns = document.querySelectorAll(".mode-btn");
   const ioCard = document.getElementById("io-card");
@@ -861,8 +886,8 @@
 
   // Step a cumulative angle forward clockwise to match a target mod4 (1..4)
   function stepAngleToMod4(currentDeg, targetMod4) {
-    const currentModIndex = (((currentDeg / 90) % 4) + 4) % 4; // 0..3
-    const targetModIndex = targetMod4 - 1;                      // 0..3
+    const currentModIndex = (((currentDeg / 90) % 4) + 4) % 4;
+    const targetModIndex = targetMod4 - 1;
     const deltaSteps = (targetModIndex - currentModIndex + 4) % 4;
     return currentDeg + deltaSteps * 90;
   }
@@ -875,7 +900,7 @@
     // Build Static Reference Bed (01 Top-Left -> 36 Bottom-Right)
     for (let r = 0; r < 6; r++) {
       for (let c = 0; c < 6; c++) {
-        const idx = r * 6 + c; // 0..35 row-by-row left-to-right
+        const idx = r * 6 + c;
         const taiNum = idx + 1;
         const taiStr = String(taiNum).padStart(2, "0");
         const stdChar = STD_ALPHABET[idx];
@@ -898,7 +923,6 @@
           <span class="ref-br">${staticMod10}</span>
         `;
 
-        // Tapping any cell in visual quadrant rotates the sub-grid quadrant currently in that visual slot 90° CW
         cell.addEventListener("click", e => {
           e.stopPropagation();
           rotateVisualQuadrantCW(visualQuad);
@@ -1035,17 +1059,31 @@
     return grid;
   }
 
-  // Render the 36-char Keyed TAI Sequence strip
+  // Render the Tappable 36-Char Keyed Sequence Strip (Mod 4 vs Mod 10)
   function renderTAIStrip() {
     taiStripEl.innerHTML = "";
+    const isMod4 = state.taiStripMode === "mod4";
+
+    taiModeLabel.textContent = isMod4 ? "SHOWING: TAI MOD 4" : "SHOWING: TAI MOD 10";
+    taiModeLabel.classList.toggle("mod4-tint", isMod4);
+    taiModeLabel.classList.toggle("mod10-tint", !isMod4);
+
     state.keyedAlphabet.forEach((ch, idx) => {
       const chip = document.createElement("div");
       chip.className = "tai-chip" + (idx < 4 ? " key-driver" : "");
       const tai = getTAI(ch);
-      chip.innerHTML = `<div class="c-char">${ch}</div><div class="c-idx">${String(tai).padStart(2, "0")}</div>`;
+      const val = isMod4 ? getMod4(tai) : getMod10Display(tai);
+      const valClass = isMod4 ? "mod4-val" : "mod10-val";
+      chip.innerHTML = `<div class="c-char">${ch}</div><div class="c-idx ${valClass}">${val}</div>`;
       taiStripEl.appendChild(chip);
     });
   }
+
+  // Tapping anywhere in the Keyed Sequence card toggles Mod 4 <-> Mod 10
+  taiCard.addEventListener("click", () => {
+    state.taiStripMode = state.taiStripMode === "mod4" ? "mod10" : "mod4";
+    renderTAIStrip();
+  });
 
   // Compute Index of Coincidence (IoC)
   function computeIoC(text) {
