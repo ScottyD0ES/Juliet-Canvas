@@ -6,18 +6,20 @@
 <title>RGC36 — Mechanical Grid Sandbox</title>
 <style>
   :root {
-    --bg-deep: #090612;
-    --panel-bg: rgba(18, 13, 34, 0.82);
-    --panel-border: rgba(168, 120, 255, 0.24);
+    --bg-deep: #070510;
+    --panel-bg: rgba(16, 12, 30, 0.84);
+    --panel-border: rgba(155, 118, 245, 0.25);
     --accent-purple: #a855f7;
     --accent-pink: #ec4899;
     --accent-cyan: #38bdf8;
-    --accent-amber: #f59e0b;
-    --text-main: #f3f0ff;
-    --text-dim: #9b8ec4;
-    --cell-bg: rgba(14, 10, 28, 0.92);
-    --cell-border: rgba(148, 118, 224, 0.28);
-    --quad-divider: rgba(236, 72, 153, 0.55);
+    --accent-green: #4ade80;
+    --accent-yellow: #facc15;
+    --accent-orange: #fb923c;
+    --text-main: #f8fafc;
+    --text-dim: #94a3b8;
+    --cell-bg: rgba(11, 8, 22, 0.92);
+    --cell-border: rgba(148, 120, 224, 0.22);
+    --crosshair: rgba(168, 85, 247, 0.55);
   }
 
   * {
@@ -25,6 +27,7 @@
     margin: 0;
     padding: 0;
     -webkit-tap-highlight-color: transparent;
+    touch-action: pan-x pan-y;
   }
 
   html, body {
@@ -34,9 +37,10 @@
     color: var(--text-main);
     font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
     overflow-x: hidden;
+    overscroll-behavior: none;
   }
 
-  /* Reactive Nebula Background Canvas */
+  /* Reactive Nebula & Particle Canvas */
   #nebula-canvas {
     position: fixed;
     inset: 0;
@@ -58,14 +62,14 @@
     gap: 12px;
   }
 
-  /* Desktop & iPad Landscape Split Layout: Grid Left (Max Space), Controls Right */
+  /* Desktop & iPad Landscape: Maximized Grid Left, Controls Right */
   @media (min-width: 900px) {
     .app-shell {
       flex-direction: row;
       height: 100dvh;
       overflow: hidden;
-      padding: 18px 22px;
-      gap: 22px;
+      padding: 16px 20px;
+      gap: 20px;
       align-items: center;
       justify-content: center;
     }
@@ -79,22 +83,21 @@
       min-width: 0;
     }
 
-    .grid-frame {
-      /* Maximizes square size without ever clipping vertically or horizontally */
-      width: min(calc(100dvh - 36px), calc(100vw - 450px));
-      height: min(calc(100dvh - 36px), calc(100vw - 450px));
+    .master-outer-rim {
+      width: min(calc(100dvh - 32px), calc(100vw - 450px));
+      height: min(calc(100dvh - 32px), calc(100vw - 450px));
     }
 
     .control-sidebar {
-      flex: 0 0 390px;
-      width: 390px;
-      max-height: calc(100dvh - 36px);
+      flex: 0 0 400px;
+      width: 400px;
+      max-height: calc(100dvh - 32px);
       overflow-y: auto;
       padding-right: 4px;
     }
   }
 
-  /* Mobile / Narrow Portrait Layout */
+  /* Mobile Portrait: Controls Top, Full-Width Square Grid Bottom */
   @media (max-width: 899px) {
     .app-shell {
       flex-direction: column;
@@ -102,7 +105,6 @@
       gap: 10px;
     }
 
-    /* Put controls compactly on top or bottom; keeping grid prominent and square */
     .control-sidebar {
       order: 1;
       width: 100%;
@@ -113,16 +115,15 @@
       width: 100%;
       display: flex;
       justify-content: center;
-      padding-bottom: 16px;
+      padding-bottom: 18px;
     }
 
-    .grid-frame {
-      width: min(100%, 540px);
+    .master-outer-rim {
+      width: min(100%, 560px);
       aspect-ratio: 1 / 1;
     }
   }
 
-  /* Custom Scrollbar for Sidebar */
   .control-sidebar::-webkit-scrollbar {
     width: 5px;
   }
@@ -136,52 +137,53 @@
     background: var(--panel-bg);
     border: 1px solid var(--panel-border);
     border-radius: 12px;
-    padding: 12px 14px;
+    padding: 11px 13px;
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
   }
 
   .control-sidebar {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 9px;
   }
 
-  /* Brand & Mode Bar */
+  /* Header & Modes */
   .brand-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
 
   .brand-title {
     font-size: 1.05rem;
     font-weight: 800;
     letter-spacing: 0.12em;
-    background: linear-gradient(90deg, #e879f9, #a855f7, #38bdf8);
+    background: linear-gradient(90deg, #38bdf8, #c084fc, #f472b6);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
   }
 
-  .version-pill {
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    padding: 3px 8px;
+  .rotor-badge {
+    font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    padding: 3px 9px;
     border-radius: 999px;
-    background: rgba(168, 85, 247, 0.18);
-    border: 1px solid rgba(168, 85, 247, 0.4);
-    color: #d8b4fe;
+    background: rgba(56, 189, 248, 0.15);
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    color: #7dd3fc;
   }
 
   .mode-tabs {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-    background: rgba(10, 7, 22, 0.7);
+    gap: 5px;
+    background: rgba(8, 6, 18, 0.75);
     padding: 4px;
     border-radius: 9px;
     border: 1px solid rgba(255, 255, 255, 0.07);
@@ -196,22 +198,21 @@
     padding: 7px 6px;
     border-radius: 6px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.18s ease;
   }
 
   .mode-btn.active {
-    background: linear-gradient(135deg, rgba(168, 85, 247, 0.45), rgba(236, 72, 153, 0.35));
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.45), rgba(56, 189, 248, 0.3));
     color: #fff;
-    box-shadow: 0 2px 10px rgba(168, 85, 247, 0.3);
     border: 1px solid rgba(216, 180, 254, 0.35);
   }
 
-  /* Inputs & Buttons */
+  /* Field Labels & Inputs */
   .field-label {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 0.68rem;
+    font-size: 0.67rem;
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -226,12 +227,12 @@
 
   .keyword-row {
     display: flex;
-    gap: 8px;
+    gap: 7px;
   }
 
   input[type="text"], textarea {
     width: 100%;
-    background: rgba(9, 6, 20, 0.85);
+    background: rgba(7, 5, 16, 0.88);
     border: 1px solid rgba(168, 120, 255, 0.3);
     border-radius: 8px;
     color: #fff;
@@ -243,12 +244,12 @@
   }
 
   input[type="text"]:focus, textarea:focus {
-    border-color: var(--accent-pink);
+    border-color: var(--accent-cyan);
   }
 
   textarea {
     resize: vertical;
-    min-height: 68px;
+    min-height: 64px;
     line-height: 1.4;
   }
 
@@ -261,95 +262,105 @@
     padding: 0 12px;
     font-size: 0.78rem;
     font-weight: 700;
-    letter-spacing: 0.04em;
     cursor: pointer;
-    transition: transform 0.12s ease, filter 0.2s ease;
     white-space: nowrap;
-  }
-
-  .btn-action:hover {
-    filter: brightness(1.15);
+    transition: transform 0.1s ease, filter 0.18s ease;
   }
 
   .btn-action:active {
     transform: scale(0.96);
   }
 
-  .btn-secondary {
-    background: rgba(56, 189, 248, 0.15);
-    border: 1px solid rgba(56, 189, 248, 0.35);
-    color: #bae6fd;
-    padding: 5px 10px;
-    font-size: 0.72rem;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 600;
-  }
-
-  /* Stage 1 & Stage 2 Telemetry Badges */
-  .stage-box {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .mod4-selector {
+  /* Utility Action Bar (Swap Symbols, Engage/Reset Rotors) */
+  .utility-row {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
   }
 
-  .mod4-btn {
-    background: rgba(12, 9, 26, 0.85);
-    border: 1px solid rgba(168, 120, 255, 0.25);
-    border-radius: 7px;
-    padding: 6px 4px;
-    color: var(--text-dim);
+  .btn-toggle {
+    background: rgba(14, 11, 28, 0.9);
+    border: 1px solid rgba(168, 120, 255, 0.35);
+    color: #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.76rem;
+    font-weight: 700;
     cursor: pointer;
     text-align: center;
     transition: all 0.18s ease;
   }
 
+  .btn-toggle.active {
+    background: rgba(56, 189, 248, 0.22);
+    border-color: var(--accent-cyan);
+    color: #fff;
+    box-shadow: 0 0 14px rgba(56, 189, 248, 0.28);
+  }
+
+  /* Rotor Controls & Telemetry */
+  .mod4-selector {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+    margin-bottom: 8px;
+  }
+
+  .mod4-btn {
+    background: rgba(10, 8, 22, 0.85);
+    border: 1px solid rgba(168, 120, 255, 0.24);
+    border-radius: 7px;
+    padding: 5px 4px;
+    color: var(--text-dim);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.16s ease;
+  }
+
   .mod4-btn strong {
     display: block;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     color: #fff;
   }
 
   .mod4-btn small {
-    font-size: 0.64rem;
+    font-size: 0.62rem;
     display: block;
   }
 
   .mod4-btn.active {
     background: rgba(56, 189, 248, 0.2);
     border-color: var(--accent-cyan);
-    box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
   }
 
   .quad-telemetry {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
+    gap: 5px;
   }
 
   .quad-pill {
-    background: rgba(10, 7, 22, 0.75);
-    border: 1px solid rgba(236, 72, 153, 0.28);
+    background: rgba(10, 8, 22, 0.8);
+    border: 1px solid rgba(168, 120, 255, 0.24);
     border-radius: 7px;
     padding: 5px 4px;
     text-align: center;
-    font-size: 0.68rem;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+
+  .quad-pill:hover {
+    border-color: var(--accent-cyan);
   }
 
   .quad-pill .q-name {
     color: var(--text-dim);
     font-weight: 700;
-    font-size: 0.62rem;
+    font-size: 0.6rem;
   }
 
   .quad-pill .q-val {
-    color: #f9a8d4;
+    color: #e9d5ff;
     font-weight: 800;
     font-size: 0.78rem;
     margin-top: 1px;
@@ -369,8 +380,8 @@
   }
 
   .tai-chip {
-    background: rgba(12, 9, 26, 0.9);
-    border: 1px solid rgba(168, 120, 255, 0.22);
+    background: rgba(10, 8, 22, 0.9);
+    border: 1px solid rgba(168, 120, 255, 0.2);
     border-radius: 4px;
     padding: 2px 1px;
     text-align: center;
@@ -378,8 +389,8 @@
   }
 
   .tai-chip.key-driver {
-    border-color: var(--accent-pink);
-    background: rgba(236, 72, 153, 0.18);
+    border-color: rgba(56, 189, 248, 0.6);
+    background: rgba(56, 189, 248, 0.12);
   }
 
   .tai-chip .c-char {
@@ -391,120 +402,189 @@
   .tai-chip .c-idx {
     font-size: 0.54rem;
     color: var(--text-dim);
-    font-variant-numeric: tabular-nums;
   }
 
-  /* 6x6 Mechanical Grid Architecture */
-  .grid-frame {
+  /* Outer Tappable Master Frame Rim */
+  .master-outer-rim {
     position: relative;
-    background: rgba(12, 8, 26, 0.78);
-    border: 2px solid rgba(168, 120, 255, 0.38);
-    border-radius: 16px;
-    padding: 8px;
+    padding: 16px;
+    border-radius: 18px;
+    background: rgba(14, 10, 30, 0.65);
+    border: 2px solid rgba(168, 120, 255, 0.36);
     box-shadow:
-      0 20px 55px rgba(0, 0, 0, 0.65),
-      inset 0 0 24px rgba(168, 85, 247, 0.15);
+      0 22px 55px rgba(0, 0, 0, 0.7),
+      inset 0 0 24px rgba(168, 85, 247, 0.14);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
+    cursor: pointer;
+    user-select: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
 
-  /* Master Rotor Layer (Stage 1 Orientation) */
-  .master-rotor {
+  .master-outer-rim:hover {
+    border-color: rgba(56, 189, 248, 0.65);
+  }
+
+  .rim-hint-top, .rim-hint-bottom {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(148, 163, 184, 0.65);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  .rim-hint-top { top: 3px; }
+  .rim-hint-bottom { bottom: 3px; }
+
+  /* Clean Uniform 6x6 Matrix (No Nested Pink Boxes) */
+  .grid-matrix {
+    position: relative;
     width: 100%;
     height: 100%;
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr;
-    gap: 6px;
-    transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
-    will-change: transform;
-  }
-
-  /* Four 3x3 Sub-Grid Quadrants (Stage 2 Rotations) */
-  .sub-quadrant {
-    width: 100%;
-    height: 100%;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(3, 1fr);
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: repeat(6, 1fr);
     gap: 4px;
-    padding: 4px;
-    background: rgba(24, 16, 48, 0.45);
-    border: 1px solid var(--quad-divider);
-    border-radius: 10px;
-    transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
-    will-change: transform;
+    cursor: pointer;
   }
 
-  /* Individual Grid Cell */
+  /* Subtle Quadrant Crosshair Dividers */
+  .grid-matrix::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 2px;
+    transform: translateX(-50%);
+    background: var(--crosshair);
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  .grid-matrix::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 2px;
+    transform: translateY(-50%);
+    background: var(--crosshair);
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  /* Individual 6x6 Cell */
   .grid-cell {
     position: relative;
     background: var(--cell-bg);
     border: 1px solid var(--cell-border);
     border-radius: 7px;
-    overflow: hidden;
-    user-select: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
-  }
-
-  .grid-cell.active-highlight {
-    border-color: var(--accent-cyan);
-    box-shadow: 0 0 16px rgba(56, 189, 248, 0.55), inset 0 0 10px rgba(56, 189, 248, 0.25);
-  }
-
-  /* Counter-rotating Gimbaled Content so labels always read upright */
-  .cell-gimbal {
-    position: absolute;
-    inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
-    will-change: transform;
+    overflow: hidden;
+    transition: background-color 0.16s ease, border-color 0.16s ease;
   }
 
+  .grid-cell:hover {
+    border-color: rgba(56, 189, 248, 0.55);
+    background: rgba(22, 16, 44, 0.95);
+  }
+
+  /* Moving Center Keyed Character */
   .cell-main-char {
-    font-size: clamp(1.05rem, 2.8vmin, 2.15rem);
+    font-size: clamp(1.2rem, 3.3vmin, 2.55rem);
     font-weight: 800;
     color: #ffffff;
-    text-shadow: 0 2px 10px rgba(168, 85, 247, 0.45);
+    text-shadow: 0 2px 12px rgba(168, 85, 247, 0.45);
     line-height: 1;
+    z-index: 2;
+    transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  .corner-tl, .corner-tr, .corner-bl, .corner-br {
+  /* Static Reference Perimeter Glyphs (Never Move) */
+  .ref-tl {
     position: absolute;
-    font-size: clamp(0.5rem, 1.05vmin, 0.72rem);
-    font-weight: 700;
+    top: 4px;
+    left: 5px;
+    font-size: clamp(0.64rem, 1.3vmin, 0.9rem);
+    font-weight: 800;
+    color: var(--accent-cyan);
     line-height: 1;
     font-variant-numeric: tabular-nums;
+    z-index: 2;
   }
 
-  .corner-tl {
-    top: 4px;
-    left: 5px;
-    color: #93c5fd;
-  }
-
-  .corner-tr {
+  .ref-tr {
+    position: absolute;
     top: 4px;
     right: 5px;
-    color: #c4b5fd;
+    font-size: clamp(0.64rem, 1.3vmin, 0.9rem);
+    font-weight: 800;
+    color: var(--accent-green);
+    line-height: 1;
+    z-index: 2;
   }
 
-  .corner-bl {
+  .ref-bl {
+    position: absolute;
     bottom: 4px;
     left: 5px;
-    color: #f9a8d4;
+    font-size: clamp(0.64rem, 1.3vmin, 0.9rem);
+    font-weight: 800;
+    color: var(--accent-yellow);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    z-index: 2;
   }
 
-  .corner-br {
+  .ref-bm {
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: clamp(0.74rem, 1.5vmin, 1.05rem);
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1;
+    z-index: 2;
+    transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .ref-br {
+    position: absolute;
     bottom: 4px;
     right: 5px;
-    color: #fcd34d;
+    font-size: clamp(0.64rem, 1.3vmin, 0.9rem);
+    font-weight: 800;
+    color: var(--accent-orange);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    z-index: 2;
+  }
+
+  /* Symbol Swap Mode: Hide Moving Main Char & Maximize Static Symbol to Center */
+  .grid-matrix.symbol-swap-mode .cell-main-char {
+    opacity: 0;
+    transform: scale(0.4);
+    pointer-events: none;
+  }
+
+  .grid-matrix.symbol-swap-mode .ref-bm {
+    bottom: auto;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: clamp(1.15rem, 3.1vmin, 2.35rem);
+    color: #ffffff;
+    text-shadow: 0 2px 12px rgba(56, 189, 248, 0.55);
   }
 
   .io-section {
@@ -517,13 +597,23 @@
     display: flex;
   }
 
+  .btn-secondary {
+    background: rgba(56, 189, 248, 0.16);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    color: #bae6fd;
+    padding: 3px 9px;
+    font-size: 0.7rem;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 700;
+  }
+
   .status-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
     font-size: 0.68rem;
     color: var(--text-dim);
-    padding-top: 2px;
   }
 </style>
 </head>
@@ -532,25 +622,22 @@
 <canvas id="nebula-canvas"></canvas>
 
 <div class="app-shell">
-  <!-- LEFT (Desktop/iPad) / BOTTOM (Mobile): Maximized 6x6 Mechanical Grid -->
+  <!-- LEFT (Desktop/iPad) / BOTTOM (Mobile): Tappable Master Rim + Clean 6x6 Matrix -->
   <main class="grid-stage">
-    <div class="grid-frame">
-      <div class="master-rotor" id="master-rotor">
-        <div class="sub-quadrant" id="quad-0"></div>
-        <div class="sub-quadrant" id="quad-1"></div>
-        <div class="sub-quadrant" id="quad-2"></div>
-        <div class="sub-quadrant" id="quad-3"></div>
-      </div>
+    <div class="master-outer-rim" id="master-outer-rim" title="Tap outer rim to rotate Master Grid 90° CW">
+      <span class="rim-hint-top">TAP RIM: MASTER 90° CW · TAP QUADRANT: SUB-GRID 90° CW</span>
+      <div class="grid-matrix" id="grid-matrix"></div>
+      <span class="rim-hint-bottom" id="rim-config-footer">CONFIG: 1 | 1111 (FLAT)</span>
     </div>
   </main>
 
   <!-- RIGHT (Desktop/iPad) / TOP (Mobile): Controls & Telemetry Sidebar -->
   <aside class="control-sidebar">
-    <!-- Header & Mode Switcher -->
+    <!-- Brand & Mode Tabs -->
     <section class="card">
       <div class="brand-row">
         <div class="brand-title">RGC36 SANDBOX</div>
-        <span class="version-pill">2-STAGE ROTOR</span>
+        <span class="rotor-badge" id="rotor-state-badge">1 | 1111</span>
       </div>
       <div class="mode-tabs">
         <button class="mode-btn active" data-mode="reference">Reference</button>
@@ -559,11 +646,11 @@
       </div>
     </section>
 
-    <!-- Keyword & Keyed Alphabet -->
+    <!-- Keyword Input (Loads Flat 1 | 1111 in Reference Mode) -->
     <section class="card">
       <div class="field-label">
-        <span>Cipher Keyword</span>
-        <span class="highlight" id="word-delim-label">DELIM: 1</span>
+        <span>Cipher Keyword (Loads Flat 1 | 1111)</span>
+        <span class="highlight" id="key-len-label">STANDARD TAI</span>
       </div>
       <div class="keyword-row">
         <input type="text" id="keyword-input" placeholder="BLANK = STANDARD TAI" autocomplete="off" spellcheck="false" />
@@ -571,32 +658,40 @@
       </div>
     </section>
 
-    <!-- Stage 1 & Stage 2 Mechanical Orientation Readout -->
-    <section class="card stage-box">
-      <div>
-        <div class="field-label">
-          <span>1. Master Grid (Plaintext 1st Char TAI Mod 4)</span>
-          <span class="highlight" id="master-angle-label">MOD 1 · 0°</span>
-        </div>
-        <div class="mod4-selector" id="master-mod4-selector">
-          <button class="mod4-btn active" data-m="1"><strong>MOD 1</strong><small>0° (Hint A)</small></button>
-          <button class="mod4-btn" data-m="2"><strong>MOD 2</strong><small>90° (Hint B)</small></button>
-          <button class="mod4-btn" data-m="3"><strong>MOD 3</strong><small>180° (Hint C)</small></button>
-          <button class="mod4-btn" data-m="4"><strong>MOD 4</strong><small>270° (Hint D)</small></button>
-        </div>
+    <!-- View & Grid Action Toggles -->
+    <section class="card">
+      <div class="field-label">
+        <span>Grid Display & Rotor Actions</span>
+        <span class="highlight" id="view-mode-label">VIEW: CHARS</span>
+      </div>
+      <div class="utility-row">
+        <button class="btn-toggle" id="swap-symbols-btn">Swap Symbols / Chars</button>
+        <button class="btn-toggle" id="reset-flat-btn">Reset 1 | 1111</button>
+      </div>
+    </section>
+
+    <!-- Stage 1 & Stage 2 Manual / Telemetry Controls -->
+    <section class="card">
+      <div class="field-label">
+        <span>1. Master Grid Orientation (TAI Mod 4)</span>
+        <span class="highlight" id="master-angle-label">MOD 1 · 0° (HINT A)</span>
+      </div>
+      <div class="mod4-selector" id="master-mod4-selector">
+        <button class="mod4-btn active" data-m="1"><strong>MOD 1</strong><small>0° · Hint A</small></button>
+        <button class="mod4-btn" data-m="2"><strong>MOD 2</strong><small>90° · Hint B</small></button>
+        <button class="mod4-btn" data-m="3"><strong>MOD 3</strong><small>180° · Hint C</small></button>
+        <button class="mod4-btn" data-m="4"><strong>MOD 4</strong><small>270° · Hint D</small></button>
       </div>
 
-      <div>
-        <div class="field-label">
-          <span>2. Sub-Grid Quadrants (Keyed Chars 1–4 Mod 4)</span>
-          <span class="highlight">3×3 ROTORS</span>
-        </div>
-        <div class="quad-telemetry" id="quad-telemetry">
-          <div class="quad-pill"><div class="q-name">Q1 (TL)</div><div class="q-val" id="q-val-0">—</div></div>
-          <div class="quad-pill"><div class="q-name">Q2 (TR)</div><div class="q-val" id="q-val-1">—</div></div>
-          <div class="quad-pill"><div class="q-name">Q3 (BL)</div><div class="q-val" id="q-val-2">—</div></div>
-          <div class="quad-pill"><div class="q-name">Q4 (BR)</div><div class="q-val" id="q-val-3">—</div></div>
-        </div>
+      <div class="field-label">
+        <span>2. Sub-Grid Quadrants (Tap Quadrant or Pill)</span>
+        <button class="btn-secondary" id="apply-key-rotors-btn">Engage Key Mod 4</button>
+      </div>
+      <div class="quad-telemetry">
+        <div class="quad-pill" data-q="0"><div class="q-name">Q1 (TL)</div><div class="q-val" id="q-val-0">M1 · 0°</div></div>
+        <div class="quad-pill" data-q="1"><div class="q-name">Q2 (TR)</div><div class="q-val" id="q-val-1">M1 · 0°</div></div>
+        <div class="quad-pill" data-q="2"><div class="q-name">Q3 (BL)</div><div class="q-val" id="q-val-2">M1 · 0°</div></div>
+        <div class="quad-pill" data-q="3"><div class="q-name">Q4 (BR)</div><div class="q-val" id="q-val-3">M1 · 0°</div></div>
       </div>
     </section>
 
@@ -625,8 +720,8 @@
     <!-- 36-Char Keyed TAI Sequence Reference -->
     <section class="card">
       <div class="field-label">
-        <span>Keyed TAI Sequence (1–36)</span>
-        <span class="highlight">PINK = Q1–Q4 DRIVERS</span>
+        <span>Keyed TAI Sequence (01–36)</span>
+        <span class="highlight">BLUE = KEY Q1–Q4</span>
       </div>
       <div class="tai-strip" id="tai-strip"></div>
     </section>
@@ -635,33 +730,82 @@
 
 <script>
 (() => {
-  // Standard 36-character Base-36 / TAI alphabet (A-Z = 1..26, 0-9 = 27..36)
+  // Prevent iOS Safari pinch-to-zoom gestures
+  document.addEventListener("gesturestart", e => e.preventDefault(), { passive: false });
+  document.addEventListener("gesturechange", e => e.preventDefault(), { passive: false });
+  document.addEventListener("touchmove", e => {
+    if (e.touches && e.touches.length > 1) e.preventDefault();
+  }, { passive: false });
+
+  // Standard 36-character Base-36 / TAI sequence
   const STD_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+  // Static Reference Symbol Legend mapped to TAI 01..36
+  const STATIC_SYMBOLS = [
+    "⇧",   // 01 | A | Capitalize / Uppercase
+    "↵",   // 02 | B | Line Break
+    ".",   // 03 | C | Period
+    ",",   // 04 | D | Comma
+    "!",   // 05 | E | Exclamation Mark
+    "?",   // 06 | F | Question Mark
+    '"',   // 07 | G | Double Quote
+    "'",   // 08 | H | Single Quote / Apostrophe
+    "-",   // 09 | I | Hyphen / Dash
+    ":",   // 10 | J | Colon
+    ";",   // 11 | K | Semicolon
+    "/",   // 12 | L | Forward Slash
+    "¶",   // 13 | M | Paragraph Break
+    "---", // 14 | N | Section Divider
+    "@",   // 15 | O | At Sign
+    "#",   // 16 | P | Hash / Number Sign
+    "$",   // 17 | Q | Dollar Sign
+    "%",   // 18 | R | Percent Sign
+    "(",   // 19 | S | Open Parenthesis
+    ")",   // 20 | T | Close Parenthesis
+    "&",   // 21 | U | Ampersand
+    "_",   // 22 | V | Underscore
+    "+",   // 23 | W | Plus Sign
+    "=",   // 24 | X | Equals Sign
+    "*",   // 25 | Y | Asterisk
+    "°",   // 26 | Z | Degree Sign
+    "[",   // 27 | 0 | Open Square Bracket
+    "]",   // 28 | 1 | Close Square Bracket
+    "{",   // 29 | 2 | Open Curly Brace
+    "}",   // 30 | 3 | Close Curly Brace
+    "<",   // 31 | 4 | Less Than / Open Angle
+    ">",   // 32 | 5 | Greater Than / Close Angle
+    "\\",  // 33 | 6 | Backslash
+    "|",   // 34 | 7 | Vertical Pipe
+    "~",   // 35 | 8 | Tilde
+    "→99"  // 36 | 9 | Step-99 No-Op Spacer
+  ];
 
   // Application State
   const state = {
-    mode: "reference", // 'reference' | 'encode' | 'decode'
+    mode: "reference",        // 'reference' | 'encode' | 'decode'
     keyword: "",
     keyedAlphabet: STD_ALPHABET.split(""),
-    masterMod4: 1, // 1..4 derived from 1st plaintext character's TAI mod 4
-    quadMod4: [1, 1, 1, 1], // 1..4 derived from first 4 chars of keyed alphabet TAI mod 4
-    wordIndex: 1
+    masterMod4: 1,            // 1..4 (Stage 1 Master Orientation)
+    quadMod4: [1, 1, 1, 1],   // 1..4 (Stage 2 Quadrant Orientations Q1..Q4)
+    symbolSwapMode: false     // false = Main Keyed Chars | true = Expanded Static Symbols
   };
 
   // DOM References
-  const masterRotorEl = document.getElementById("master-rotor");
-  const quadEls = [
-    document.getElementById("quad-0"),
-    document.getElementById("quad-1"),
-    document.getElementById("quad-2"),
-    document.getElementById("quad-3")
-  ];
+  const masterOuterRim = document.getElementById("master-outer-rim");
+  const gridMatrixEl = document.getElementById("grid-matrix");
+  const rimConfigFooter = document.getElementById("rim-config-footer");
+  const rotorStateBadge = document.getElementById("rotor-state-badge");
   const keywordInput = document.getElementById("keyword-input");
   const spinKeyBtn = document.getElementById("spin-key-btn");
-  const taiStripEl = document.getElementById("tai-strip");
+  const keyLenLabel = document.getElementById("key-len-label");
+  const swapSymbolsBtn = document.getElementById("swap-symbols-btn");
+  const resetFlatBtn = document.getElementById("reset-flat-btn");
+  const viewModeLabel = document.getElementById("view-mode-label");
   const masterAngleLabel = document.getElementById("master-angle-label");
-  const wordDelimLabel = document.getElementById("word-delim-label");
   const mod4Btns = document.querySelectorAll(".mod4-btn");
+  const quadPills = document.querySelectorAll(".quad-pill");
+  const applyKeyRotorsBtn = document.getElementById("apply-key-rotors-btn");
+  const taiStripEl = document.getElementById("tai-strip");
   const modeBtns = document.querySelectorAll(".mode-btn");
   const ioCard = document.getElementById("io-card");
   const ioInput = document.getElementById("io-input");
@@ -673,7 +817,7 @@
   const hintReadout = document.getElementById("hint-readout");
   const copyOutputBtn = document.getElementById("copy-output-btn");
 
-  // Helper: True Alphabet Index (1..36), returns 0 if not in A-Z0-9
+  // Helper: True Alphabet Index (1..36)
   function getTAI(char) {
     const idx = STD_ALPHABET.indexOf(char.toUpperCase());
     return idx === -1 ? 0 : idx + 1;
@@ -684,6 +828,11 @@
     if (tai <= 0) return 1;
     const r = tai % 4;
     return r === 0 ? 4 : r;
+  }
+
+  // Helper: TAI Modulo 10 mapped to 1..0 (1..9, 0)
+  function getMod10Display(tai) {
+    return tai % 10;
   }
 
   // Build deduplicated 36-char keyed sequence
@@ -706,125 +855,43 @@
     return result;
   }
 
-  // Map 6x6 logical coordinates (row 0..5, col 0..5) into the 4 3x3 sub-quadrants
-  // Quadrant 0: rows 0..2, cols 0..2 (TL)
-  // Quadrant 1: rows 0..2, cols 3..5 (TR)
-  // Quadrant 2: rows 3..5, cols 0..2 (BL)
-  // Quadrant 3: rows 3..5, cols 3..5 (BR)
-  function renderGridCells() {
-    quadEls.forEach(q => (q.innerHTML = ""));
+  // Column-major right-to-left base index (0..35) for physical (row, col)
+  // Col 5 (rightmost) = 0..5 (01..06), Col 4 = 6..11 (07..12), ..., Col 0 (leftmost) = 30..35 (31..36)
+  // Matches screenshot row 1: 4 (30), Y (24), S (18), M (12), G (6), A (0)
+  function getBaseSlotIndex(row, col) {
+    return (5 - col) * 6 + row;
+  }
 
-    // Base logical 6x6 placement (column-major or row-major per RGC36 matrix)
-    // Using standard 6x6 layout where each cell holds:
-    // mainChar: keyed character at index i
-    // tl: keyed position (1..36), tr: standard char at position, bl: delimiter/step, br: TAI mod 4
-    for (let q = 0; q < 4; q++) {
-      const baseRow = q >= 2 ? 3 : 0;
-      const baseCol = q % 2 === 1 ? 3 : 0;
-
-      for (let r = 0; r < 3; r++) {
-        for (let c = 0; c < 3; c++) {
-          const globalRow = baseRow + r;
-          const globalCol = baseCol + c;
-          const idx = globalRow * 6 + globalCol; // 0..35
-
-          const keyedChar = state.keyedAlphabet[idx];
-          const stdChar = STD_ALPHABET[idx];
-          const keyedTAI = getTAI(keyedChar);
-          const cellMod4 = getMod4(keyedTAI);
-          const delimDigit = ((idx + state.wordIndex) % 10);
-
-          const cell = document.createElement("div");
-          cell.className = "grid-cell";
-          cell.dataset.idx = idx;
-          cell.dataset.char = keyedChar;
-          cell.dataset.quad = q;
-
-          const gimbal = document.createElement("div");
-          gimbal.className = "cell-gimbal";
-          gimbal.dataset.quad = q;
-
-          gimbal.innerHTML = `
-            <span class="corner-tl">${idx + 1}</span>
-            <span class="corner-tr">${stdChar}</span>
-            <span class="cell-main-char">${keyedChar}</span>
-            <span class="corner-bl">${delimDigit}</span>
-            <span class="corner-br">${cellMod4}</span>
-          `;
-
-          cell.appendChild(gimbal);
-          quadEls[q].appendChild(cell);
+  // Rotate an NxN matrix 90 degrees clockwise `times` times
+  function rotateMatrixCW(mat, times) {
+    let res = mat.map(row => [...row]);
+    const n = res.length;
+    const turns = ((times % 4) + 4) % 4;
+    for (let t = 0; t < turns; t++) {
+      const next = Array.from({ length: n }, () => Array(n).fill(0));
+      for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+          next[c][n - 1 - r] = res[r][c];
         }
       }
+      res = next;
     }
-    applyRotations();
+    return res;
   }
 
-  // Apply Stage 1 (Master Grid) + Stage 2 (4 Sub-Grid Quadrants) + Counter-Rotation Gimbals
-  function applyRotations() {
-    const masterDeg = (state.masterMod4 - 1) * 90;
-    masterRotorEl.style.transform = `rotate(${masterDeg}deg)`;
-
-    const hintChar = STD_ALPHABET[state.masterMod4 - 1]; // A, B, C, or D
-    masterAngleLabel.textContent = `MOD ${state.masterMod4} · ${masterDeg}° (HINT ${hintChar})`;
-
-    mod4Btns.forEach(btn => {
-      btn.classList.toggle("active", Number(btn.dataset.m) === state.masterMod4);
-    });
-
-    for (let q = 0; q < 4; q++) {
-      const qMod = state.quadMod4[q];
-      const qDeg = (qMod - 1) * 90;
-      quadEls[q].style.transform = `rotate(${qDeg}deg)`;
-
-      // Counter-rotate every inner gimbal by -(masterDeg + qDeg) so text stays upright
-      const totalDeg = masterDeg + qDeg;
-      const gimbals = quadEls[q].querySelectorAll(".cell-gimbal");
-      gimbals.forEach(g => {
-        g.style.transform = `rotate(${-totalDeg}deg)`;
-      });
-
-      const driverChar = state.keyedAlphabet[q];
-      document.getElementById(`q-val-${q}`).textContent = `${driverChar} · M${qMod} (${qDeg}°)`;
-    }
-  }
-
-  // Render the 36-char TAI Strip
-  function renderTAIStrip() {
-    taiStripEl.innerHTML = "";
-    state.keyedAlphabet.forEach((ch, idx) => {
-      const chip = document.createElement("div");
-      chip.className = "tai-chip" + (idx < 4 ? " key-driver" : "");
-      const tai = getTAI(ch);
-      chip.innerHTML = `<div class="c-char">${ch}</div><div class="c-idx">${tai}</div>`;
-      taiStripEl.appendChild(chip);
-    });
-  }
-
-  // Compute physical 6x6 lookup coordinates after Stage 1 (Master) & Stage 2 (Quadrant) rotations
-  function getEffectiveMatrix() {
-    // Start with base 6x6 grid of indices 0..35
+  // Compute the active 6x6 permutation of moving center characters
+  // Stage 1: Master grid orientation (masterMod4: 1..4)
+  // Stage 2: Sub-grid quadrant rotations (quadMod4[0..3]: 1..4)
+  function getPermutedGrid() {
+    // Start with base flat 1|1111 column-major right-to-left slot indices
     let grid = Array.from({ length: 6 }, (_, r) =>
-      Array.from({ length: 6 }, (_, c) => r * 6 + c)
+      Array.from({ length: 6 }, (_, c) => getBaseSlotIndex(r, c))
     );
 
-    // Helper to rotate an NxN matrix clockwise by 90 deg `times`
-    const rotateCW = (mat, times) => {
-      let res = mat.map(row => [...row]);
-      const n = res.length;
-      for (let t = 0; t < (times % 4); t++) {
-        const next = Array.from({ length: n }, () => Array(n).fill(0));
-        for (let r = 0; r < n; r++) {
-          for (let c = 0; c < n; c++) {
-            next[c][n - 1 - r] = res[r][c];
-          }
-        }
-        res = next;
-      }
-      return res;
-    };
+    // Apply Stage 1: Master Grid Orientation
+    grid = rotateMatrixCW(grid, state.masterMod4 - 1);
 
-    // Stage 2: Rotate each 3x3 quadrant independently based on keyed chars 1..4 TAI mod 4
+    // Apply Stage 2: Rotate each 3x3 quadrant (Q1=TL, Q2=TR, Q3=BL, Q4=BR)
     for (let q = 0; q < 4; q++) {
       const r0 = q >= 2 ? 3 : 0;
       const c0 = q % 2 === 1 ? 3 : 0;
@@ -833,7 +900,7 @@
         [grid[r0 + 1][c0], grid[r0 + 1][c0 + 1], grid[r0 + 1][c0 + 2]],
         [grid[r0 + 2][c0], grid[r0 + 2][c0 + 1], grid[r0 + 2][c0 + 2]]
       ];
-      const rotSub = rotateCW(sub, state.quadMod4[q] - 1);
+      const rotSub = rotateMatrixCW(sub, state.quadMod4[q] - 1);
       for (let r = 0; r < 3; r++) {
         for (let c = 0; c < 3; c++) {
           grid[r0 + r][c0 + c] = rotSub[r][c];
@@ -841,12 +908,105 @@
       }
     }
 
-    // Stage 1: Rotate entire 6x6 master matrix based on 1st plaintext char TAI mod 4
-    grid = rotateCW(grid, state.masterMod4 - 1);
     return grid;
   }
 
-  // Calculate Index of Coincidence (IoC)
+  // Build the static 36 cells once; updates only permute center glyphs
+  function initGridDOM() {
+    gridMatrixEl.innerHTML = "";
+    for (let r = 0; r < 6; r++) {
+      for (let c = 0; c < 6; c++) {
+        const staticIdx = getBaseSlotIndex(r, c); // 0..35
+        const taiNum = staticIdx + 1;             // 1..36
+        const taiStr = String(taiNum).padStart(2, "0");
+        const stdChar = STD_ALPHABET[staticIdx];
+        const staticMod4 = getMod4(taiNum);
+        const staticMod10 = getMod10Display(taiNum);
+        const staticSym = STATIC_SYMBOLS[staticIdx];
+        const quadIdx = (r >= 3 ? 2 : 0) + (c >= 3 ? 1 : 0);
+
+        const cell = document.createElement("div");
+        cell.className = "grid-cell";
+        cell.dataset.r = r;
+        cell.dataset.c = c;
+        cell.dataset.quad = quadIdx;
+
+        cell.innerHTML = `
+          <span class="ref-tl">${taiStr}</span>
+          <span class="ref-tr">${stdChar}</span>
+          <span class="cell-main-char" id="main-char-${r}-${c}">${stdChar}</span>
+          <span class="ref-bl">${staticMod4}</span>
+          <span class="ref-bm">${staticSym}</span>
+          <span class="ref-br">${staticMod10}</span>
+        `;
+
+        // Tapping a cell inside a quadrant rotates that 3x3 quadrant 90° CW
+        cell.addEventListener("click", e => {
+          e.stopPropagation();
+          state.quadMod4[quadIdx] = (state.quadMod4[quadIdx] % 4) + 1;
+          refreshGridDisplay();
+          if (state.mode === "encode") runEncode(ioInput.value);
+          if (state.mode === "decode") runDecode(ioInput.value);
+        });
+
+        gridMatrixEl.appendChild(cell);
+      }
+    }
+  }
+
+  // Refresh center moving characters & telemetry readouts without disturbing static reference glyphs
+  function refreshGridDisplay() {
+    const permuted = getPermutedGrid();
+    for (let r = 0; r < 6; r++) {
+      for (let c = 0; c < 6; c++) {
+        const movedSlotIdx = permuted[r][c];
+        const movingChar = state.keyedAlphabet[movedSlotIdx];
+        const mainEl = document.getElementById(`main-char-${r}-${c}`);
+        if (mainEl) mainEl.textContent = movingChar;
+      }
+    }
+
+    const configStr = `${state.masterMod4} | ${state.quadMod4.join("")}`;
+    const isFlat = state.masterMod4 === 1 && state.quadMod4.every(v => v === 1);
+    rotorStateBadge.textContent = configStr;
+    rimConfigFooter.textContent = `CONFIG: ${configStr}${isFlat ? " (FLAT)" : ""}`;
+
+    const masterDeg = (state.masterMod4 - 1) * 90;
+    const hintChar = STD_ALPHABET[state.masterMod4 - 1];
+    masterAngleLabel.textContent = `MOD ${state.masterMod4} · ${masterDeg}° (HINT ${hintChar})`;
+
+    mod4Btns.forEach(btn => {
+      btn.classList.toggle("active", Number(btn.dataset.m) === state.masterMod4);
+    });
+
+    for (let q = 0; q < 4; q++) {
+      const qm = state.quadMod4[q];
+      const qDeg = (qm - 1) * 90;
+      document.getElementById(`q-val-${q}`).textContent = `M${qm} · ${qDeg}°`;
+    }
+  }
+
+  // Render the 36-char Keyed TAI Sequence strip
+  function renderTAIStrip() {
+    taiStripEl.innerHTML = "";
+    state.keyedAlphabet.forEach((ch, idx) => {
+      const chip = document.createElement("div");
+      chip.className = "tai-chip" + (idx < 4 ? " key-driver" : "");
+      const tai = getTAI(ch);
+      chip.innerHTML = `<div class="c-char">${ch}</div><div class="c-idx">${String(tai).padStart(2, "0")}</div>`;
+      taiStripEl.appendChild(chip);
+    });
+  }
+
+  // Apply Stage 2 Quadrant Rotations from the first 4 characters of the keyed alphabet
+  function engageKeyQuadrants() {
+    for (let q = 0; q < 4; q++) {
+      state.quadMod4[q] = getMod4(getTAI(state.keyedAlphabet[q]));
+    }
+    refreshGridDisplay();
+  }
+
+  // Compute Index of Coincidence (IoC)
   function computeIoC(text) {
     const clean = text.toUpperCase().replace(/[^A-Z0-9]/g, "");
     const N = clean.length;
@@ -858,7 +1018,7 @@
     return sum / (N * (N - 1));
   }
 
-  // Polyalphabetic Rotor Encode with RGC36 Wrappers & Trailing Hint
+  // Live Encode using 2-Stage Initialization + 5-Rotor Stepping + RGC36 Wrappers
   function runEncode(plaintext) {
     const raw = plaintext.toUpperCase();
     const firstValid = raw.match(/[A-Z0-9]/);
@@ -870,14 +1030,19 @@
       return;
     }
 
-    // Stage 1: Determine Master Grid orientation from first plaintext char TAI mod 4
+    // Stage 1: Set Master Grid Orientation from 1st plaintext char TAI mod 4
     const firstCh = firstValid[0];
     const firstTAI = getTAI(firstCh);
     state.masterMod4 = getMod4(firstTAI);
-    firstCharInfo.textContent = `1ST CHAR: ${firstCh} (TAI ${firstTAI} → MOD ${state.masterMod4})`;
-    applyRotations();
 
-    const mat = getEffectiveMatrix();
+    // Stage 2: Set Sub-Grid Quadrants from first 4 keyed alphabet chars TAI mod 4
+    for (let q = 0; q < 4; q++) {
+      state.quadMod4[q] = getMod4(getTAI(state.keyedAlphabet[q]));
+    }
+    refreshGridDisplay();
+    firstCharInfo.textContent = `1ST CHAR: ${firstCh} (TAI ${firstTAI} → MOD ${state.masterMod4})`;
+
+    const mat = getPermutedGrid();
     const flatOrder = mat.flat().map(idx => state.keyedAlphabet[idx]);
 
     const words = raw.trim().split(/\s+/).filter(Boolean);
@@ -893,7 +1058,6 @@
       for (let i = 0; i < cleanChars.length; i++) {
         const ch = cleanChars[i];
         const pIdx = flatOrder.indexOf(ch);
-        // 5-rotor progressive stepping across the 36-char oriented matrix
         const rotorShift =
           (step * 7 +
             Math.floor(step / 3) * 5 +
@@ -901,19 +1065,14 @@
             wIdx * 3 +
             state.masterMod4) %
           36;
-        const cChar = flatOrder[(pIdx + rotorShift) % 36];
-        out += cChar;
+        out += flatOrder[(pIdx + rotorShift) % 36];
         step++;
       }
 
-      // Wrap words containing numbers in Z-wrappers per RGC36 rules
-      if (hasNumber) {
-        out = `Z${out}Z`;
-      }
+      if (hasNumber) out = `Z${out}Z`;
       encodedWords.push(out);
     });
 
-    // Dynamic numeric delimiters between words + trailing TAI mod 4 hint character
     let joined = "";
     encodedWords.forEach((ew, idx) => {
       joined += ew;
@@ -923,7 +1082,7 @@
       }
     });
 
-    const tailHint = STD_ALPHABET[state.masterMod4 - 1]; // A, B, C, or D
+    const tailHint = STD_ALPHABET[state.masterMod4 - 1];
     const finalCipher = joined ? `${joined}${tailHint}` : "";
 
     ioOutput.value = finalCipher;
@@ -932,7 +1091,7 @@
     hintReadout.textContent = `Tail Hint: ${tailHint} (Mod ${state.masterMod4})`;
   }
 
-  // Round-Trip Decode from RGC36 Ciphertext
+  // Live Decode
   function runDecode(ciphertext) {
     const cleanAll = ciphertext.toUpperCase().replace(/[^A-Z0-9]/g, "");
     if (cleanAll.length < 2) {
@@ -941,18 +1100,19 @@
       return;
     }
 
-    // Extract trailing hint character to restore Stage 1 Master Grid orientation
     const tailHint = cleanAll.slice(-1);
     const hintTAI = getTAI(tailHint);
     state.masterMod4 = getMod4(hintTAI);
+    for (let q = 0; q < 4; q++) {
+      state.quadMod4[q] = getMod4(getTAI(state.keyedAlphabet[q]));
+    }
+    refreshGridDisplay();
     firstCharInfo.textContent = `TAIL HINT: ${tailHint} → MASTER MOD ${state.masterMod4}`;
-    applyRotations();
 
     const body = ciphertext.trim().toUpperCase().slice(0, -1);
-    const mat = getEffectiveMatrix();
+    const mat = getPermutedGrid();
     const flatOrder = mat.flat().map(idx => state.keyedAlphabet[idx]);
 
-    // Split on numeric word delimiters (1-9)
     const tokens = body.split(/[1-9]/).filter(Boolean);
     const decodedWords = [];
     let step = 0;
@@ -980,31 +1140,43 @@
       decodedWords.push(plainWord);
     });
 
-    const result = decodedWords.join(" ");
-    ioOutput.value = result;
+    ioOutput.value = decodedWords.join(" ");
     iocReadout.textContent = `Recovered: ${decodedWords.length} word(s)`;
     hintReadout.textContent = `Master Lock: Mod ${state.masterMod4}`;
   }
 
-  // Recalculate Keyed Alphabet & Stage 2 Quadrants
-  function updateCipherState() {
+  // Handle Keyword Changes: Always load into flat 1 | 1111 in Reference Mode
+  function handleKeywordUpdate() {
     state.keyedAlphabet = buildKeyedAlphabet(state.keyword);
-    // Stage 2: First 4 characters of keyed alphabet determine the 4 sub-grid quadrant rotations
-    for (let q = 0; q < 4; q++) {
-      state.quadMod4[q] = getMod4(getTAI(state.keyedAlphabet[q]));
-    }
-    wordDelimLabel.textContent = `KEY LEN: ${state.keyword.replace(/[^A-Z0-9]/gi, "").length}`;
+    const cleanLen = state.keyword.replace(/[^A-Z0-9]/gi, "").length;
+    keyLenLabel.textContent = cleanLen > 0 ? `KEY LEN: ${cleanLen}` : "STANDARD TAI";
     renderTAIStrip();
-    renderGridCells();
 
-    if (state.mode === "encode") runEncode(ioInput.value);
-    if (state.mode === "decode") runDecode(ioInput.value);
+    if (state.mode === "reference") {
+      // Keep grid in flat 1 | 1111 so keyword layout can be inspected directly
+      state.masterMod4 = 1;
+      state.quadMod4 = [1, 1, 1, 1];
+      refreshGridDisplay();
+    } else if (state.mode === "encode") {
+      runEncode(ioInput.value);
+    } else if (state.mode === "decode") {
+      runDecode(ioInput.value);
+    }
   }
 
-  // Event Listeners
+  // Tapping anywhere on the outer Master Rim rotates Master Grid 90° CW
+  masterOuterRim.addEventListener("click", e => {
+    if (e.target.closest(".grid-cell")) return;
+    state.masterMod4 = (state.masterMod4 % 4) + 1;
+    refreshGridDisplay();
+    if (state.mode === "encode") runEncode(ioInput.value);
+    if (state.mode === "decode") runDecode(ioInput.value);
+  });
+
+  // Keyword Input & Spin Key
   keywordInput.addEventListener("input", e => {
     state.keyword = e.target.value;
-    updateCipherState();
+    handleKeywordUpdate();
   });
 
   spinKeyBtn.addEventListener("click", () => {
@@ -1012,18 +1184,51 @@
     const pick = samples[Math.floor(Math.random() * samples.length)];
     keywordInput.value = pick;
     state.keyword = pick;
-    updateCipherState();
+    handleKeywordUpdate();
   });
 
+  // Swap Symbols / Characters Toggle
+  swapSymbolsBtn.addEventListener("click", () => {
+    state.symbolSwapMode = !state.symbolSwapMode;
+    gridMatrixEl.classList.toggle("symbol-swap-mode", state.symbolSwapMode);
+    swapSymbolsBtn.classList.toggle("active", state.symbolSwapMode);
+    viewModeLabel.textContent = state.symbolSwapMode ? "VIEW: SYMBOLS" : "VIEW: CHARS";
+  });
+
+  // Reset to 1 | 1111 Flat Configuration
+  resetFlatBtn.addEventListener("click", () => {
+    state.masterMod4 = 1;
+    state.quadMod4 = [1, 1, 1, 1];
+    refreshGridDisplay();
+  });
+
+  // Engage Keyed Quadrant Rotations on Demand
+  applyKeyRotorsBtn.addEventListener("click", () => {
+    engageKeyQuadrants();
+  });
+
+  // Master Mod 4 Selector Buttons
   mod4Btns.forEach(btn => {
     btn.addEventListener("click", () => {
       state.masterMod4 = Number(btn.dataset.m);
-      applyRotations();
+      refreshGridDisplay();
       if (state.mode === "encode") runEncode(ioInput.value);
       if (state.mode === "decode") runDecode(ioInput.value);
     });
   });
 
+  // Quadrant Pill Taps (also rotate individual quadrant 90° CW)
+  quadPills.forEach(pill => {
+    pill.addEventListener("click", () => {
+      const q = Number(pill.dataset.q);
+      state.quadMod4[q] = (state.quadMod4[q] % 4) + 1;
+      refreshGridDisplay();
+      if (state.mode === "encode") runEncode(ioInput.value);
+      if (state.mode === "decode") runDecode(ioInput.value);
+    });
+  });
+
+  // Mode Switcher
   modeBtns.forEach(btn => {
     btn.addEventListener("click", () => {
       modeBtns.forEach(b => b.classList.remove("active"));
@@ -1036,7 +1241,7 @@
         ioCard.classList.add("visible");
         ioInputLabel.textContent = "Plaintext Input";
         ioOutputLabel.textContent = "RGC36 Ciphertext Output";
-        ioInput.placeholder = "Enter plaintext (1st char sets Master Grid Mod 4)...";
+        ioInput.placeholder = "Enter plaintext (1st char sets Master Mod 4)...";
         runEncode(ioInput.value);
       } else if (state.mode === "decode") {
         ioCard.classList.add("visible");
@@ -1060,59 +1265,127 @@
     setTimeout(() => (copyOutputBtn.textContent = "Copy"), 1200);
   });
 
-  // Reactive Nebula Wallpaper Canvas
+  // ============================================================================
+  // Restored Reactive Nebula Clouds & Particle Constellation Background
+  // Seeded dynamically by active 5-rotor configuration (M | Q1 Q2 Q3 Q4)
+  // ============================================================================
   const canvas = document.getElementById("nebula-canvas");
   const ctx = canvas.getContext("2d");
-  let stars = [];
+  let particles = [];
+  let clouds = [];
 
-  function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    stars = Array.from({ length: 75 }, () => ({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      r: Math.random() * 1.5 + 0.4,
-      a: Math.random() * Math.PI * 2,
-      s: Math.random() * 0.008 + 0.002
+  function initParticlesAndClouds() {
+    const w = (canvas.width = window.innerWidth);
+    const h = (canvas.height = window.innerHeight);
+
+    // 4 dynamic nebula clouds driven by rotor configuration
+    clouds = Array.from({ length: 4 }, (_, i) => ({
+      bx: (0.2 + i * 0.2) * w,
+      by: (0.25 + ((i % 2) * 0.45)) * h,
+      radius: Math.max(w, h) * (0.36 + i * 0.06),
+      phase: i * 1.57,
+      speed: 0.00035 + i * 0.00012
+    }));
+
+    // 95 drifting constellation particles
+    particles = Array.from({ length: 95 }, (_, i) => ({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 0.35,
+      vy: (Math.random() - 0.5) * 0.35,
+      size: Math.random() * 1.9 + 0.5,
+      phase: Math.random() * Math.PI * 2,
+      group: i % 4
     }));
   }
 
-  function animateNebula(t) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  function renderReactiveNebula(ts) {
+    const w = canvas.width;
+    const h = canvas.height;
 
-    // Deep cosmic gradient reacting subtly to masterMod4
-    const hueShift = (state.masterMod4 - 1) * 18;
-    const g1 = ctx.createRadialGradient(
-      canvas.width * 0.28,
-      canvas.height * 0.35,
-      20,
-      canvas.width * 0.45,
-      canvas.height * 0.5,
-      Math.max(canvas.width, canvas.height) * 0.85
-    );
-    g1.addColorStop(0, `hsla(${275 + hueShift}, 72%, 22%, 0.55)`);
-    g1.addColorStop(0.5, `hsla(${315 + hueShift}, 65%, 14%, 0.35)`);
-    g1.addColorStop(1, "rgba(9, 6, 18, 1)");
-    ctx.fillStyle = g1;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Derive deterministic harmonic signature from active 5 rotors (M | Q1 Q2 Q3 Q4)
+    const m = state.masterMod4;
+    const [q1, q2, q3, q4] = state.quadMod4;
+    const rotorSig = m * 29 + q1 * 17 + q2 * 23 + q3 * 31 + q4 * 37;
+    const baseHue = (255 + rotorSig * 3.4) % 360;
 
-    for (const st of stars) {
-      st.a += st.s;
-      const alpha = 0.25 + Math.sin(st.a) * 0.25;
-      ctx.fillStyle = `rgba(235, 225, 255, ${alpha})`;
+    ctx.fillStyle = "#070510";
+    ctx.fillRect(0, 0, w, h);
+
+    // Draw multi-layered shifting nebula clouds
+    ctx.globalCompositeOperation = "lighter";
+    clouds.forEach((cl, idx) => {
+      const qVal = state.quadMod4[idx];
+      const orbitAngle = ts * cl.speed * (0.7 + qVal * 0.35) + cl.phase + (m - 1) * 0.8;
+      const cx = cl.bx + Math.cos(orbitAngle) * (w * 0.12);
+      const cy = cl.by + Math.sin(orbitAngle * 0.85) * (h * 0.12);
+      const hue = (baseHue + idx * 38 + qVal * 19) % 360;
+
+      const grad = ctx.createRadialGradient(cx, cy, 10, cx, cy, cl.radius);
+      grad.addColorStop(0, `hsla(${hue}, 78%, 26%, 0.24)`);
+      grad.addColorStop(0.5, `hsla(${(hue + 28) % 360}, 68%, 15%, 0.11)`);
+      grad.addColorStop(1, "rgba(7, 5, 16, 0)");
+
+      ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.arc(st.x, st.y, st.r, 0, Math.PI * 2);
+      ctx.arc(cx, cy, cl.radius, 0, Math.PI * 2);
       ctx.fill();
+    });
+
+    // Draw drifting particles & subtle rotor-reactive constellation links
+    const speedScale = 0.65 + (m + q1 + q2 + q3 + q4) * 0.14;
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      const qBias = state.quadMod4[p.group];
+      const swirlAngle = ((m - 1) * 0.5 + (qBias - 1) * 0.35);
+
+      p.x += (p.vx * Math.cos(swirlAngle) - p.vy * Math.sin(swirlAngle)) * speedScale;
+      p.y += (p.vx * Math.sin(swirlAngle) + p.vy * Math.cos(swirlAngle)) * speedScale;
+
+      if (p.x < 0) p.x += w;
+      if (p.x > w) p.x -= w;
+      if (p.y < 0) p.y += h;
+      if (p.y > h) p.y -= h;
+
+      p.phase += 0.015;
+      const alpha = 0.3 + Math.sin(p.phase) * 0.25;
+      const pHue = (baseHue + p.group * 42) % 360;
+
+      ctx.fillStyle = `hsla(${pHue}, 85%, 76%, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Connect nearby particles in the same rotor group
+      for (let j = i + 1; j < particles.length; j += 3) {
+        const p2 = particles[j];
+        if (p.group !== p2.group) continue;
+        const dx = p.x - p2.x;
+        const dy = p.y - p2.y;
+        const distSq = dx * dx + dy * dy;
+        if (distSq < 9500) {
+          const lineAlpha = (1 - distSq / 9500) * 0.16;
+          ctx.strokeStyle = `hsla(${pHue}, 80%, 70%, ${lineAlpha})`;
+          ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.stroke();
+        }
+      }
     }
-    requestAnimationFrame(animateNebula);
+
+    ctx.globalCompositeOperation = "source-over";
+    requestAnimationFrame(renderReactiveNebula);
   }
 
-  window.addEventListener("resize", resizeCanvas);
-  resizeCanvas();
-  requestAnimationFrame(animateNebula);
+  window.addEventListener("resize", initParticlesAndClouds);
 
-  // Initialize Default State
-  updateCipherState();
+  // Boot Application
+  initGridDOM();
+  handleKeywordUpdate();
+  initParticlesAndClouds();
+  requestAnimationFrame(renderReactiveNebula);
 })();
 </script>
 </body>
