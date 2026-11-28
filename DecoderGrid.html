@@ -83,8 +83,13 @@
     }
 
     .master-outer-rim {
-      width: min(calc(100dvh - 32px), calc(100vw - 450px));
-      height: min(calc(100dvh - 32px), calc(100vw - 450px));
+      width: auto;
+      height: auto;
+    }
+
+    .grid-arena {
+      width: min(calc(100dvh - 68px), calc(100vw - 480px));
+      height: min(calc(100dvh - 68px), calc(100vw - 480px));
     }
 
     .control-sidebar {
@@ -96,7 +101,7 @@
     }
   }
 
-  /* Mobile Portrait: Controls Top, Full-Width Square Grid Bottom */
+  /* Mobile Portrait: Controls Top, Full-Width Exact Square Grid Bottom */
   @media (max-width: 899px) {
     .app-shell {
       flex-direction: column;
@@ -114,12 +119,20 @@
       width: 100%;
       display: flex;
       justify-content: center;
-      padding-bottom: 18px;
+      padding-bottom: 20px;
     }
 
     .master-outer-rim {
-      width: min(100%, 560px);
+      width: 100%;
+      max-width: 560px;
+      height: auto;
+      padding: 12px 12px 18px 12px;
+    }
+
+    .grid-arena {
+      width: 100%;
       aspect-ratio: 1 / 1;
+      height: auto;
     }
   }
 
@@ -211,6 +224,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 8px;
     font-size: 0.67rem;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -222,6 +236,7 @@
   .field-label span.highlight {
     color: var(--accent-cyan);
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
   .field-label span.highlight.mod4-tint {
@@ -278,8 +293,8 @@
     transform: scale(0.96);
   }
 
-  /* Utility Action Bar */
-  .utility-row {
+  /* Compact 2x2 Grid Action Matrix */
+  .utility-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 7px;
@@ -290,87 +305,30 @@
     border: 1px solid rgba(168, 120, 255, 0.35);
     color: #e2e8f0;
     border-radius: 8px;
-    padding: 8px 10px;
-    font-size: 0.76rem;
+    padding: 8px 8px;
+    font-size: 0.74rem;
     font-weight: 700;
     cursor: pointer;
     text-align: center;
     transition: all 0.18s ease;
   }
 
+  .btn-toggle:active {
+    transform: scale(0.97);
+  }
+
+  .btn-toggle.active,
+  .btn-toggle.accent-cyan {
+    background: rgba(56, 189, 248, 0.16);
+    border-color: rgba(56, 189, 248, 0.5);
+    color: #e0f2fe;
+  }
+
   .btn-toggle.active {
-    background: rgba(56, 189, 248, 0.22);
+    background: rgba(56, 189, 248, 0.26);
     border-color: var(--accent-cyan);
     color: #fff;
     box-shadow: 0 0 14px rgba(56, 189, 248, 0.28);
-  }
-
-  /* Rotor Controls & Telemetry */
-  .mod4-selector {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 5px;
-    margin-bottom: 8px;
-  }
-
-  .mod4-btn {
-    background: rgba(10, 8, 22, 0.85);
-    border: 1px solid rgba(168, 120, 255, 0.24);
-    border-radius: 7px;
-    padding: 5px 4px;
-    color: var(--text-dim);
-    cursor: pointer;
-    text-align: center;
-    transition: all 0.16s ease;
-  }
-
-  .mod4-btn strong {
-    display: block;
-    font-size: 0.82rem;
-    color: #fff;
-  }
-
-  .mod4-btn small {
-    font-size: 0.62rem;
-    display: block;
-  }
-
-  .mod4-btn.active {
-    background: rgba(56, 189, 248, 0.2);
-    border-color: var(--accent-cyan);
-  }
-
-  .quad-telemetry {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 5px;
-  }
-
-  .quad-pill {
-    background: rgba(10, 8, 22, 0.8);
-    border: 1px solid rgba(168, 120, 255, 0.24);
-    border-radius: 7px;
-    padding: 5px 4px;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color 0.15s;
-  }
-
-  .quad-pill:hover {
-    border-color: var(--accent-cyan);
-  }
-
-  .quad-pill .q-name {
-    color: var(--text-dim);
-    font-weight: 700;
-    font-size: 0.6rem;
-  }
-
-  .quad-pill .q-val {
-    color: #e9d5ff;
-    font-weight: 800;
-    font-size: 0.78rem;
-    margin-top: 1px;
   }
 
   /* Tappable 36-Char Keyed Sequence Card */
@@ -428,7 +386,7 @@
   /* Outer Tappable Master Frame Rim */
   .master-outer-rim {
     position: relative;
-    padding: 16px;
+    padding: 16px 16px 20px 16px;
     border-radius: 18px;
     background: rgba(14, 10, 30, 0.65);
     border: 2px solid rgba(168, 120, 255, 0.36);
@@ -439,18 +397,21 @@
     -webkit-backdrop-filter: blur(12px);
     cursor: pointer;
     user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .rim-hint-bottom {
     position: absolute;
     left: 50%;
-    bottom: 3px;
+    bottom: 4px;
     transform: translateX(-50%);
     font-size: 0.58rem;
     font-weight: 700;
     letter-spacing: 0.13em;
     text-transform: uppercase;
-    color: rgba(148, 163, 184, 0.7);
+    color: rgba(148, 163, 184, 0.75);
     pointer-events: none;
     white-space: nowrap;
   }
@@ -458,8 +419,6 @@
   /* Fixed Square Grid Arena: Houses Both Static Bed & Physical Rotating Carrier */
   .grid-arena {
     position: relative;
-    width: 100%;
-    height: 100%;
     cursor: pointer;
   }
 
@@ -479,14 +438,15 @@
     background: var(--cell-bg);
     border: 1px solid var(--cell-border);
     border-radius: 7px;
+    overflow: hidden;
   }
 
   /* Static Reference Perimeter Glyphs */
   .ref-tl {
     position: absolute;
-    top: 4px;
-    left: 5px;
-    font-size: clamp(0.66rem, 1.35vmin, 0.94rem);
+    top: 3px;
+    left: 4px;
+    font-size: clamp(0.54rem, 1.3vmin, 0.92rem);
     font-weight: 800;
     color: var(--accent-cyan);
     line-height: 1;
@@ -495,9 +455,9 @@
 
   .ref-tr {
     position: absolute;
-    top: 4px;
-    right: 5px;
-    font-size: clamp(0.66rem, 1.35vmin, 0.94rem);
+    top: 3px;
+    right: 4px;
+    font-size: clamp(0.54rem, 1.3vmin, 0.92rem);
     font-weight: 800;
     color: var(--accent-green);
     line-height: 1;
@@ -505,9 +465,9 @@
 
   .ref-bl {
     position: absolute;
-    bottom: 4px;
-    left: 5px;
-    font-size: clamp(0.66rem, 1.35vmin, 0.94rem);
+    bottom: 3px;
+    left: 4px;
+    font-size: clamp(0.54rem, 1.3vmin, 0.92rem);
     font-weight: 800;
     color: var(--accent-yellow);
     line-height: 1;
@@ -516,10 +476,10 @@
 
   .ref-bm {
     position: absolute;
-    bottom: 3px;
+    bottom: 2px;
     left: 50%;
     transform: translateX(-50%);
-    font-size: clamp(0.76rem, 1.55vmin, 1.1rem);
+    font-size: clamp(0.62rem, 1.5vmin, 1.08rem);
     font-weight: 800;
     color: #ffffff;
     line-height: 1;
@@ -528,16 +488,16 @@
 
   .ref-br {
     position: absolute;
-    bottom: 4px;
-    right: 5px;
-    font-size: clamp(0.66rem, 1.35vmin, 0.94rem);
+    bottom: 3px;
+    right: 4px;
+    font-size: clamp(0.54rem, 1.3vmin, 0.92rem);
     font-weight: 800;
     color: var(--accent-orange);
     line-height: 1;
     font-variant-numeric: tabular-nums;
   }
 
-  /* Layer 2: Physical Gimbaled Carrier (Rotates Smoothly Without Clipping) */
+  /* Layer 2: Physical Gimbaled Carrier (Exact 1:1 Lock with Static Bed) */
   .master-carrier {
     position: absolute;
     inset: 0;
@@ -570,7 +530,7 @@
   }
 
   .gimbal-glyph {
-    font-size: clamp(1.25rem, 3.4vmin, 2.65rem);
+    font-size: clamp(1.05rem, 3.3vmin, 2.6rem);
     font-weight: 800;
     color: #ffffff;
     text-shadow: 0 2px 12px rgba(168, 85, 247, 0.5);
@@ -589,7 +549,7 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: clamp(1.2rem, 3.2vmin, 2.45rem);
+    font-size: clamp(1.02rem, 3.1vmin, 2.4rem);
     color: #ffffff;
     text-shadow: 0 2px 12px rgba(56, 189, 248, 0.55);
   }
@@ -643,7 +603,7 @@
           <div class="quad-carrier" id="quad-carrier-3"></div>
         </div>
       </div>
-      <span class="rim-hint-bottom" id="rim-config-footer">CONFIG: 1 | 1111 (FLAT)</span>
+      <span class="rim-hint-bottom" id="rim-config-footer">MASTER MOD 1 (0°) · SCREEN Q1–Q4: 1111</span>
     </div>
   </main>
 
@@ -674,40 +634,17 @@
       </div>
     </section>
 
-    <!-- View & Grid Action Toggles -->
+    <!-- Streamlined Grid & Rotor Controls -->
     <section class="card">
       <div class="field-label">
-        <span>Grid Display & Rotor Actions</span>
-        <span class="highlight" id="view-mode-label">VIEW: CHARS</span>
-      </div>
-      <div class="utility-row">
-        <button class="btn-toggle" id="swap-symbols-btn">Swap Symbols / Chars</button>
-        <button class="btn-toggle" id="reset-flat-btn">Reset 1 | 1111</button>
-      </div>
-    </section>
-
-    <!-- Stage 1 & Stage 2 Manual / Telemetry Controls -->
-    <section class="card">
-      <div class="field-label">
-        <span>1. Master Grid Orientation (TAI Mod 4)</span>
+        <span>Master & Screen Quadrant Controls</span>
         <span class="highlight" id="master-angle-label">MOD 1 · 0° (HINT A)</span>
       </div>
-      <div class="mod4-selector" id="master-mod4-selector">
-        <button class="mod4-btn active" data-m="1"><strong>MOD 1</strong><small>0° · Hint A</small></button>
-        <button class="mod4-btn" data-m="2"><strong>MOD 2</strong><small>90° · Hint B</small></button>
-        <button class="mod4-btn" data-m="3"><strong>MOD 3</strong><small>180° · Hint C</small></button>
-        <button class="mod4-btn" data-m="4"><strong>MOD 4</strong><small>270° · Hint D</small></button>
-      </div>
-
-      <div class="field-label">
-        <span>2. Sub-Grid Quadrants (Tap Quadrant or Pill)</span>
-        <button class="btn-secondary" id="apply-key-rotors-btn">Engage Key Mod 4</button>
-      </div>
-      <div class="quad-telemetry">
-        <div class="quad-pill" data-q="0"><div class="q-name">Q1 (TL)</div><div class="q-val" id="q-val-0">M1 · 0°</div></div>
-        <div class="quad-pill" data-q="1"><div class="q-name">Q2 (TR)</div><div class="q-val" id="q-val-1">M1 · 0°</div></div>
-        <div class="quad-pill" data-q="2"><div class="q-name">Q3 (BL)</div><div class="q-val" id="q-val-2">M1 · 0°</div></div>
-        <div class="quad-pill" data-q="3"><div class="q-name">Q4 (BR)</div><div class="q-val" id="q-val-3">M1 · 0°</div></div>
+      <div class="utility-grid">
+        <button class="btn-toggle accent-cyan" id="cycle-master-btn">Rotate Master (Mod 1 → 2)</button>
+        <button class="btn-toggle accent-cyan" id="apply-key-rotors-btn">Engage Key Mod 4</button>
+        <button class="btn-toggle" id="swap-symbols-btn">Swap Symbols / Chars</button>
+        <button class="btn-toggle" id="reset-flat-btn">Reset 1 | 1111</button>
       </div>
     </section>
 
@@ -737,7 +674,7 @@
     <section class="card tai-card" id="tai-card">
       <div class="field-label">
         <span>Keyed Sequence (Tap to Toggle)</span>
-        <span class="highlight mod4-tint" id="tai-mode-label">SHOWING: TAI MOD 4</span>
+        <span class="highlight mod4-tint" id="tai-mode-label">TAI MOD 4</span>
       </div>
       <div class="tai-strip" id="tai-strip"></div>
     </section>
@@ -796,6 +733,9 @@
     "→99"  // 36 | 9 | Step-99 No-Op Spacer
   ];
 
+  // Clockwise ring order of screen quadrants: 0=TL (Q1), 1=TR (Q2), 3=BR (Q4), 2=BL (Q3)
+  const CW_RING = [0, 1, 3, 2];
+
   // Application State
   const state = {
     mode: "reference",        // 'reference' | 'encode' | 'decode'
@@ -803,8 +743,8 @@
     keyedAlphabet: STD_ALPHABET.split(""),
     masterMod4: 1,            // 1..4
     masterDeg: 0,             // Cumulative degrees for smooth CW rotation
-    quadMod4: [1, 1, 1, 1],   // 1..4 for Q1..Q4
-    quadDeg: [0, 0, 0, 0],    // Cumulative degrees for smooth CW rotation
+    subMod4: [1, 1, 1, 1],    // Orientation (1..4) of underlying sub-grids 0..3
+    subDeg: [0, 0, 0, 0],     // Cumulative degrees for smooth CW rotation
     symbolSwapMode: false,
     taiStripMode: "mod4"      // 'mod4' | 'mod10'
   };
@@ -825,13 +765,11 @@
   const keywordInput = document.getElementById("keyword-input");
   const spinKeyBtn = document.getElementById("spin-key-btn");
   const keyLenLabel = document.getElementById("key-len-label");
+  const cycleMasterBtn = document.getElementById("cycle-master-btn");
+  const applyKeyRotorsBtn = document.getElementById("apply-key-rotors-btn");
   const swapSymbolsBtn = document.getElementById("swap-symbols-btn");
   const resetFlatBtn = document.getElementById("reset-flat-btn");
-  const viewModeLabel = document.getElementById("view-mode-label");
   const masterAngleLabel = document.getElementById("master-angle-label");
-  const mod4Btns = document.querySelectorAll(".mod4-btn");
-  const quadPills = document.querySelectorAll(".quad-pill");
-  const applyKeyRotorsBtn = document.getElementById("apply-key-rotors-btn");
   const taiCard = document.getElementById("tai-card");
   const taiModeLabel = document.getElementById("tai-mode-label");
   const taiStripEl = document.getElementById("tai-strip");
@@ -892,6 +830,22 @@
     return currentDeg + deltaSteps * 90;
   }
 
+  // Resolve which underlying sub-grid (0..3) currently occupies fixed screen quadrant (0=TL, 1=TR, 2=BL, 3=BR)
+  function getLogicalSubGridAtScreenQuad(screenQuad) {
+    const screenRingPos = CW_RING.indexOf(screenQuad);
+    const masterSteps = (state.masterMod4 - 1) % 4;
+    const logicalRingPos = (screenRingPos - masterSteps + 4) % 4;
+    return CW_RING[logicalRingPos];
+  }
+
+  // Get the current orientation (1..4) of each fixed screen quadrant Q1(TL), Q2(TR), Q3(BL), Q4(BR)
+  function getScreenQuadrantOrientations() {
+    return [0, 1, 2, 3].map(sq => {
+      const subIdx = getLogicalSubGridAtScreenQuad(sq);
+      return state.subMod4[subIdx];
+    });
+  }
+
   // Initialize Dual-Layer DOM
   function initGridDOM() {
     staticBedEl.innerHTML = "";
@@ -907,13 +861,13 @@
         const staticMod4 = getMod4(taiNum);
         const staticMod10 = getMod10Display(taiNum);
         const staticSym = STATIC_SYMBOLS[idx];
-        const visualQuad = (r >= 3 ? 2 : 0) + (c >= 3 ? 1 : 0);
+        const screenQuad = (r >= 3 ? 2 : 0) + (c >= 3 ? 1 : 0);
 
         const cell = document.createElement("div");
         cell.className = "static-cell";
         cell.dataset.r = r;
         cell.dataset.c = c;
-        cell.dataset.visualQuad = visualQuad;
+        cell.dataset.screenQuad = screenQuad;
 
         cell.innerHTML = `
           <span class="ref-tl">${taiStr}</span>
@@ -925,7 +879,7 @@
 
         cell.addEventListener("click", e => {
           e.stopPropagation();
-          rotateVisualQuadrantCW(visualQuad);
+          rotateScreenQuadrantCW(screenQuad);
         });
 
         staticBedEl.appendChild(cell);
@@ -959,20 +913,25 @@
     }
   }
 
-  // Rotate whichever logical quadrant is currently sitting in visual screen quadrant `visualQuad`
-  function rotateVisualQuadrantCW(visualQuad) {
-    const cwRing = [0, 1, 3, 2];
-    const visualRingPos = cwRing.indexOf(visualQuad);
-    const masterSteps = (state.masterMod4 - 1) % 4;
-    const logicalRingPos = (visualRingPos - masterSteps + 4) % 4;
-    const logicalQ = cwRing[logicalRingPos];
-
-    state.quadMod4[logicalQ] = (state.quadMod4[logicalQ] % 4) + 1;
-    state.quadDeg[logicalQ] += 90;
+  // Rotate whichever sub-grid is currently sitting in fixed screen quadrant `screenQuad`
+  function rotateScreenQuadrantCW(screenQuad) {
+    const logicalSub = getLogicalSubGridAtScreenQuad(screenQuad);
+    state.subMod4[logicalSub] = (state.subMod4[logicalSub] % 4) + 1;
+    state.subDeg[logicalSub] += 90;
     applyPhysicalRotations();
 
     if (state.mode === "encode") runEncode(ioInput.value);
     if (state.mode === "decode") runDecode(ioInput.value);
+  }
+
+  // Step 2: Set fixed Screen Quadrants Q1(TL), Q2(TR), Q3(BL), Q4(BR) from first 4 keyed chars
+  function applyKeywordToScreenQuadrants() {
+    for (let screenQuad = 0; screenQuad < 4; screenQuad++) {
+      const targetOrient = getMod4(getTAI(state.keyedAlphabet[screenQuad]));
+      const logicalSub = getLogicalSubGridAtScreenQuad(screenQuad);
+      state.subDeg[logicalSub] = stepAngleToMod4(state.subDeg[logicalSub], targetOrient);
+      state.subMod4[logicalSub] = targetOrient;
+    }
   }
 
   // Update moving glyph characters
@@ -989,16 +948,17 @@
     masterCarrierEl.style.transform = `rotate(${state.masterDeg}deg)`;
 
     for (let q = 0; q < 4; q++) {
-      quadCarrierEls[q].style.transform = `rotate(${state.quadDeg[q]}deg)`;
-      const totalDeg = state.masterDeg + state.quadDeg[q];
+      quadCarrierEls[q].style.transform = `rotate(${state.subDeg[q]}deg)`;
+      const totalDeg = state.masterDeg + state.subDeg[q];
       const glyphs = quadCarrierEls[q].querySelectorAll(".gimbal-glyph");
       glyphs.forEach(g => {
         g.style.transform = `rotate(${-totalDeg}deg)`;
       });
     }
 
-    const configStr = `${state.masterMod4} | ${state.quadMod4.join("")}`;
-    const isFlat = state.masterMod4 === 1 && state.quadMod4.every(v => v === 1);
+    const screenQuads = getScreenQuadrantOrientations();
+    const configStr = `${state.masterMod4} | ${screenQuads.join("")}`;
+    const isFlat = state.masterMod4 === 1 && screenQuads.every(v => v === 1);
     rotorStateBadge.textContent = configStr;
     rimConfigFooter.textContent = `CONFIG: ${configStr}${isFlat ? " (FLAT)" : ""}`;
 
@@ -1006,15 +966,8 @@
     const hintChar = STD_ALPHABET[state.masterMod4 - 1];
     masterAngleLabel.textContent = `MOD ${state.masterMod4} · ${normalizedMasterDeg}° (HINT ${hintChar})`;
 
-    mod4Btns.forEach(btn => {
-      btn.classList.toggle("active", Number(btn.dataset.m) === state.masterMod4);
-    });
-
-    for (let q = 0; q < 4; q++) {
-      const qm = state.quadMod4[q];
-      const qDeg = (qm - 1) * 90;
-      document.getElementById(`q-val-${q}`).textContent = `M${qm} · ${qDeg}°`;
-    }
+    const nextMod = (state.masterMod4 % 4) + 1;
+    cycleMasterBtn.textContent = `Rotate Master (${state.masterMod4} → ${nextMod})`;
   }
 
   // Mathematical Matrix Lookup matching the exact Physical Rotations
@@ -1047,7 +1000,7 @@
         [grid[r0 + 1][c0], grid[r0 + 1][c0 + 1], grid[r0 + 1][c0 + 2]],
         [grid[r0 + 2][c0], grid[r0 + 2][c0 + 1], grid[r0 + 2][c0 + 2]]
       ];
-      const rotSub = rotateMatrixCW(sub, state.quadMod4[q] - 1);
+      const rotSub = rotateMatrixCW(sub, state.subMod4[q] - 1);
       for (let r = 0; r < 3; r++) {
         for (let c = 0; c < 3; c++) {
           grid[r0 + r][c0 + c] = rotSub[r][c];
@@ -1064,7 +1017,7 @@
     taiStripEl.innerHTML = "";
     const isMod4 = state.taiStripMode === "mod4";
 
-    taiModeLabel.textContent = isMod4 ? "SHOWING: TAI MOD 4" : "SHOWING: TAI MOD 10";
+    taiModeLabel.textContent = isMod4 ? "TAI MOD 4" : "TAI MOD 10";
     taiModeLabel.classList.toggle("mod4-tint", isMod4);
     taiModeLabel.classList.toggle("mod10-tint", !isMod4);
 
@@ -1109,22 +1062,21 @@
       return;
     }
 
+    // Step 1: Rotate Master Grid to TAI Mod 4 of first plaintext character
     const firstCh = firstValid[0];
     const firstTAI = getTAI(firstCh);
     const targetMaster = getMod4(firstTAI);
     state.masterDeg = stepAngleToMod4(state.masterDeg, targetMaster);
     state.masterMod4 = targetMaster;
 
-    for (let q = 0; q < 4; q++) {
-      const targetQ = getMod4(getTAI(state.keyedAlphabet[q]));
-      state.quadDeg[q] = stepAngleToMod4(state.quadDeg[q], targetQ);
-      state.quadMod4[q] = targetQ;
-    }
+    // Step 2: Set Screen Quadrants Q1..Q4 from first four keyed characters
+    applyKeywordToScreenQuadrants();
     applyPhysicalRotations();
     firstCharInfo.textContent = `1ST CHAR: ${firstCh} (TAI ${firstTAI} → MOD ${state.masterMod4})`;
 
     const mat = getPermutedGrid();
     const flatOrder = mat.flat().map(idx => state.keyedAlphabet[idx]);
+    const screenQuads = getScreenQuadrantOrientations();
 
     const words = raw.trim().split(/\s+/).filter(Boolean);
     const encodedWords = [];
@@ -1158,7 +1110,7 @@
     encodedWords.forEach((ew, idx) => {
       joined += ew;
       if (idx < encodedWords.length - 1) {
-        const delim = ((idx + state.masterMod4 + state.quadMod4[0]) % 9) + 1;
+        const delim = ((idx + state.masterMod4 + screenQuads[0]) % 9) + 1;
         joined += String(delim);
       }
     });
@@ -1181,17 +1133,15 @@
       return;
     }
 
+    // Step 1: Rotate Master Grid to TAI Mod 4 of trailing ciphertext character
     const tailHint = cleanAll.slice(-1);
     const hintTAI = getTAI(tailHint);
     const targetMaster = getMod4(hintTAI);
     state.masterDeg = stepAngleToMod4(state.masterDeg, targetMaster);
     state.masterMod4 = targetMaster;
 
-    for (let q = 0; q < 4; q++) {
-      const targetQ = getMod4(getTAI(state.keyedAlphabet[q]));
-      state.quadDeg[q] = stepAngleToMod4(state.quadDeg[q], targetQ);
-      state.quadMod4[q] = targetQ;
-    }
+    // Step 2: Set Screen Quadrants Q1..Q4 from first four keyed characters
+    applyKeywordToScreenQuadrants();
     applyPhysicalRotations();
     firstCharInfo.textContent = `TAIL HINT: ${tailHint} → MASTER MOD ${state.masterMod4}`;
 
@@ -1243,8 +1193,8 @@
       state.masterMod4 = 1;
       state.masterDeg = stepAngleToMod4(state.masterDeg, 1);
       for (let q = 0; q < 4; q++) {
-        state.quadMod4[q] = 1;
-        state.quadDeg[q] = stepAngleToMod4(state.quadDeg[q], 1);
+        state.subMod4[q] = 1;
+        state.subDeg[q] = stepAngleToMod4(state.subDeg[q], 1);
       }
       applyPhysicalRotations();
     } else if (state.mode === "encode") {
@@ -1254,14 +1204,22 @@
     }
   }
 
-  // Tapping anywhere on the outer Master Rim rotates Master Grid 90° CW
-  masterOuterRim.addEventListener("click", e => {
-    if (e.target.closest(".static-cell")) return;
+  // Helper to cycle Master Grid 1 -> 2 -> 3 -> 4 -> 1
+  function cycleMasterGridCW() {
     state.masterMod4 = (state.masterMod4 % 4) + 1;
     state.masterDeg += 90;
     applyPhysicalRotations();
     if (state.mode === "encode") runEncode(ioInput.value);
     if (state.mode === "decode") runDecode(ioInput.value);
+  }
+
+  // Single Cycle Master Button
+  cycleMasterBtn.addEventListener("click", cycleMasterGridCW);
+
+  // Tapping anywhere on the outer Master Rim also cycles Master Grid 90° CW
+  masterOuterRim.addEventListener("click", e => {
+    if (e.target.closest(".static-cell")) return;
+    cycleMasterGridCW();
   });
 
   // Keyword Input & Spin Key
@@ -1271,11 +1229,19 @@
   });
 
   spinKeyBtn.addEventListener("click", () => {
-    const samples = ["VOYAGER", "FREMONT", "CIPHER36", "OBLIVION", "STANLEY", "TACOMA21", "AURORA"];
+    const samples = ["KEYWORD", "VOYAGER", "FREMONT", "CIPHER36", "OBLIVION", "STANLEY", "TACOMA21", "AURORA"];
     const pick = samples[Math.floor(Math.random() * samples.length)];
     keywordInput.value = pick;
     state.keyword = pick;
     handleKeywordUpdate();
+  });
+
+  // Engage Keyed Screen Quadrant Orientations (Step 2)
+  applyKeyRotorsBtn.addEventListener("click", () => {
+    applyKeywordToScreenQuadrants();
+    applyPhysicalRotations();
+    if (state.mode === "encode") runEncode(ioInput.value);
+    if (state.mode === "decode") runDecode(ioInput.value);
   });
 
   // Swap Symbols / Characters Toggle
@@ -1283,7 +1249,6 @@
     state.symbolSwapMode = !state.symbolSwapMode;
     gridArenaEl.classList.toggle("symbol-swap-mode", state.symbolSwapMode);
     swapSymbolsBtn.classList.toggle("active", state.symbolSwapMode);
-    viewModeLabel.textContent = state.symbolSwapMode ? "VIEW: SYMBOLS" : "VIEW: CHARS";
   });
 
   // Reset to 1 | 1111 Flat Configuration
@@ -1291,44 +1256,10 @@
     state.masterMod4 = 1;
     state.masterDeg = stepAngleToMod4(state.masterDeg, 1);
     for (let q = 0; q < 4; q++) {
-      state.quadMod4[q] = 1;
-      state.quadDeg[q] = stepAngleToMod4(state.quadDeg[q], 1);
+      state.subMod4[q] = 1;
+      state.subDeg[q] = stepAngleToMod4(state.subDeg[q], 1);
     }
     applyPhysicalRotations();
-  });
-
-  // Engage Keyed Quadrant Rotations on Demand
-  applyKeyRotorsBtn.addEventListener("click", () => {
-    for (let q = 0; q < 4; q++) {
-      const targetQ = getMod4(getTAI(state.keyedAlphabet[q]));
-      state.quadDeg[q] = stepAngleToMod4(state.quadDeg[q], targetQ);
-      state.quadMod4[q] = targetQ;
-    }
-    applyPhysicalRotations();
-  });
-
-  // Master Mod 4 Selector Buttons
-  mod4Btns.forEach(btn => {
-    btn.addEventListener("click", () => {
-      const targetM = Number(btn.dataset.m);
-      state.masterDeg = stepAngleToMod4(state.masterDeg, targetM);
-      state.masterMod4 = targetM;
-      applyPhysicalRotations();
-      if (state.mode === "encode") runEncode(ioInput.value);
-      if (state.mode === "decode") runDecode(ioInput.value);
-    });
-  });
-
-  // Quadrant Pill Taps
-  quadPills.forEach(pill => {
-    pill.addEventListener("click", () => {
-      const q = Number(pill.dataset.q);
-      state.quadMod4[q] = (state.quadMod4[q] % 4) + 1;
-      state.quadDeg[q] += 90;
-      applyPhysicalRotations();
-      if (state.mode === "encode") runEncode(ioInput.value);
-      if (state.mode === "decode") runDecode(ioInput.value);
-    });
   });
 
   // Mode Switcher
@@ -1405,7 +1336,8 @@
     const h = canvas.height;
 
     const m = state.masterMod4;
-    const [q1, q2, q3, q4] = state.quadMod4;
+    const screenQuads = getScreenQuadrantOrientations();
+    const [q1, q2, q3, q4] = screenQuads;
     const rotorSig = m * 29 + q1 * 17 + q2 * 23 + q3 * 31 + q4 * 37;
     const baseHue = (255 + rotorSig * 3.4) % 360;
 
@@ -1414,7 +1346,7 @@
 
     ctx.globalCompositeOperation = "lighter";
     clouds.forEach((cl, idx) => {
-      const qVal = state.quadMod4[idx];
+      const qVal = screenQuads[idx];
       const orbitAngle = ts * cl.speed * (0.7 + qVal * 0.35) + cl.phase + (m - 1) * 0.8;
       const cx = cl.bx + Math.cos(orbitAngle) * (w * 0.12);
       const cy = cl.by + Math.sin(orbitAngle * 0.85) * (h * 0.12);
@@ -1434,7 +1366,7 @@
     const speedScale = 0.65 + (m + q1 + q2 + q3 + q4) * 0.14;
     for (let i = 0; i < particles.length; i++) {
       const p = particles[i];
-      const qBias = state.quadMod4[p.group];
+      const qBias = screenQuads[p.group];
       const swirlAngle = ((m - 1) * 0.5 + (qBias - 1) * 0.35);
 
       p.x += (p.vx * Math.cos(swirlAngle) - p.vy * Math.sin(swirlAngle)) * speedScale;
